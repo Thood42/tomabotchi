@@ -92,7 +92,9 @@ def healthz() -> str:
 
 
 def _page(request: Request, name: str, **ctx) -> HTMLResponse:
-    return HTMLResponse(views.render(name, **{**views.status_context(request.app.state.conn), **ctx}))
+    conn = request.app.state.conn
+    pets = ctx.get("pets") or views.rack_context(conn)["pets"]
+    return HTMLResponse(views.render(name, **{**views.status_context(conn), "jump": views.jump_index(pets), **ctx}))
 
 
 def _pet_or_404(request: Request, pet_id: str):

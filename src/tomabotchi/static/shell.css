@@ -188,3 +188,23 @@ code, pre { font-family: "Chivo Mono", ui-monospace, monospace; font-size: 12.5p
   background: var(--lcd); color: var(--pixel); font: 500 13px/1.3 "Chivo Mono", monospace; box-shadow: 0 10px 30px var(--shadow); pointer-events: none; }
 .toast.show { translate: -50% 0; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .toast, .cap { transition: none; } }
+
+/* jump field, palette and theme toggle */
+.jump { margin-left: auto; width: 340px; max-width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 11px; border: 0; border-radius: 4px; background: var(--lcd); color: var(--pixel);
+  box-shadow: inset 2px 2px 0 rgba(31, 42, 27, .25); font: 500 12.5px/1.2 "Chivo Mono", monospace; text-align: left; }
+.jump span:last-child { margin-left: auto; opacity: .7; }
+.jump + nav { margin-left: 0; }
+.themer { padding: 6px 11px; border: 0; border-radius: 4px; background: none; color: var(--dim); font: 500 12px/1 "Chivo Mono", monospace; }
+.themer:hover { color: var(--text); }
+.palette { margin: 13vh auto 0; width: min(560px, 92vw); padding: 0; border: 0; border-radius: 6px; overflow: hidden; background: var(--face); color: var(--text); box-shadow: 0 30px 80px var(--shadow), inset 0 0 0 1px var(--groove); }
+.palette::backdrop { background: rgba(10, 12, 16, .6); }
+.palette .in { margin: 10px; padding: 10px 12px; border-radius: 3px; background: var(--lcd); box-shadow: inset 2px 2px 0 rgba(31, 42, 27, .25); }
+.palette input { width: 100%; border: 0; background: none; outline: none; color: var(--pixel); font: 500 15px/1.2 "Chivo Mono", monospace; }
+.palette input::placeholder { color: rgba(31, 42, 27, .55); }
+.palette ul { list-style: none; margin: 0; padding: 0 6px 8px; max-height: 320px; overflow: auto; }
+.palette li { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 3px; cursor: pointer; }
+.palette li[aria-selected="true"] { background: var(--raise); box-shadow: inset 3px 0 0 var(--signal); }
+.palette li small { margin-left: auto; font: 500 11.5px/1 "Chivo Mono", monospace; color: var(--faint); }
+.palette li.sec { padding: 10px 10px 4px; cursor: default; font: 500 11.5px/1 "Chivo Mono", monospace; color: var(--faint); }
+@media (max-width: 900px) { .jump { width: 220px; } }
+@media (max-width: 760px) { .jump { order: 9; width: 100%; margin-left: 0; } }

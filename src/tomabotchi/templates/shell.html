@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="htmx-config" content='{"globalViewTransitions": true}'>
+<script>try { var t = localStorage.getItem("tb-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <title>{% block title %}tomabotchi{% endblock %}</title>
 <link rel="stylesheet" href="{{ asset('shell.css') }}">
 <link rel="stylesheet" href="{{ asset('desk.css') }}">
@@ -27,13 +28,20 @@
 <header class="top">
   <a class="brand" href="/"><i></i>tomabotchi</a>
   {% block transport %}{% endblock %}
+  <button class="jump" type="button" data-open-palette><span>jump to a pet, task or setting</span><span>ctrl k</span></button>
   <nav aria-label="Pages">
     {% include "_status.html" %}
     <a href="/memory" hx-boost="false">Archive</a>
     <a href="/settings" hx-boost="false">Settings</a>
+    <button class="themer" type="button" data-theme-toggle title="Light, dark or follow the system" aria-label="Theme"></button>
     <a class="btn primary" href="/hatch" hx-boost="false">Hatch a pet</a>
   </nav>
 </header>
 {% block content %}{% endblock %}
+<script type="application/json" id="jump-data">{{ jump|tojson }}</script>
+<dialog id="palette" class="palette" aria-label="Jump to">
+  <div class="in"><input id="palette-q" type="text" role="combobox" aria-expanded="true" aria-controls="palette-list" placeholder="type a pet, task or command" autocomplete="off" spellcheck="false"></div>
+  <ul id="palette-list" role="listbox"></ul>
+</dialog>
 </body>
 </html>

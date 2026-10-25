@@ -356,6 +356,40 @@ def desk_context(conn, focus: str | None) -> dict:
             "retired_count": len(store.list_pets(conn, retired=True)), **status}
 
 
+def jump_index(pets: list[dict]) -> list[dict]:
+    """What Ctrl K can reach: {'group': 'Pets' | 'Do' | 'Go', 'label', 'hint', and one of 'href' (go there) or
+    'post' (+ 'body', do it now), 'focus' (a selector to focus once there), 'boost' (False for pages outside the
+    shell)}. Pets and how they are; the actions that make sense for each right now; the pages."""
+    out: list[dict] = []
+    calling = [c for c in pets if c["call"]]
+    for c in pets:
+        pet, v = c["pet"], c["vitals"]
+        state = ("calling" if c["call"] else "stuck" if v.sick_reason else "asleep" if c["lights_off"]
+                 else "working" if c["working"] else "no task" if not c["task"] else "idle")
+        out.append({"group": "Pets", "label": pet.name, "hint": state, "href": f"/pets/{pet.id}"})
+    if calling:
+        oldest = min(calling, key=lambda c: c["call"].asked_at)
+        out.append({"group": "Do", "label": "Answer the next call", "hint": "N", "href": f"/?focus={oldest['pet'].id}"})
+    for c in pets:
+        pet, v = c["pet"], c["vitals"]
+        if pet.state in ("awake", "asleep"):
+            verb, on = ("Wake", 1) if c["lights_off"] else ("Sleep", 0)
+            out.append({"group": "Do", "label": f"{verb} {pet.name}", "hint": "", "post": f"/pets/{pet.id}/lights", "body": {"on": on}})
+        if v.sick_reason and not c["lights_off"]:
+            out.append({"group": "Do", "label": f"Unstick {pet.name}", "hint": "stuck", "post": f"/pets/{pet.id}/medicine"})
+        out.append({"group": "Do", "label": f"New task for {pet.name}", "hint": "", "href": f"/pets/{pet.id}", "focus": "#feed-text"})
+    out.append({"group": "Do", "label": "Hatch a pet", "hint": "", "href": "/hatch", "boost": False})
+    for c in pets:
+        pet = c["pet"]
+        out.append({"group": "Go", "label": f"{pet.name}'s soul", "hint": "", "href": f"/pets/{pet.id}/soul"})
+        if pet.brain != "fake":
+            out.append({"group": "Go", "label": f"{pet.name}'s workspace", "hint": "", "href": f"/pets/{pet.id}/workspace"})
+    out += [{"group": "Go", "label": "Desk", "hint": "", "href": "/"},
+            {"group": "Go", "label": "Archive", "hint": "", "href": "/memory", "boost": False},
+            {"group": "Go", "label": "Settings", "hint": "", "href": "/settings", "boost": False}]
+    return out
+
+
 def rack_context(conn) -> dict:
     """Every pet, for the console's rack."""
     return {"pets": [pet_context(conn, p) for p in store.list_pets(conn)]}

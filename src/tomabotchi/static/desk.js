@@ -87,6 +87,8 @@
     const z = e.target.closest(".zoom button");
     if (z) { setZoom(Number(z.dataset.w)); return; }
     if (!screen() || e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.target.closest("button, input, textarea")) return;
+    const next = e.target.closest("#status.on");           // "N calling" on the desk focuses that pet without a reload
+    if (next) { e.preventDefault(); e.stopPropagation(); focusPet(new URL(next.href).searchParams.get("focus")); return; }
     const hit = e.target.closest(".strips .mod, .lane");
     if (!hit) return;
     e.preventDefault();                      // a plain click focuses; a modified click still opens the pet

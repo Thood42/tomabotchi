@@ -273,3 +273,103 @@ setInterval(() => {
     el.textContent = `waiting ${s >= 60 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s` : `${s}s`}`;
   });
 }, 1000);
+
+// ---- jump palette (Ctrl K), next call (N) and theme ----
+(() => {
+  const dlg = () => document.getElementById("palette");
+  let shown = [], sel = 0;
+  const entries = () => { try { return JSON.parse(document.getElementById("jump-data").textContent); } catch { return []; } };
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  function render() {
+    const q = document.getElementById("palette-q").value.trim().toLowerCase();
+    shown = entries().filter((e) => !q || `${e.label} ${e.hint}`.toLowerCase().includes(q));
+    sel = Math.min(sel, Math.max(0, shown.length - 1));
+    let last = "", html = "";
+    shown.forEach((e, i) => {
+      if (e.group !== last) { html += `<li class="sec" role="presentation">${e.group}</li>`; last = e.group; }
+      html += `<li role="option" data-i="${i}" aria-selected="${i === sel}">${esc(e.label)}<small>${esc(e.hint || "")}</small></li>`;
+    });
+    document.getElementById("palette-list").innerHTML = html || '<li class="sec" role="presentation">Nothing matches</li>';
+  }
+
+  function open() {
+    const d = dlg();
+    if (!d || d.open) return;
+    document.getElementById("palette-q").value = "";
+    sel = 0;
+    render();
+    d.showModal();
+    document.getElementById("palette-q").focus();
+  }
+
+  // Navigate with the same boosted fetch a link would use, so the stream and the rack stay put.
+  function go(href, boost = true, focus) {
+    if (focus) sessionStorage.setItem("tb-focus", focus);
+    if (!boost || !window.htmx) { location.href = href; return; }
+    const a = document.createElement("a");
+    a.href = href;
+    a.hidden = true;
+    document.body.append(a);
+    htmx.process(a);
+    a.click();
+    a.remove();
+  }
+
+  async function run(e) {
+    dlg().close();
+    if (e.post) {
+      const r = await fetch(e.post, { method: "POST", body: new URLSearchParams(e.body || {}) });
+      toast(r.ok ? `${e.label}: done` : errorText({ responseText: await r.text(), statusText: r.statusText }));
+    } else if (e.focus && location.pathname === e.href) {
+      document.querySelector(e.focus)?.focus();
+    } else if (e.href) {
+      go(e.href, e.boost !== false, e.focus);
+    }
+  }
+
+  // arriving by a palette entry that asked for a field: focus it once the page has settled
+  document.addEventListener("htmx:afterSettle", () => {
+    const f = sessionStorage.getItem("tb-focus");
+    if (f) { sessionStorage.removeItem("tb-focus"); document.querySelector(f)?.focus(); }
+  });
+
+  document.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-open-palette]")) return open();
+    const li = ev.target.closest("#palette-list [data-i]");
+    if (li) return run(shown[Number(li.dataset.i)]);
+    if (ev.target === dlg()) dlg().close();                     // a click on the backdrop
+    if (ev.target.closest("[data-theme-toggle]")) setTheme(NEXT[theme()]);
+  });
+  document.addEventListener("input", (ev) => { if (ev.target.id === "palette-q") { sel = 0; render(); } });
+  document.addEventListener("keydown", (ev) => {
+    const d = dlg();
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k") { ev.preventDefault(); return d.open ? d.close() : open(); }
+    if (d?.open) {
+      if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+        ev.preventDefault();
+        sel = Math.max(0, Math.min(shown.length - 1, sel + (ev.key === "ArrowDown" ? 1 : -1)));
+        render();
+        document.querySelector('#palette-list [aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+      } else if (ev.key === "Enter" && shown[sel]) { ev.preventDefault(); run(shown[sel]); }
+      return;
+    }
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.key.toLowerCase() !== "n") return;
+    if (document.activeElement?.matches?.("input, textarea, select, [contenteditable]")) return;
+    const next = document.getElementById("status");
+    if (next?.classList.contains("on")) { ev.preventDefault(); next.click(); }
+  });
+
+  // Theme: light, dark, or follow the system; remembered in this browser.
+  const NEXT = { system: "light", light: "dark", dark: "system" };
+  const theme = () => { try { return localStorage.getItem("tb-theme") || "system"; } catch { return "system"; } };
+  function setTheme(mode) {
+    try { mode === "system" ? localStorage.removeItem("tb-theme") : localStorage.setItem("tb-theme", mode); } catch { /* private window */ }
+    mode === "system" ? delete document.documentElement.dataset.theme : (document.documentElement.dataset.theme = mode);
+    label();
+  }
+  const label = () => document.querySelectorAll("[data-theme-toggle]").forEach((b) => { b.textContent = `theme: ${theme()}`; });
+  window.setTheme = setTheme;
+  label();
+  document.addEventListener("htmx:afterSettle", label);
+})();

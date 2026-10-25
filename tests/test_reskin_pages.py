@@ -119,3 +119,33 @@ def test_pages_render_without_the_old_toy_words(client):
     for text in pages:
         for word in ("Feed ", "Medicine", "Lights", "hearts", "Memory shelf", "Hungry"):
             assert word not in text, word
+
+
+def ctx_for(name, *, call=None, sick=None, asleep=False, working=False, brain="fake"):
+    from types import SimpleNamespace
+    pet = SimpleNamespace(id=name.lower(), name=name, state="asleep" if asleep else "awake", brain=brain)
+    return {"pet": pet, "call": call, "vitals": SimpleNamespace(sick_reason=sick), "lights_off": asleep,
+            "working": working, "task": object() if working else None}
+
+
+def test_jump_index_offers_wake_only_for_sleeping_pets_and_unstick_only_for_sick():
+    from tomabotchi import views
+    labels = lambda *pets: [e["label"] for e in views.jump_index(list(pets))]            # noqa: E731
+    awake, asleep, sick = ctx_for("Pip", working=True), ctx_for("Fig", asleep=True), ctx_for("Moth", sick="loop")
+    got = labels(awake, asleep, sick)
+    assert "Sleep Pip" in got and "Wake Fig" in got and "Sleep Fig" not in got and "Wake Pip" not in got
+    assert "Unstick Moth" in got and "Unstick Pip" not in got
+    assert "Answer the next call" not in got
+    from datetime import datetime
+    calling = ctx_for("Quill", call=type("C", (), {"asked_at": datetime(2026, 1, 1)})())
+    assert "Answer the next call" in labels(calling)
+    pets = [e for e in views.jump_index([awake]) if e["group"] == "Pets"]
+    assert pets == [{"group": "Pets", "label": "Pip", "hint": "working", "href": "/pets/pip"}]
+
+
+def test_every_shell_page_carries_the_palette_and_theme_toggle(client):
+    pet_id = hatch(client, "Pip")
+    for url in ("/", f"/pets/{pet_id}", f"/pets/{pet_id}/soul"):
+        page = client.get(url).text
+        assert 'id="jump-data"' in page and 'id="palette"' in page and "data-theme-toggle" in page
+        assert '"label": "Pip"' in page or '"label":"Pip"' in page
