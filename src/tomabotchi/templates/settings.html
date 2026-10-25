@@ -1,22 +1,24 @@
-{% extends "base.html" %}
-{% block title %}Settings{% endblock %}
+{% extends "shell.html" %}
+{% block title %}Settings · tomabotchi{% endblock %}
 {% block content %}
-  <section class="intro"><h1>Settings</h1></section>
+<div class="wrap">
+  <section class="page-head"><h1>Settings</h1></section>
   <div class="cols">
     {% include "_notifications.html" %}
-    <section class="sheet" aria-labelledby="homes-h">
+    <section class="panel" aria-labelledby="homes-h">
       <h2 id="homes-h">Homes</h2>
-      <p class="muted">The homes you can pick when hatching a pet. Each pet gets its own sealed copy.</p>
+      <p class="dim">The homes you can pick when hatching a pet. Each pet gets its own sealed copy.</p>
       <ul class="homes">
         {% for h in homes %}
-        <li><b>{{ h.name }}</b>{% if h.default %}<span class="tag">Default</span>{% else %}<span></span>{% endif %}
-          <small>{{ h.description }}</small>
+        <li><b>{{ h.name }}</b>{% if h.default %}<span class="st ok">default</span>{% else %}<span></span>{% endif %}
+          <small class="dim">{{ h.description }}</small>
           <code>{{ h.image }}</code>
           <small class="ready">{{ home_status[h.slug] }}</small></li>
         {% endfor %}
       </ul>
-      <p class="cfg">This list is set in tomabotchi's config file on the host machine
+      <p class="dim">This list is set in tomabotchi's config file on the host machine
         (<code>tomabotchi.toml</code>). Edit it there and restart to add or remove homes.</p>
     </section>
   </div>
+</div>
 {% endblock %}

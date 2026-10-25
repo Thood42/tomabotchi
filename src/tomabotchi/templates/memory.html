@@ -1,42 +1,36 @@
-{% extends "base.html" %}
-{% block title %}Memory shelf{% endblock %}
-{% block body_attrs %} class="dusk"{% endblock %}
+{% extends "shell.html" %}
+{% block title %}Archive · tomabotchi{% endblock %}
 {% block content %}
-  <section class="intro">
-    <div>
-      <h1>Memory shelf</h1>
-      <p class="muted">Retired pets rest here. Nobody dies in tomabotchi. When you retire a pet, its workspace is packed
-        into a backup and its soul is kept, so you can download either or hatch a new pet from that soul.</p>
-    </div>
+<div class="wrap">
+  <section class="page-head">
+    <h1>Archive</h1>
+    <p class="dim">Retired pets rest here. When you retire a pet, its workspace is packed into a backup and its soul is kept,
+      so you can download either or hatch a new pet from that soul.</p>
   </section>
   {% if rested %}
   <ul class="rested">
     {% for r in rested %}{% set pet = r.pet %}
-    <li>
-      <div class="egg" style="--shell: var(--{{ pet.shell }})" aria-hidden="true">
-        <div class="bezel"><div class="lcd" data-scene="sleep" data-seed="{{ pet.look_seed }}"></div></div>
-        <div class="keys"><i></i><i></i><i></i></div>
-      </div>
-      <section class="sheet card" aria-labelledby="rest-{{ pet.id }}">
-        <div class="who"><h2 id="rest-{{ pet.id }}">{{ pet.name }}</h2>
-          <span>Lived {{ r.lived }} day{{ "s" if r.lived != 1 }}, finished {{ pet.tasks_done }} task{{ "s" if pet.tasks_done != 1 }}.</span></div>
-        <dl class="facts">
+    <li class="panel">
+      <span class="lcdbox" aria-hidden="true"><span class="lcd" data-scene="sleep" data-seed="{{ pet.look_seed }}"></span></span>
+      <div class="body">
+        <h2 id="rest-{{ pet.id }}">{{ pet.name }} <span class="lbl">lived {{ r.lived }} day{{ "s" if r.lived != 1 }}, finished {{ pet.tasks_done }} task{{ "s" if pet.tasks_done != 1 }}</span></h2>
+        <dl class="ro facts">
           <dt>Retired</dt><dd>{{ pet.retired_at.day }} {{ pet.retired_at.strftime("%B %Y") }}.{% if pet.retire_reason %} “{{ pet.retire_reason }}”{% endif %}</dd>
           <dt>Home</dt><dd>{{ r.home_name }}</dd>
           <dt>Backup</dt><dd>{% if r.backup %}<code>{{ r.backup }}</code>, {{ pet.backup_bytes|bytes }}{% else %}None{% endif %}</dd>
         </dl>
-        <div class="actions">
-          {% if r.backup %}<a class="btn" href="/memory/{{ pet.id }}/backup" download>Download backup</a>{% endif %}
+        <div class="answers">
+          {% if r.backup %}<a class="btn" href="/memory/{{ pet.id }}/backup" download hx-boost="false">Download backup</a>{% endif %}
           <a class="btn" href="/pets/{{ pet.id }}/soul">Read its soul</a>
           <a class="btn primary" href="/hatch?from={{ pet.id }}">Hatch a new pet from this soul</a>
         </div>
-      </section>
+      </div>
     </li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="muted">Nobody has retired yet. When a pet has done its job, retire it from its Home panel.</p>
+  <p class="dim">Nobody has retired yet. When a pet has done its job, retire it from its console.</p>
   {% endif %}
-  <div class="shelf-edge" aria-hidden="true"></div>
-  <p class="where">Backups live in <code>data/archive/</code> in the tomabotchi folder on the machine that runs tomabotchi.</p>
+  <p class="dim">Backups live in <code>data/archive/</code> in the tomabotchi folder on the machine that runs tomabotchi.</p>
+</div>
 {% endblock %}

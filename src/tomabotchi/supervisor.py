@@ -206,7 +206,7 @@ class PetSupervisor:
         goal = f" Your task was: {task.prompt.strip()}" if task and task.kind == "task" else ""
         nudge = (f"{what} I stopped you. Step back: don't repeat what just failed. Try a different approach, "
                  f"or tell me plainly what is blocking you.{goal}")
-        return await self.feed("Medicine: try another way", "care", nudge)
+        return await self.feed("Unstick: try another way", "care", nudge)
 
     async def cancel_turn(self, wait: float = 20) -> None:
         """session/cancel, answer any open call as cancelled (as ACP asks of clients), and wait for the turn to end."""

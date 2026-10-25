@@ -38,7 +38,7 @@ class Fleet:
         self.cfg, self.conn, self.bus, self.docker = cfg, conn, bus, docker
         self._sups: dict[str, PetSupervisor] = {}
         self._fakes: dict[str, FakeAgent] = {}
-        self._lights_off: dict[str, str | None] = {}       # pet id → the task Lights off interrupted
+        self._lights_off: dict[str, str | None] = {}       # pet id → the task going to sleep interrupted
         self._tasks: set[asyncio.Task] = set()
         self._warming: dict[str, str] = {}                 # home slug -> what its first image build is doing
         if docker is not None:
@@ -206,7 +206,7 @@ class Fleet:
                 await self.docker.pause(pet_id)
             self._lights_off[pet_id] = interrupted
             store.set_pet_state(self.conn, pet_id, "asleep")
-            self._notice(pet, "lights_off", "Lights off. Sleeping until you turn them on.")
+            self._notice(pet, "lights_off", "Asleep. Wake it when you want it back.")
             return
         if pet_id not in self._lights_off:
             return
@@ -219,7 +219,7 @@ class Fleet:
         else:
             await self._attach(pet, self._token(pet_id), first_task=None)
             sup = self._sups[pet_id]
-        self._notice(pet, "lights_on", "Lights on. Awake again.")
+        self._notice(pet, "lights_on", "Awake again.")
         if interrupted:
             await sup.feed(interrupted, send=f"Continue where you left off. Your task was: {interrupted}")
 
@@ -243,7 +243,7 @@ class Fleet:
         if sup:
             await sup.cancel_turn()
         store.set_pet_state(self.conn, pet.id, "asleep")
-        self._notice(pet, "out_of_budget", f"Out of budget: {reason}. Feed it a new task to give it a fresh budget.")
+        self._notice(pet, "out_of_budget", f"Out of budget: {reason}. Give it a new task to give it a fresh budget.")
         if sup:
             sup.notify("out_of_budget", f"{reason}. It's asleep until you give it a new task.")
 
@@ -251,7 +251,7 @@ class Fleet:
 
     async def pause_for_edit(self, pet_id: str) -> None:
         """Stop the agent (petd SIGSTOPs its process group) but not code-server, so the keeper can
-        edit while the pet holds still. Unlike Lights off, which pauses the whole container."""
+        edit while the pet holds still. Unlike sleep, which pauses the whole container."""
         await self.get(pet_id).acp.petd("pause")
         store.set_pet_state(self.conn, pet_id, "paused")
         publish_pet(self.conn, self.bus, store.get_pet(self.conn, pet_id))
@@ -330,7 +330,7 @@ class Fleet:
         and only then remove its home and files. The pet and its souls stay in the database."""
         pet = store.get_pet(self.conn, pet_id)
         if pet.state == "retired":
-            raise ValueError(f"{pet.name} is already on the memory shelf")
+            raise ValueError(f"{pet.name} is already in the archive")
         sup = self._sups.pop(pet_id, None)
         if sup:
             await sup.cancel_turn()

@@ -118,7 +118,7 @@ async def tidy_script(t: Turn, prompt: str) -> str:
 
 
 async def slow_script(t: Turn, prompt: str) -> str:
-    """Works for a long time without asking: for cancelling mid-task (Lights off, Medicine)."""
+    """Works for a long time without asking: for cancelling mid-task (sleep, unstick)."""
     await t.plan(["Think hard", "Think harder"], current=0)
     for _ in range(600):
         await t.thought("Still thinking...")
@@ -127,7 +127,7 @@ async def slow_script(t: Turn, prompt: str) -> str:
 
 
 async def recover_script(t: Turn, prompt: str) -> str:
-    """After Medicine: tries another way, and it works."""
+    """After unsticking: tries another way, and it works."""
     await t.thought("My keeper stopped me. That page kept failing, so I'll use the listing's RSS feed instead.")
     await t.plan(["Fetch the papers another way", "Summarise them"], current=0)
     await t.tool_call({"toolCallId": "rss-1", "title": "Read page export.arxiv.org/rss/cs.AI", "kind": "fetch",

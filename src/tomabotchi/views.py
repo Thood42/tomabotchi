@@ -178,9 +178,9 @@ def pet_context(conn, pet: Pet) -> dict:
         last = next((t for t in reversed(thoughts) if t.kind == "thought"), None)
         doing = f"Thinking: “{last.payload['text']}”" if last else "Getting started"
     elif task:
-        doing = "Finished its task. Hungry for another."
+        doing = "Finished its task."
     else:
-        doing = "Hungry for a task"
+        doing = "No task yet"
     trouble = next((e for e in reversed(store.recent_events(conn, pet.id, {"notice"}, 30))
                     if e.payload.get("type") in TROUBLE), None)
     if trouble and (last_answer := store.last_usage_at(conn, pet.id)) and last_answer > trouble.ts:
@@ -275,7 +275,7 @@ def soul_context(conn, pet: Pet) -> dict:
 
 
 def memory_context(conn) -> dict:
-    """The memory shelf: retired pets, most recently retired first."""
+    """The archive: retired pets, most recently retired first."""
     rested = []
     for pet in sorted(store.list_pets(conn, retired=True), key=lambda p: p.retired_at, reverse=True):
         home = home_context(pet)

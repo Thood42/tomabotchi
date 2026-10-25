@@ -1,7 +1,7 @@
 """The model gateway: the only way a pet reaches a model.
 
 Pets authenticate with their token. The gateway forwards to Ollama, meters tokens per pet and task
-(the Energy hearts), enforces the budget, and keeps real API keys out of pet containers.
+(the budget readout), enforces the budget, and keeps real API keys out of pet containers.
 Two routes: OpenAI-compatible (Hermes on Ollama) and Anthropic Messages (Claude Code on either
 model, and Hermes on Claude), which goes to the Claude API or to Ollama's own /v1/messages.
 """

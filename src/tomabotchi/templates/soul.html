@@ -3,7 +3,7 @@
 {% set tab = "soul" %}
 {% block body %}
   <div class="scroll soul">
-    <p class="dim">{% if pet.state == "retired" %}{{ pet.name }} is in the <a href="/memory" hx-boost="false">archive</a>.
+    <p class="dim">{% if pet.state == "retired" %}{{ pet.name }} is in the <a href="/memory">archive</a>.
       {% else %}{{ pet.name }} reads this before every task.{% endif %}
       {% if changes %}Changed {{ changes }} time{{ "s" if changes != 1 }} since it hatched.{% else %}Unchanged since it hatched.{% endif %}</p>
     <div class="soul-cols">
@@ -14,7 +14,7 @@
         {% include "_lesson.html" %}
         <details class="soul-edit"{{ " open" if editing }}>
           <summary class="btn">Edit the soul</summary>
-          <form method="post" action="/pets/{{ pet.id }}/soul" hx-boost="false">
+          <form method="post" action="/pets/{{ pet.id }}/soul">
             {{ md_field("content_md", brain_file, "soul-md-" ~ pet.id, value=soul.content, rows=18, required=true,
                         hint=pet.name ~ " reads the new version at its next task.") }}
             <div class="field">
@@ -25,7 +25,7 @@
           </form>
         </details>
         {% else %}
-        <div class="answers"><a class="btn primary" href="/hatch?from={{ pet.id }}" hx-boost="false">Hatch a new pet from this soul</a></div>
+        <div class="answers"><a class="btn primary" href="/hatch?from={{ pet.id }}">Hatch a new pet from this soul</a></div>
         {% endif %}
       </section>
       <div class="side">

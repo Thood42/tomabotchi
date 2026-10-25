@@ -21,19 +21,6 @@ const MAPS = {
   skull: [".###.", "#.#.#", "#####", ".###.", ".#.#."],
   dots: ["#.#.#"],
   dots2: ["#.#.."],
-  heart: [".##.##.", "#######", "#######", ".#####.", "..###..", "...#..."],
-  heartEmpty: [".##.##.", "#..#..#", "#.....#", ".#...#.", "..#.#..", "...#..."],
-  icons: {
-    task: [".........", "..#.#.#..", "..#.#.#..", ".........", "#########", "#.......#", ".#.....#.", "..#####..", "........."],
-    lights: ["...###...", "..#...#..", ".#.....#.", ".#.....#.", "..#...#..", "...###...", "...###...", "...###...", "....#...."],
-    chat: [".#######.", "#.......#", "#.##.##.#", "#.......#", ".#######.", "..#......", ".#.......", ".........", "........."],
-    medicine: ["...###...", "...#.#...", "####.####", "#.......#", "####.####", "...#.#...", "...###...", ".........", "........."],
-    tidy: ["......##.", ".....##..", "....##...", "...##....", "..####...", ".######..", "#.#.#.#..", "#.#.#.#..", "........."],
-    vitals: [".##...##.", "####.####", "#########", "#########", ".#######.", "..#####..", "...###...", "....#....", "........."],
-    train: ["....#....", "....#....", "...###...", "#########", ".#######.", "..#####..", "..##.##..", ".##...##.", "........."],
-    calls: ["....#....", "...###...", "..#####..", "..#####..", "..#####..", ".#######.", "#########", "....#....", "...###..."],
-    dice: ["#########", "#.......#", "#.##..#.#", "#.##....#", "#...#...#", "#....##.#", "#.#..##.#", "#.......#", "#########"],
-  },
 };
 
 // ---- creature generator: a seed picks body, topper, eyes, feet, arms, mouth ----
@@ -201,34 +188,20 @@ function frames(scene, seed) {
     ];
   }
   if (scene === "egg") return [[{ map: MAPS.egg, x: 8, y: 4 }], [{ map: MAPS.egg, x: 9, y: 4 }]];
-  if (scene === "eggmini") return [[{ map: MAPS.egg }], [{ map: MAPS.egg }]];
 }
 
 function renderScene(el) {
   const scene = el.dataset.scene, [a, b] = frames(scene, Number(el.dataset.seed || 1));
   el.dataset.drawn = `${scene}/${el.dataset.seed}`;
-  const [w, h] = scene === "eggmini" ? [16, 13] : [32, 20];
-  const ghost = scene !== "eggmini";
-  el.innerHTML = `<div class="f1">${grid(w, h, a, ghost)}</div><div class="f2">${grid(w, h, b, ghost)}</div>`;
+  el.innerHTML = `<div class="f1">${grid(32, 20, a)}</div><div class="f2">${grid(32, 20, b)}</div>`;
 }
 
-// ---- hydration: draw every LCD, icon and heart row under root (root included) ----
+// ---- hydration: draw every LCD under root (root included) ----
 const within = (root, sel) => [...(root.matches?.(sel) ? [root] : []), ...root.querySelectorAll(sel)];
 
 function hydrate(root = document) {
   within(root, "[data-scene]").forEach((el) => {
     if (el.dataset.drawn !== `${el.dataset.scene}/${el.dataset.seed}` || !el.firstChild) renderScene(el);
-  });
-  within(root, "[data-icon]").forEach((el) => {
-    if (!el.querySelector(":scope > svg")) {
-      el.insertAdjacentHTML("afterbegin", grid(9, 9, [{ map: MAPS.icons[el.dataset.icon] }], false));
-    }
-  });
-  within(root, "[data-hearts]").forEach((el) => {
-    const [n, of] = el.dataset.hearts.split("/").map(Number);
-    el.innerHTML = Array.from({ length: of }, (_, i) =>
-      grid(7, 6, [{ map: i < n ? MAPS.heart : MAPS.heartEmpty }], false)).join("");
-    el.setAttribute("aria-label", `${n} of ${of} hearts`);
   });
 }
 

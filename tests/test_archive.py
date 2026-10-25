@@ -1,4 +1,4 @@
-"""Slice 11: retiring a pet into a verified backup, the memory shelf, and hatching from a soul."""
+"""Slice 11: retiring a pet into a verified backup, the archive, and hatching from a soul."""
 import os
 import socket
 import zipfile
@@ -115,7 +115,7 @@ def test_hatch_from_a_soul_prefills_and_keeps_its_lessons(client):
 
     page = client.get(f"/hatch?from={parent}").text
     assert f'name="lessons_from" value="{parent}"' in page and 'value="Biscuit Jr"' in page
-    assert 'id="preview-egg" style="--shell: var(--lagoon)"' in page                    # the parent's shell
+    assert 'name="shell" value="lagoon"' in page                                        # the parent's shell travels along
     assert "Researching **vector databases**.</textarea>" in page and "Email anyone.</textarea>" in page
     child = client.post("/pets", data={**HATCH, "name": "Biscuit Jr", "purpose_md": "Researching.",
                                        "lessons_from": parent}, follow_redirects=False).headers["location"].rsplit("/", 1)[1]

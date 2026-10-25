@@ -78,7 +78,7 @@ def test_settings_lists_homes_read_only(client):
     page = client.get("/settings").text
     for name in ("Python", "Python with data tools", "Node.js", "Web browser"):
         assert f"<b>{name}</b>" in page
-    homes = page[page.index('id="homes-h"'):]
+    homes = page[page.index('id="homes-h"'):page.index("</section>", page.index('id="homes-h"'))]
     assert "tomabotchi/browser:1" in homes and "<form" not in homes and "<input" not in homes
     assert "Docker isn&#39;t reachable" in page              # TOMABOTCHI_DOCKER=0 in tests
     assert 'href="/settings"' in client.get("/").text

@@ -1,5 +1,5 @@
 {% if pet.state == "retired" %}
-<nav class="tabs" aria-label="{{ pet.name }}"><a href="/memory" hx-boost="false">Archive</a><a href="/pets/{{ pet.id }}/soul" aria-current="page">Soul</a></nav>
+<nav class="tabs" aria-label="{{ pet.name }}"><a href="/memory">Archive</a><a href="/pets/{{ pet.id }}/soul" aria-current="page">Soul</a></nav>
 {% else %}
 <nav class="tabs" aria-label="{{ pet.name }}">
   <a href="/pets/{{ pet.id }}" preload="mouseover"{% if tab == "live" %} aria-current="page"{% endif %}>Live</a>

@@ -1,24 +1,26 @@
-{% extends "base.html" %}
+{% extends "shell.html" %}
 {% from "_md_field.html" import md_field %}
 {% block title %}Hatch a pet{% endblock %}
 {% block content %}
+<div class="wrap">
 <div class="hatch-layout">
   <div>
-    <section class="intro" style="display: block; margin-bottom: 0">
+    <section class="page-head">
       <h1>Hatch a pet</h1>
-      <p class="muted">Your answers become its SOUL.md. You can change any of it later, and it keeps learning from how you treat it.</p>
+      <p class="dim">Your answers become its SOUL.md. You can change any of it later, and it keeps learning from how you treat it.</p>
     </section>
 
     <form method="post" action="/pets">
+      <input type="hidden" name="shell" value="{{ parent.shell if parent else shells[0] }}">
       {% if parent %}
       <input type="hidden" name="lessons_from" value="{{ parent.id }}">
-      <p class="sheet parent-note">Hatching from <b>{{ parent.name }}</b>'s soul. Its answers are filled in below, and
+      <p class="panel parent-note">Hatching from <b>{{ parent.name }}</b>'s soul. Its answers are filled in below, and
         the new pet keeps every lesson {{ parent.name }} learned.</p>
       {% endif %}
       <input type="hidden" name="look_seed" id="look_seed" value="{{ seed }}">
       <div class="step">
         <span class="num">1</span>
-        <div class="sheet">
+        <div class="panel">
           <h2>Name it</h2>
           <div class="field">
             <label for="name">Name</label>
@@ -29,16 +31,11 @@
 
       <div class="step">
         <span class="num">2</span>
-        <div class="sheet">
-          <h2>Pick a shell and a look</h2>
-          <div class="swatches" role="radiogroup" aria-label="Shell colour">
-            {% for s in shells %}
-              <label><input type="radio" name="shell" value="{{ s }}"{% if (parent and s == parent.shell) or (not parent and loop.first) %} checked{% endif %}><span class="chip" style="--c: var(--{{ s }})"></span>{{ s|capitalize }}</label>
-            {% endfor %}
-          </div>
+        <div class="panel">
+          <h2>Pick a look</h2>
           <div class="looks-head">
-            <span class="muted">Every pet is one of a kind. Pick one of these, or shuffle for six more.</span>
-            <button type="button" class="btn" id="shuffle"><span data-icon="dice"></span>Shuffle</button>
+            <span class="dim">Every pet is one of a kind. Pick one of these, or shuffle for six more.</span>
+            <button type="button" class="btn" id="shuffle">Shuffle</button>
           </div>
           <div class="looks" id="looks" aria-label="Looks"></div>
         </div>
@@ -46,7 +43,7 @@
 
       <div class="step">
         <span class="num">3</span>
-        <div class="sheet">
+        <div class="panel">
           <h2>Give it a soul</h2>
           <p class="hint">Markdown works in every box here: lists, **bold**, `code`.</p>
           {{ md_field("purpose_md", "What is it for?", "purpose",
@@ -61,7 +58,7 @@
 
       <div class="step">
         <span class="num">4</span>
-        <div class="sheet">
+        <div class="panel">
           <h2>Give it its first task</h2>
           {{ md_field("first_task_md", "Task", "task", value="Write a hello note in notes/.") }}
           <div class="field">
@@ -103,23 +100,20 @@
 
       <div class="go">
         <button class="btn primary" id="hatch-btn">Hatch Biscuit</button>
-        <span class="muted">Or clear the task and feed it later.</span>
+        <span class="dim">Or clear the task and give it one later.</span>
       </div>
     </form>
   </div>
 
   <aside class="preview" aria-label="Preview">
-    <div class="egg" id="preview-egg" style="--shell: var(--{{ parent.shell if parent else shells[0] }})">
-      <div class="bezel"><div class="lcd" id="preview-lcd" data-scene="happy" data-seed="{{ seed }}"></div></div>
-      <div class="keys"><i></i><i></i><i></i></div>
-    </div>
-    <p class="look-desc" id="look-desc" aria-live="polite"></p>
+    <div class="lcdbox big"><div class="lcd" id="preview-lcd" data-scene="happy" data-seed="{{ seed }}"></div></div>
+    <p class="look-desc dim" id="look-desc" aria-live="polite"></p>
   </aside>
 </div>
-{% endblock %}
-{% block scripts %}
+</div>
 <script>
   (() => {
+    const start = () => {
     const looks = document.getElementById("looks"), lcd = document.getElementById("preview-lcd");
     const desc = document.getElementById("look-desc"), seedInput = document.getElementById("look_seed");
     function choose(seed) {
@@ -138,11 +132,11 @@
       choose(seeds[0]);
     }
     document.getElementById("shuffle").addEventListener("click", () => roll());
-    document.querySelectorAll('input[name="shell"]').forEach((r) => r.addEventListener("change", () =>
-      document.getElementById("preview-egg").style.setProperty("--shell", `var(--${r.value})`)));
     const name = document.getElementById("name"), btn = document.getElementById("hatch-btn");
     name.addEventListener("input", () => { btn.textContent = `Hatch ${name.value.trim() || "it"}`; });
     roll(Number(seedInput.value));
+    };
+    document.readyState === "loading" ? addEventListener("DOMContentLoaded", start) : start();     // kit.js loads deferred
   })();
 </script>
 {% endblock %}

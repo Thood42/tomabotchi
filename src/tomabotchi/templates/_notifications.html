@@ -2,9 +2,9 @@
                ("sick", "A pet got sick", "Stuck in a loop or failing over and over"),
                ("finished", "A pet finished its task", ""),
                ("out_of_budget", "A pet ran out of budget", "It fell asleep partway through")] %}
-<section id="notifications" class="sheet" aria-labelledby="n-h">
+<section id="notifications" class="panel" aria-labelledby="n-h">
   <h2 id="n-h">Notifications</h2>
-  <p class="muted">Your browser beeps for you when you're on another tab or window, like the toy did.</p>
+  <p class="dim">Your browser beeps for you when you're on another tab or window, like the toy did.</p>
   <form hx-put="/settings/notifications" hx-trigger="change" hx-target="#notifications" hx-swap="outerHTML">
     <input type="hidden" name="tz" value="{{ notes.tz or '' }}" data-tz>
     <ul class="rows">

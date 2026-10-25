@@ -115,10 +115,10 @@ def test_soul_and_workspace_wear_the_console_shell(client):
 
 def test_pages_render_without_the_old_toy_words(client):
     pet_id = hatch(client, "Pip")
-    pages = [client.get(u).text for u in ("/", f"/pets/{pet_id}", f"/pets/{pet_id}/soul")]
-    for text in pages:
-        for word in ("Feed ", "Medicine", "Lights", "hearts", "Memory shelf", "Hungry"):
-            assert word not in text, word
+    for url in ("/", f"/pets/{pet_id}", f"/pets/{pet_id}/soul", "/hatch", "/memory", "/settings"):
+        text = client.get(url).text
+        for word in ("Feed ", "Medicine", "Lights", "hearts", "Memory shelf", "Hungry", "Pick a shell"):
+            assert word not in text, (url, word)
 
 
 def ctx_for(name, *, call=None, sick=None, asleep=False, working=False, brain="fake"):

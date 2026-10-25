@@ -106,9 +106,12 @@ def test_assets_are_versioned_and_cached_forever(client):
     assert "immutable" in r.headers["cache-control"] and "max-age=31536000" in r.headers["cache-control"]
 
 
-def test_the_desk_loads_nothing_from_a_cdn(client):
-    page = client.get("/").text
-    assert not any(host in page for host in ("unpkg.com", "googleapis", "gstatic"))
+def test_pages_load_nothing_from_a_cdn(client):
+    from test_reskin_pages import hatch
+    pet_id = hatch(client, "Pip")
+    for url in ("/", f"/pets/{pet_id}", f"/pets/{pet_id}/soul", "/hatch", "/memory", "/settings"):
+        page = client.get(url).text
+        assert not any(host in page for host in ("unpkg.com", "googleapis", "gstatic")), url
 
 
 async def test_poller_fills_workspace_stats(cfg, conn, bus):

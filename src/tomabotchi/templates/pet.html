@@ -26,7 +26,7 @@
     {% if pet.state != "retired" %}
     <button class="plain bad" type="button" onclick="document.getElementById('retire').showModal()">Retire {{ pet.name }}</button>
     <dialog id="retire" class="sheet" aria-labelledby="retire-h">
-      <form method="post" action="/pets/{{ pet.id }}/retire" hx-boost="false">
+      <form method="post" action="/pets/{{ pet.id }}/retire">
         <h2 id="retire-h">Retire {{ pet.name }}?</h2>
         <p>{{ pet.name }} stops working and moves to the archive. Its workspace is packed into a backup in the archive folder, and its soul is kept. You can hatch a new pet from that soul any time.</p>
         <label for="retire-why">Why are you retiring it? (optional)</label>

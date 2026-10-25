@@ -4,7 +4,7 @@
 <div class="app{{ ' noinsp' if not self.inspector()|trim }}" id="page" data-page-pet="{{ pet.id }}">
   <aside class="rail" id="rack" hx-preserve aria-label="Pets">
     {% for ctx in pets %}{{ partial("_module.html", ctx) }}{% endfor %}
-    <a class="add" href="/hatch" hx-boost="false">Hatch a pet</a>
+    <a class="add" href="/hatch">Hatch a pet</a>
   </aside>
   <main class="main">
     <div class="head">

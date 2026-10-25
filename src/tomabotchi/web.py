@@ -231,7 +231,7 @@ async def hatch(request: Request, name: str = Form(...), shell: str = Form("grap
 
 @app.post("/pets/{pet_id}/tasks")
 async def feed(request: Request, pet_id: str, prompt_md: str = Form(...), mode: str = Form("task")):
-    """Feed it a task, or (mode=chat) just talk to it."""
+    """Give it a new task, or (mode=chat) just talk to it."""
     _pet_or_404(request, pet_id)
     sup = _ready(request, pet_id)
     await (sup.chat(prompt_md) if mode == "chat" else sup.feed(prompt_md))
@@ -241,11 +241,11 @@ async def feed(request: Request, pet_id: str, prompt_md: str = Form(...), mode: 
 
 
 def _ready(request: Request, pet_id: str):
-    """The pet's supervisor, if it can take a new turn now. Feeding an out-of-budget pet wakes it:
+    """The pet's supervisor, if it can take a new turn now. A new task wakes an out-of-budget pet:
     a new task brings a new budget."""
     fleet, conn = request.app.state.fleet, request.app.state.conn
     if fleet.lights_are_off(pet_id):
-        raise HTTPException(409, "Its lights are off. Turn them on first.")
+        raise HTTPException(409, "It's asleep. Wake it first.")
     if not fleet.is_awake(pet_id):
         raise HTTPException(409, "It's still waking up. Try again in a moment.")
     pet = store.get_pet(conn, pet_id)
@@ -253,7 +253,7 @@ def _ready(request: Request, pet_id: str):
         raise HTTPException(409, "It's paused while you edit. Resume it first.")
     sup = fleet.get(pet_id)
     if sup.busy:
-        raise HTTPException(409, "It's busy with a task. Wait for it, or give it Medicine if it's stuck.")
+        raise HTTPException(409, "It's busy with a task. Wait for it, or unstick it if it's stuck.")
     if pet.state == "asleep":
         store.set_pet_state(conn, pet_id, "awake")
     return sup
@@ -276,7 +276,7 @@ async def medicine(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     fleet = request.app.state.fleet
     if fleet.lights_are_off(pet_id) or not fleet.is_awake(pet_id) or pet.state == "paused":
-        raise HTTPException(409, "It can't take medicine right now: wake it or resume it first.")
+        raise HTTPException(409, "It can't be unstuck right now: wake it or resume it first.")
     ctx = views.pet_context(request.app.state.conn, pet)
     await fleet.get(pet_id).medicine(ctx["vitals"].sick_reason)
     return Response(status_code=204)
