@@ -271,3 +271,6 @@ dialog.retire .field { margin-top: 14px; }
 .trouble { border-color: var(--tangerine); box-shadow: 5px 5px 0 var(--tangerine); }
 .trouble h2 { color: #b35a00; }
 .trouble p { margin-top: 6px; }
+
+.thoughts .said-text { white-space: normal; }
+.thoughts .said-text > * + * { margin-top: 4px; }

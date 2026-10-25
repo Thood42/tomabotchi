@@ -64,7 +64,7 @@ def test_chat_talks_without_counting_as_a_task(client):
     assert (task.kind, task.prompt) == ("chat", "How are you?")
     assert prompts(client, pet_id)[-1] == CHAT_PREFIX + "How are you?"
     assert store.get_pet(conn, pet_id).tasks_done == 0
-    assert "only a practice pet, but I&#39;m listening." in client.get(f"/pets/{pet_id}").text
+    assert "only a practice pet, but I'm listening." in client.get(f"/pets/{pet_id}").text
 
 
 def test_medicine_stops_a_stuck_pet_and_nudges_it(client):

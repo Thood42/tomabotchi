@@ -158,6 +158,26 @@ def get(name: str) -> Brain:
     return BRAINS[name]
 
 
+# The keeper's VS Code in every pet home: their editor, not another AI assistant beside the pet.
+CODE_SERVER_SETTINGS = {
+    "workbench.startupEditor": "none",
+    "workbench.secondarySideBar.defaultVisibility": "hidden",
+    "chat.disableAIFeatures": True,
+    "telemetry.telemetryLevel": "off",
+    "security.workspace.trust.enabled": False,
+}
+
+
+def write_code_server_settings(brain_home: Path) -> Path | None:
+    """First hatch only: after that the settings are the keeper's to change in VS Code."""
+    path = brain_home / ".local" / "share" / "code-server" / "User" / "settings.json"
+    if path.exists():
+        return None
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(CODE_SERVER_SETTINGS, indent=2) + "\n")
+    return path
+
+
 def write_rules(brain: Brain, brain_home: Path, rules: list[dict]) -> Path:
     path = brain.rules_path(brain_home)
     rules_mod.dump_rules_file(str(path), rules)

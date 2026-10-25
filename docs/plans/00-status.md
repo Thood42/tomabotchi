@@ -18,7 +18,7 @@
 - [x] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
 - [x] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
 - [x] Slice 12 — resilience: server restart reattach, petd replay, pending calls survive, clear error states
-- [ ] Slice 13 — polish and docs: shuffle, phone layouts, focus, README, final screenshot pass, full test run
+- [x] Slice 13 — polish and docs: shuffle, phone layouts, focus, README, final screenshot pass, full test run
 
 ## Notes for a fresh session
 - Code, config and data live under `~/Projects/ai/platform/` (`platform/tomabotchi/`, `platform/tomabotchi.toml`, `platform/data/tomabotchi/`). This folder (`sessions/tomabotchi/docs/plans/tomabotchi/`) holds only the planning docs. Repo: `~/Projects/ai` (local agentic platform).
@@ -246,3 +246,22 @@
     - After the restart the call was still on the page. Allow → the file landed, task 33 closed `done` from the old prompt's late answer, there was exactly 1 call, and `tasks_done` went to 1.
     - `pytest -m docker -k buffers_across`: passed. A client sends a prompt and drops; 4 min later a new client gets the backlog replayed, including the response to prompt id 777.
     - Unit: 154 passed (`test_resilience.py`: 6, covering restart mid-call, a replayed call not doubled, a forgotten session, model down → 502 plus one notice, trouble clearing, and Docker down on boot).
+- Slice 13 notes (2026-10-25):
+  - **Screenshot pass:** all 7 screens (shelf, pet, workspace, soul, hatch, memory, settings) at 1400 px and 390 px, via `scratchpad/cdp_shot.py`. Layouts hold at phone width: one column, the nav wraps, the egg comes first, switches and tables fit.
+  - **Fixes from the pass:**
+    - The shelf summary counted practice pets as "working" forever. Boot now closes a practice pet's dead turn as `cancelled`, alongside its calls.
+    - Grammar: "X and Y are stuck and need medicine", "1 task done".
+    - Agent replies in Thinking render as sanitised Markdown (no more `**v22**`); thoughts stay plain text.
+    - code-server's AI chat sidebar and welcome tab were crowding the keeper's editor. New pets get `~/.local/share/code-server/User/settings.json` (chat AI off, no startup editor, telemetry off), written once, after which the settings are the keeper's.
+  - **Already in place, checked:**
+    - The hatch Shuffle and look persistence (the seed and shell carry from hatch to shelf and pet page; tested).
+    - A visible `:focus-visible` ring on every control.
+    - `prefers-reduced-motion` stops the LCD frame flip, the calling wobble and the switch slide.
+    - `.gitignore` covers `platform/tomabotchi/.venv/` and `platform/data/`.
+  - **Docs:** a tomabotchi row, layout lines and the `stack up tomabotchi` line in the repo README, plus `platform/tomabotchi/README.md` (run, brains and models, a daily-use table, config and env vars, layout, tests).
+  - **Live shelf tidy:** retired the 9 throwaway pets from the slice 9–10 proofs (Beeper and Hush ×4, and Webby, which never got a home). Their backups are in `archive/`.
+  - **Known leftovers:**
+    - Quill (`e8b0f178`) still shows a turn from the slice 5 mid-turn restart (before reattach existed); Medicine clears it.
+    - Sprout and the first Biscuit (practice) are still sick from the `#sick` script, by design.
+    - Sonnet is proven only against a stub upstream, since this host has no `ANTHROPIC_API_KEY`.
+  - **Final test run:** unit and integration 159 passed. `pytest -m docker` 12 passed in 18m50s: leash deny and allow, the PICKLE soul, the "never" rule, the Claude hook and never rule, pause, the 4 homes, and petd buffering. **All 13 slices are done.**

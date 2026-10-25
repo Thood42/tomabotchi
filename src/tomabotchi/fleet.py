@@ -63,6 +63,9 @@ class Fleet:
                 # A practice pet's agent lived in the old server process, so it wakes into a new session.
                 for call in store.pending_calls(self.conn, pet.id):
                     store.answer_call(self.conn, call.id, "cancelled", "server restarted", store.now())
+                task = store.current_task(self.conn, pet.id)
+                if task and task.state in ("running", "waiting"):
+                    store.end_task(self.conn, task.id, "cancelled")        # its turn died with that process
                 try:
                     await self._wake_fake(pet, secrets.token_urlsafe(24))
                 except Exception:  # noqa: BLE001
@@ -122,6 +125,8 @@ class Fleet:
         brains.write_soul(brain, self.brain_home(pet.id), soul_md)
         brains.write_rules(brain, self.brain_home(pet.id), list(DEFAULT_RULES))
         brain.write_config(self.cfg, pet, model, token, self.brain_home(pet.id))
+        if pet.brain != "fake":
+            brains.write_code_server_settings(self.brain_home(pet.id))
         publish_pet(self.conn, self.bus, pet)
 
         first = form.first_task_md if form.first_task_md and form.first_task_md.strip() else None

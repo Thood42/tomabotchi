@@ -5,7 +5,7 @@
   <section class="head">
     <div>
       <h1>{{ pet.name }}</h1>
-      <p class="muted">{{ "Practice pet" if pet.brain == "fake" else pet.brain|capitalize ~ " pet" }}. {{ vitals.stage|capitalize }}, day {{ day }}, {{ pet.tasks_done }} tasks done.</p>
+      <p class="muted">{{ "Practice pet" if pet.brain == "fake" else pet.brain|capitalize ~ " pet" }}. {{ vitals.stage|capitalize }}, day {{ day }}, {{ pet.tasks_done }} task{{ "" if pet.tasks_done == 1 else "s" }} done.</p>
     </div>
     {% set tab = "live" %}{% include "_tabs.html" %}
   </section>

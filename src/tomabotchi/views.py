@@ -265,7 +265,7 @@ def summary(pets: list[dict]) -> str:
     if calling:
         parts.append(f"{_names(calling)} {'is' if len(calling) == 1 else 'are'} waiting for your answer")
     if sick:
-        parts.append(f"{_names(sick)} {'is' if len(sick) == 1 else 'are'} stuck and needs medicine")
+        parts.append(f"{_names(sick)} {'is stuck and needs' if len(sick) == 1 else 'are stuck and need'} medicine")
     if not parts:
         return "Everyone is idle and hungry for a task."
     text = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + ", and " + parts[-1]
