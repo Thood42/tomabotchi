@@ -7,7 +7,7 @@
 
 ## Slices
 - [x] Slice 1 — tracer bullet (done 2026-10-25): mocked pet (fake ACP agent) end to end, from hatch to call card to answer to shelf metric, served by compose on :8770
-- [ ] Slice 2 — real Hermes pet: runtime and Python-home images, petd, OpenAI gateway route, leash gates write_file, pet-subnet guard
+- [x] Slice 2 — real Hermes pet (done 2026-10-25): runtime and Python-home images, petd, OpenAI gateway route, leash gates write_file, pet-subnet guard
 - [ ] Slice 3 — live view from real data: thoughts, tools, plan, hearts and scene, sick detection, Energy, Home stats
 - [ ] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
 - [ ] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
@@ -53,3 +53,27 @@
   - **Practice pets on restart:** their agent lived in the old process, so on boot their unanswered calls are marked `cancelled` and the pet wakes into a new session.
   - **Screenshots:** use `chromium --headless=new --timeout=3500 --screenshot=…`, not `--virtual-time-budget`. The open SSE stream stops virtual time, so the shot never finishes.
   - **Known nit for slice 3:** a finished task's plate still shows its last step progress, for example "step 2 of 3" after a deny.
+- Slice 2 findings and decisions (2026-10-25, from reading Hermes 0.22.5's source in the pinned image):
+  - **Leash design changed** from 03's petd `/ask` channel, for the same goal (one gate, asked once):
+    - Hermes's `pre_tool_call` hook is capped at 600 s (`_MAX_HOOK_CALLBACK_TIMEOUT_SECS`) and fails closed, so it can't wait hours for the keeper.
+    - The leash instead returns `{"action": "block"}` for never, nothing for free, and `{"action": "approve"}` for ask. Hermes's own human gate then asks over ACP `session/request_permission`, with `approvals.timeout` (8 h) as the wait.
+    - petd has no `/ask` endpoint; it only bridges stdio↔WebSocket and supervises code-server. Slice 5 does the same for Claude, where the PreToolUse hook returns allow/deny/"ask".
+  - **Hermes approvals are `manual`, not `off`:**
+    - `off` also bypasses plugin escalations.
+    - With `manual`, Hermes's dangerous-command gate still asks, which is exactly slice 4's "dangerous commands always ask". To avoid a double prompt, the leash leaves a dangerous `execute` call under an "ask" rule to that native gate.
+  - **Native edit prompts off:** after `session/new` the supervisor sends `session/set_mode dont_ask` (`HermesBrain.session_mode`). Hermes's ACP edit approvals then stay silent, except for sensitive paths like `.env` and SSH keys.
+  - **Hermes needs a ≥ 64k context.** Ollama's OpenAI endpoint ignores the model's own context length and silently truncates (measured 9k→2k tokens). The gateway creates and uses the alias `tomabotchi-<model>-ctx64k` via `/api/create` (num_ctx 65536, shares weights). The alias `tomabotchi-qwen3.6-35b-ctx64k` now exists in the host's Ollama.
+  - **Runtime:**
+    - Built from the pinned `nousresearch/hermes-agent@sha256:9c5561…`, minus chromium and ffmpeg, plus code-server 4.140.0.
+    - The Hermes venv's `python` symlink is repointed to the bundled standalone Python 3.14, because upstream pointed it at `/usr/local/bin/python3`, which homes own.
+    - Image tags are `<version>-<hash of runtime/ + rules.py>`, so a runtime edit rebuilds.
+  - **Permission requests:** a Hermes escalation arrives as a generic execute call whose `rawInput.description` is the leash's message `"<tool> (<kind>): <target>\n---\n<preview>"`. `supervisor.normalize_permission` turns it back into a call card. Hermes's options are allow_once, allow_session (kind allow_always), allow_always, deny (reject_once), deny_always.
+  - **Speed:** on this CPU-only host the first turn takes about 3 minutes (13k-token prompt at about 97 tok/s), and generation runs at about 9 tok/s.
+  - **Claude adapter for slice 5:** the live package is `@agentclientprotocol/claude-agent-acp` (the `@zed-industries` name stopped at 0.23.1). Pin 0.89.1 (2026-10-10). It needs Node ≥ 22, and Hermes's bundled node 26 is in the runtime. It loads `settingSources ["user","project","local"]`.
+  - **Slice 2 proof:**
+    - A Hermes Biscuit was hatched from the dashboard. The server built runtime `0.1.0-<hash>` and the Python home itself, then the pet started on network `tbx-pet-<id>` (172.30.0.x).
+    - After about 170 s, the call card showed "Write notes/hello.md (edit)" with the preview "Hello, world!".
+    - Allow → the file appeared on the host. The 27 s wait was recorded, and the gateway metered 3 calls (26.5k prompt tokens).
+    - `pytest -m docker` gives 3 passed. Unit: 58 passed.
+  - **Soul wording matters:** with "Ask first: writing files" plus "ask before risky things", Hermes asked in chat instead of using the tool. The soul now says tomabotchi asks the keeper for it, so "just use the tool". The hatch "ask first" answer becomes the section "What my keeper wants to approve".
+  - **Denied pets try another way:** after `write_file` was denied, Hermes tried `echo > notes/hello.md` through the terminal. The leash asked again (execute), and denying again left no file. The Docker test now checks every attempt is asked.

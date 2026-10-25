@@ -76,17 +76,17 @@
             <select id="home" name="home">
               {% for h in homes %}<option value="{{ h.slug }}"{% if h.default %} selected{% endif %}>{{ h.name }}{{ " (default)" if h.default else "" }}</option>{% endfor %}
             </select>
-            <span class="hint">Each pet lives in its own sealed container. Practice pets don't need one yet, so this is saved but not used until slice 2.</span>
+            <span class="hint">Each pet lives in its own sealed container and can only touch what's inside it. The list comes from tomabotchi.toml.</span>
           </div>
           <div class="row">
             <div class="field">
               <label for="brain">Brain</label>
               <select id="brain" name="brain">
-                <option value="fake" selected>Practice brain (scripted)</option>
-                <option value="hermes" disabled>Hermes (arrives in slice 2)</option>
+                <option value="hermes" selected>Hermes (default)</option>
+                <option value="fake">Practice brain (scripted, instant)</option>
                 <option value="claude" disabled>Claude Code (arrives in slice 5)</option>
               </select>
-              <span class="hint">The practice brain follows a fixed script: it plans, looks around, then asks to write a file.</span>
+              <span class="hint">How it thinks and works. Hermes is a general helper with memory and skills. The practice brain follows a fixed script and needs no container.</span>
             </div>
             <div class="field">
               <label for="model">Model</label>

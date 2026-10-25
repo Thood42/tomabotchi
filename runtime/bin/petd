@@ -1,0 +1,3 @@
+#!/bin/sh
+# Start petd with Hermes's bundled Python (it already carries websockets).
+exec /opt/hermes/.venv/bin/python /opt/tomabotchi/petd/petd.py "$@"

@@ -112,6 +112,16 @@ class ToolRule:
 
 
 @dataclass
+class Usage:
+    pet_id: str
+    task_id: int | None
+    ts: datetime
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+
+
+@dataclass
 class SoulRevision:
     id: int
     pet_id: str

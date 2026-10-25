@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
+import logging
+import os
 import random
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, store, views
+from . import config, db, gateway, store, views
 from .bus import Bus
 from .fleet import Fleet
 from .models import HatchForm
@@ -21,7 +24,7 @@ async def lifespan(app: FastAPI):
     cfg = config.load()
     conn = db.connect(cfg.db_path)
     bus = Bus()
-    fleet = Fleet(cfg, conn, bus)
+    fleet = Fleet(cfg, conn, bus, _docker(cfg))
     app.state.cfg, app.state.conn, app.state.bus, app.state.fleet = cfg, conn, bus, fleet
     await fleet.boot()
     yield
@@ -29,8 +32,40 @@ async def lifespan(app: FastAPI):
     conn.close()
 
 
+log = logging.getLogger(__name__)
+
+
+def _docker(cfg):
+    """Docker-backed pets need the Docker socket; without it only practice pets can hatch."""
+    if os.environ.get("TOMABOTCHI_DOCKER") == "0":
+        return None
+    try:
+        from .docker_ops import DockerOps
+        ops = DockerOps(cfg)
+        ops.client.ping()
+        return ops
+    except Exception as e:  # noqa: BLE001
+        log.warning("Docker unavailable (%s): only practice pets can hatch", e)
+        return None
+
+
 app = FastAPI(title="tomabotchi", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
+app.include_router(gateway.router)
+
+
+@app.middleware("http")
+async def pet_subnet_guard(request: Request, call_next):
+    """Pets share a network with the server so they can reach the model gateway. Everything else
+    (approving calls, editing rules) is the keeper's, so requests from pet subnets get a 403."""
+    host = request.client.host if request.client else None
+    if host and not request.url.path.startswith("/llm/"):
+        try:
+            if ipaddress.ip_address(host) in request.app.state.cfg.pet_subnet_pool:
+                return PlainTextResponse("Pets can only reach the model gateway.", status_code=403)
+        except ValueError:
+            pass
+    return await call_next(request)
 
 
 def _page(name: str, **ctx) -> HTMLResponse:
@@ -78,8 +113,10 @@ async def hatch(request: Request, name: str = Form(...), shell: str = Form("grap
                      budget=budget, first_task_md=first_task_md or None)
     try:
         pet = await request.app.state.fleet.hatch(form)
-    except NotImplementedError as e:
-        raise HTTPException(400, f"{e}. Pick the practice brain for now.") from None
+    except KeyError as e:
+        raise HTTPException(400, f"Unknown choice: {e}. Pick from the lists on the hatch page.") from None
+    except RuntimeError as e:
+        raise HTTPException(400, f"{e}.") from None
     return RedirectResponse(f"/pets/{pet.id}", status_code=303)
 
 

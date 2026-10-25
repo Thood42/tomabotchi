@@ -61,6 +61,9 @@ class AcpConnection:
         res = await self._request("session/new", {"cwd": cwd, "mcpServers": []})
         return res["sessionId"]
 
+    async def set_mode(self, session_id: str, mode_id: str) -> dict:
+        return await self._request("session/set_mode", {"sessionId": session_id, "modeId": mode_id})
+
     async def prompt(self, session_id: str, text: str) -> dict:
         return await self._request("session/prompt", {
             "sessionId": session_id, "prompt": [{"type": "text", "text": text}]})

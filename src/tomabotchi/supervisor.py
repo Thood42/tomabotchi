@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import sqlite3
 from datetime import datetime, timezone
 
@@ -17,6 +18,30 @@ from .models import Call, CallOutcome, Event, Pet, PlanStep
 log = logging.getLogger(__name__)
 
 _CHUNK_KINDS = {"agent_thought_chunk": "thought", "agent_message_chunk": "message"}
+
+_LEASH_MESSAGE = re.compile(r"^(?P<tool>\S+) \((?P<kind>\w+)\): (?P<target>[^\n]*)(?:\n---\n(?P<preview>.*))?$", re.S)
+_VERBS = {"write_file": "Write", "patch": "Edit", "read_file": "Read", "terminal": "Run", "process": "Run",
+          "execute_code": "Run code in", "web_search": "Search the web for", "web_extract": "Read the page"}
+
+
+def normalize_permission(tool_call: dict) -> dict:
+    """Make a permission request's tool call readable on the call card.
+
+    Hermes escalations from the leash arrive as a generic execute call whose description is the
+    leash's message ("<tool> (<kind>): <target>", then an optional preview); Hermes's own
+    dangerous-command prompts carry the command. Anything else passes through unchanged."""
+    raw = tool_call.get("rawInput") or {}
+    m = _LEASH_MESSAGE.match(str(raw.get("description") or ""))
+    if m:
+        tool, kind, target = m["tool"], m["kind"], m["target"]
+        out = {**tool_call, "title": f"{_VERBS.get(tool, tool)} {target}", "kind": kind, "tool": tool,
+               "rawInput": {"content": m["preview"]} if m["preview"] else {}}
+        if kind in ("read", "edit", "delete", "move", "search"):
+            out["locations"] = [{"path": p.strip()} for p in target.split(",") if p.strip()]
+        return out
+    if raw.get("command") and tool_call.get("kind") == "execute":
+        return {**tool_call, "title": f"Run {raw['command']}", "tool": "terminal"}
+    return tool_call
 
 
 def _paths(update: dict) -> list[str]:
@@ -49,8 +74,10 @@ def translate(update: dict, *, pet_id: str, task_id: int | None, tool_index: dic
 
 
 class PetSupervisor:
-    def __init__(self, cfg: Config, conn: sqlite3.Connection, bus: Bus, pet: Pet, url: str, token: str) -> None:
+    def __init__(self, cfg: Config, conn: sqlite3.Connection, bus: Bus, pet: Pet, url: str, token: str,
+                 session_mode: str | None = None) -> None:
         self.cfg, self.conn, self.bus, self.pet = cfg, conn, bus, pet
+        self.session_mode = session_mode
         self.acp = AcpConnection(url, token, self._on_update, self._on_permission)
         self.session_id: str | None = None
         self._tools: dict[str, dict] = {}
@@ -63,6 +90,8 @@ class PetSupervisor:
         await self.acp.connect()
         await self.acp.initialize()
         self.session_id = await self.acp.new_session()
+        if self.session_mode:
+            await self.acp.set_mode(self.session_id, self.session_mode)
         store.update_pet(self.conn, self.pet.id, acp_session_id=self.session_id, state="awake")
         self._refresh()
 
@@ -126,7 +155,7 @@ class PetSupervisor:
     async def _on_permission(self, req_id, params: dict) -> dict:
         task = store.current_task(self.conn, self.pet.id)
         call = Call(id=0, pet_id=self.pet.id, task_id=task.id if task else None, acp_request_id=req_id,
-                    tool_call=params.get("toolCall") or {}, options=params.get("options") or [],
+                    tool_call=normalize_permission(params.get("toolCall") or {}), options=params.get("options") or [],
                     asked_at=store.now())
         call_id = store.open_call(self.conn, call)
         fut = asyncio.get_running_loop().create_future()

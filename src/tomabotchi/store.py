@@ -9,7 +9,7 @@ from datetime import datetime, time, timedelta, timezone
 
 from .db import tx
 from .models import (Call, CallOutcome, Event, EventKind, NotificationSettings, Pet, PetState,
-                     PlanStep, SoulRevision, Task, ToolRule)
+                     PlanStep, SoulRevision, Task, ToolRule, Usage)
 
 
 def now() -> datetime:
@@ -56,6 +56,11 @@ def list_pets(conn, *, retired: bool = False) -> list[Pet]:
     op = "=" if retired else "!="
     rows = conn.execute(f"SELECT * FROM pets WHERE state {op} 'retired' ORDER BY born_at", ()).fetchall()
     return [_pet(r) for r in rows]
+
+
+def pet_by_token_hash(conn, token_hash: str) -> Pet | None:
+    row = conn.execute("SELECT * FROM pets WHERE token_hash = ? AND state != 'retired'", (token_hash,)).fetchone()
+    return _pet(row) if row else None
 
 
 def set_pet_state(conn, pet_id: str, state: PetState) -> None:
@@ -189,6 +194,19 @@ def replace_tool_rules(conn, pet_id: str, rules: list[ToolRule]) -> None:
         conn.execute("DELETE FROM tool_rules WHERE pet_id = ?", (pet_id,))
         conn.executemany("INSERT INTO tool_rules (pet_id, kind, tool, path_glob, rule) VALUES (?, ?, ?, ?, ?)",
                          [(pet_id, r.kind, r.tool, r.path_glob, r.rule) for r in rules])
+
+
+# ---- usage ----
+
+def add_usage(conn, u: Usage) -> None:
+    conn.execute("INSERT INTO usage (pet_id, task_id, ts, model, prompt_tokens, completion_tokens) "
+                 "VALUES (?, ?, ?, ?, ?, ?)",
+                 (u.pet_id, u.task_id, _ts(u.ts), u.model, u.prompt_tokens, u.completion_tokens))
+
+
+def task_tokens(conn, task_id: int) -> int:
+    return conn.execute("SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) FROM usage WHERE task_id = ?",
+                        (task_id,)).fetchone()[0]
 
 
 # ---- soul ----

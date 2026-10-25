@@ -1,0 +1,13 @@
+#!/bin/sh
+# Runs while a pet image is built: refuse homes the runtime can't live in.
+set -e
+if ! ldd --version >/dev/null 2>&1 && [ ! -e /lib64/ld-linux-x86-64.so.2 ] && [ ! -e /lib/ld-linux-x86-64.so.2 ]; then
+  echo "tomabotchi: this home isn't glibc-based (Debian/Ubuntu); the pet runtime can't run here." >&2
+  exit 1
+fi
+/opt/hermes/.venv/bin/python -c "import acp_adapter, websockets, acp" \
+  || { echo "tomabotchi: Hermes can't start in this home (missing system libraries?)" >&2; exit 1; }
+/opt/tomabotchi/code-server/bin/code-server --version >/dev/null \
+  || { echo "tomabotchi: code-server can't start in this home" >&2; exit 1; }
+/opt/hermes/.venv/bin/python -c "import sys; sys.path.insert(0, '/opt/tomabotchi/leash'); import tomabotchi_leash"
+echo "tomabotchi: runtime OK"

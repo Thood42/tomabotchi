@@ -11,6 +11,10 @@ services:
       - 127.0.0.1:8770:8770          # localhost only
     extra_hosts:
       - host.docker.internal:host-gateway
+    # The Docker socket lets tomabotchi build pet homes and run one container per pet.
+    # Pets never get it; it stays with the server.
+    group_add:
+      - "${DOCKER_GID}"
     environment:
       AI_ROOT: ${AI_ROOT}
       TOMABOTCHI_DATA_DIR: ${AI_ROOT}/platform/data/tomabotchi
@@ -21,3 +25,4 @@ services:
       # hands to Docker for each pet resolve on the host (from slice 2).
       - ${AI_ROOT}/platform:${AI_ROOT}/platform:ro
       - ${AI_ROOT}/platform/data/tomabotchi:${AI_ROOT}/platform/data/tomabotchi
+      - /var/run/docker.sock:/var/run/docker.sock

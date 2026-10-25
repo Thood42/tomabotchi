@@ -1,0 +1,6 @@
+name: tomabotchi_leash
+version: 0.1.0
+description: "tomabotchi's tool rules: every tool call is free, asks the keeper first, or never runs."
+author: tomabotchi
+provides_hooks:
+  - pre_tool_call

@@ -2,6 +2,7 @@
 This is the only place paths are worked out."""
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import tomllib
@@ -32,6 +33,7 @@ class Config:
     direct_code_ports: bool
     runtime_version: str
     approval_timeout: timedelta
+    source_dir: Path              # platform/tomabotchi: the runtime image's build context
 
     @property
     def db_path(self) -> Path:
@@ -100,6 +102,18 @@ def clamp(limits: Limits, ceiling: Limits) -> Limits:
     )
 
 
+def runtime_version(source_dir: Path) -> str:
+    """Package version plus a hash of everything baked into pet images, so editing the runtime
+    gives new image tags and the next hatch rebuilds instead of reusing a stale home."""
+    h = hashlib.sha256()
+    files = sorted((source_dir / "runtime").rglob("*")) + [source_dir / "src" / "tomabotchi" / "rules.py"]
+    for f in files:
+        if f.is_file() and "__pycache__" not in f.parts:
+            h.update(str(f.relative_to(source_dir)).encode())
+            h.update(f.read_bytes())
+    return f"{__version__}-{h.hexdigest()[:8]}" if (source_dir / "runtime").is_dir() else __version__
+
+
 def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path) -> Config:
     homes = [Home(name=h["name"], slug=h["slug"], image=h["image"],
                   description=h.get("description", ""), default=bool(h.get("default", False)))
@@ -110,6 +124,7 @@ def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path
     models = [ModelChoice(key=m["key"], label=m["label"], provider=m["provider"], model=m["model"])
               for m in tb.get("models", [])]
     server = tb.get("server", {})
+    source_dir = Path(os.environ.get("TOMABOTCHI_SOURCE", AI_ROOT / "platform" / "tomabotchi"))
     ceiling = _limits(containment.get("ceiling", {}))
     return Config(
         data_dir=data_dir,
@@ -124,8 +139,9 @@ def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path
         max_awake_pets=int(containment.get("tomabotchi", {}).get("max_awake_pets", 6)),
         pet_subnet_pool=IPv4Network(tb.get("network", {}).get("pet_subnet_pool", "172.30.0.0/16")),
         direct_code_ports=bool(server.get("direct_code_ports", False)),
-        runtime_version=__version__,
+        runtime_version=runtime_version(source_dir),
         approval_timeout=parse_duration(server.get("approval_timeout", "8h")),
+        source_dir=source_dir,
     )
 
 

@@ -56,3 +56,39 @@ def test_allow_always_falls_back_to_allow_once_when_not_offered():
 
 def test_timeout_cancels():
     assert _permission_result("timeout", OPTIONS) == {"outcome": {"outcome": "cancelled"}}
+
+
+# Real payload from Hermes 0.22.5 when the leash escalates write_file (captured 2026-10-25).
+HERMES_ESCALATION = {
+    "content": [{"content": {"text": "write_file (edit): notes/hello.md\n$ <write_file> (plugin approval rule)",
+                             "type": "text"}, "type": "content"}],
+    "kind": "execute",
+    "rawInput": {"command": "<write_file> (plugin approval rule)",
+                 "description": "write_file (edit): notes/hello.md\n---\n# Hello\nHi there.\n"},
+    "status": "pending",
+    "title": "write_file (edit): notes/hello.md: <write_file> (plugin approval rule)",
+    "toolCallId": "perm-check-1",
+}
+
+
+def test_leash_escalation_becomes_a_readable_call():
+    from tomabotchi.supervisor import normalize_permission
+    tc = normalize_permission(HERMES_ESCALATION)
+    assert tc["title"] == "Write notes/hello.md"
+    assert tc["kind"] == "edit"
+    assert tc["locations"] == [{"path": "notes/hello.md"}]
+    assert tc["rawInput"] == {"content": "# Hello\nHi there.\n"}
+    assert tc["toolCallId"] == "perm-check-1"
+
+
+def test_hermes_dangerous_command_prompt_shows_the_command():
+    from tomabotchi.supervisor import normalize_permission
+    tc = normalize_permission({"kind": "execute", "title": "x", "rawInput": {"command": "rm -rf build/",
+                                                                           "description": "recursive delete"}})
+    assert tc["title"] == "Run rm -rf build/"
+
+
+def test_ordinary_permission_passes_through():
+    from tomabotchi.supervisor import normalize_permission
+    tc = {"toolCallId": "write-1", "title": "Write notes/hello.md", "kind": "edit"}
+    assert normalize_permission(tc) == tc

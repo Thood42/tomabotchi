@@ -96,6 +96,7 @@ def test_soul_render_initial_has_sections():
     md = soul.render_initial(form, born=date(2026, 10, 19))
     assert md.startswith("# Biscuit\n")
     assert "Hatched 19 October 2026." in md
-    assert "## Ask first\nBefore writing files." in md
+    assert "## What my keeper wants to approve\nBefore writing files." in md
+    assert "I don't ask for permission in chat first" in md
     assert "## Never" not in md              # empty answers leave their section out
     assert "## Lessons" in md and "## Working with my keeper" in md

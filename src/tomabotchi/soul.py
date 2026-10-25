@@ -7,7 +7,8 @@ from .models import HatchForm
 
 KEEPER_BLOCK = """## Working with my keeper
 - I keep a short todo list of the steps I'm taking, and update it as I go.
-- Before anything my rules mark "ask", I ask and wait for my keeper's answer.
+- My keeper approves my actions through tomabotchi. When a tool needs their OK, tomabotchi asks
+  them for me and waits, so I just use the tool. I don't ask for permission in chat first.
 - When my keeper says no and tells me why, I take the reason seriously."""
 
 
@@ -21,7 +22,7 @@ def render_initial(form: HatchForm, *, born: date) -> str:
         f"Hatched {born.day} {born:%B %Y}.\n",
         _section("Who I am", form.purpose_md),
         _section("How I talk", form.voice_md),
-        _section("Ask first", form.ask_first_md),
+        _section("What my keeper wants to approve", form.ask_first_md),
         _section("Never", form.never_md),
         "## Lessons\n",
         KEEPER_BLOCK + "\n",

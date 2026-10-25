@@ -69,7 +69,11 @@ def pet_context(conn, pet: Pet) -> dict:
     elif v.sick_reason:
         doing = f"Sick: {v.sick_reason}"
     elif pet.state == "hatching":
-        doing = "Hatching..."
+        note = store.recent_events(conn, pet.id, {"notice"}, 1)
+        doing = (note[0].payload.get("text") if note else None) or "Hatching..."
+    elif pet.state == "asleep":
+        note = store.recent_events(conn, pet.id, {"notice"}, 1)
+        doing = (note[0].payload.get("text") if note else None) or "Asleep"
     elif task and task.state in ("running", "waiting"):
         last = next((t for t in reversed(thoughts) if t.kind == "thought"), None)
         doing = f"Thinking: “{last.payload['text']}”" if last else "Getting started"
