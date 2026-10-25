@@ -43,8 +43,10 @@
 
   es.addEventListener("notify", (e) => {
     const n = JSON.parse(e.data);
+    const test = n.tag === "test";
+    if (!test && document.visibilityState === "visible" && location.pathname === n.url) return;
+    beep();
     if (!("Notification" in window) || Notification.permission !== "granted") return;
-    if (document.visibilityState === "visible" && location.pathname === n.url) return;
     const note = new Notification(n.title, { body: n.body, tag: n.tag });
     note.onclick = () => { window.focus(); location.href = n.url; };
   });
@@ -85,3 +87,62 @@ document.addEventListener("click", (e) => {
   input.focus();
   input.select();
 });
+
+// Two short square-wave chirps, like the toy. Browsers only allow sound after the keeper has
+// clicked something on the page, so a background tab may stay silent; the notification still shows.
+let audio;
+function beep() {
+  try {
+    audio = audio || new AudioContext();
+    for (const [at, hz] of [[0, 1320], [0.16, 1760]]) {
+      const osc = audio.createOscillator(), gain = audio.createGain();
+      osc.type = "square";
+      osc.frequency.value = hz;
+      gain.gain.value = 0.05;
+      osc.connect(gain).connect(audio.destination);
+      osc.start(audio.currentTime + at);
+      osc.stop(audio.currentTime + at + 0.1);
+    }
+  } catch { /* no audio here */ }
+}
+
+// Opt-in: browsers only show the permission prompt in answer to a click, so ask with a banner.
+(() => {
+  const banner = document.querySelector(".optin");
+  const store = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch { return null; } };
+  const supported = "Notification" in window;
+  if (banner && supported && Notification.permission === "default" && !store("tb-optin-later")) banner.hidden = false;
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-optin]");
+    if (!b) return;
+    if (b.dataset.optin === "ask" && supported) await Notification.requestPermission();
+    else store("tb-optin-later", "1");
+    banner.hidden = true;
+    describePermission();
+  });
+
+  // Settings: say what this browser allows, and remember the keeper's timezone for quiet hours.
+  function describePermission() {
+    const el = document.querySelector("[data-permission]");
+    if (!el) return;
+    el.textContent = !supported ? "This browser can't show notifications."
+      : Notification.permission === "granted" ? "Allowed in this browser. Turn off to silence everything."
+      : Notification.permission === "denied" ? "Blocked by this browser. Allow notifications for this site in its settings."
+      : "This browser hasn't been asked yet.";
+    if (supported && Notification.permission === "default" && !el.querySelector("button")) {
+      const ask = document.createElement("button");
+      ask.type = "button"; ask.className = "btn"; ask.dataset.optin = "ask"; ask.textContent = "Ask my browser";
+      el.append(" ", ask);
+    }
+  }
+  function rememberZone() {
+    const tz = document.querySelector("[data-tz]");
+    if (tz && !tz.value) {
+      tz.value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      tz.form.dispatchEvent(new Event("change", { bubbles: true }));    // save it once
+    }
+  }
+  describePermission();
+  window.addEventListener("load", rememberZone);     // after htmx has wired the form
+  document.body.addEventListener("htmx:afterSwap", () => { describePermission(); });
+})();

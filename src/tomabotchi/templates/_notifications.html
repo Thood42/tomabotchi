@@ -1,0 +1,35 @@
+{% set rows = [("calling", "A pet is calling you", "It needs your OK for a tool"),
+               ("sick", "A pet got sick", "Stuck in a loop or failing over and over"),
+               ("finished", "A pet finished its task", ""),
+               ("out_of_budget", "A pet ran out of budget", "It fell asleep partway through")] %}
+<section id="notifications" class="sheet" aria-labelledby="n-h">
+  <h2 id="n-h">Notifications</h2>
+  <p class="muted">Your browser beeps for you when you're on another tab or window, like the toy did.</p>
+  <form hx-put="/settings/notifications" hx-trigger="change" hx-target="#notifications" hx-swap="outerHTML">
+    <input type="hidden" name="tz" value="{{ notes.tz or '' }}" data-tz>
+    <ul class="rows">
+      <li><span>Browser notifications<small data-permission>Checking whether this browser allows them...</small></span>
+        <label class="switch"><input type="checkbox" name="enabled" value="1"{{ " checked" if notes.enabled }} aria-label="Browser notifications"><span></span></label></li>
+    </ul>
+    <ul class="rows{{ ' off' if not notes.enabled }}">
+      {% for key, label, hint in rows %}
+      <li><span>{{ label }}{% if hint %}<small>{{ hint }}</small>{% endif %}</span>
+        <label class="switch"><input type="checkbox" name="{{ key }}" value="1"{{ " checked" if notes[key] }}{{ " disabled" if not notes.enabled }} aria-label="{{ label }}"><span></span></label></li>
+      {% endfor %}
+      <li><span>Quiet hours<small>No beeps between these times. Calls still wait for you.</small></span>
+        <span class="quiet-hours">
+          <select name="quiet_from" aria-label="Quiet from"{{ " disabled" if not notes.enabled }}>
+            {% for h in range(24) %}{% set t = "%02d:00"|format(h) %}<option{{ " selected" if t == notes.quiet_from.strftime("%H:%M") }}>{{ t }}</option>{% endfor %}
+          </select>to
+          <select name="quiet_to" aria-label="Quiet until"{{ " disabled" if not notes.enabled }}>
+            {% for h in range(24) %}{% set t = "%02d:00"|format(h) %}<option{{ " selected" if t == notes.quiet_to.strftime("%H:%M") }}>{{ t }}</option>{% endfor %}
+          </select>
+          <label class="switch"><input type="checkbox" name="quiet_enabled" value="1"{{ " checked" if notes.quiet_enabled }}{{ " disabled" if not notes.enabled }} aria-label="Quiet hours"><span></span></label>
+        </span></li>
+    </ul>
+  </form>
+  <div class="answers">
+    <button class="btn test" hx-post="/settings/notifications/test" hx-swap="none"{{ " disabled" if not notes.enabled }}>Send a test beep</button>
+    {% if saved %}<span class="saved" role="status">Saved.</span>{% endif %}
+  </div>
+</section>

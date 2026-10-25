@@ -304,9 +304,10 @@ class PetSupervisor:
 
     def notify(self, kind: notify.NoticeKind, detail: str) -> None:
         settings = store.get_notification_settings(self.conn)
-        notice = notify.for_event(kind, self.pet, detail, settings, datetime.now().time())
+        notice = notify.for_event(kind, self.pet, detail, settings, notify.keeper_now(settings))
         if notice:
-            self.bus.publish(BusMessage(event="notify", data=json.dumps(notice.__dict__), pet_id=self.pet.id))
+            # to every open page, not just this pet's: you hear Quill calling while you look at Pip
+            self.bus.publish(BusMessage(event="notify", data=json.dumps(notice.__dict__)))
 
 
 def _permission_result(outcome: CallOutcome, options: list[dict]) -> dict:

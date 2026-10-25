@@ -15,7 +15,7 @@
 - [x] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
 - [x] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
 - [x] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
-- [ ] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
+- [x] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
 - [ ] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
 - [ ] Slice 12 — resilience: server restart reattach, petd replay, pending calls survive, clear error states
 - [ ] Slice 13 — polish and docs: shuffle, phone layouts, focus, README, final screenshot pass, full test run
@@ -191,3 +191,16 @@
     - Hatched Nodey on node: "Run node --version" → "The installed Node.js version is **v22.23.4**".
     - Webby on browser hit the subnet race above (fixed, and covered by a unit test). The browser home itself passes its Docker test.
     - The Settings page lists all four homes as "Ready". Unit: 142 passed.
+- Slice 10 notes (2026-10-25):
+  - **Opt-in banner** (in `base.html`, on every page) asks "Let tomabotchi beep you?". It shows only while `Notification.permission` is `default`, because browsers only show the prompt in answer to a click. "Not now" is remembered in localStorage (`tb-optin-later`).
+  - The Settings page says what the browser allows (granted / blocked / not asked, with an "Ask my browser" button).
+  - **Settings switches** (`_notifications.html`): `PUT /settings/notifications` on every change, which re-renders the section with "Saved.". The master switch off greys and disables the others, and their values are kept (disabled inputs aren't posted). Quiet hours use whole hours from/to plus an on/off switch.
+  - **Quiet hours use the keeper's timezone:** the server container's clock is UTC. The page posts `Intl…timeZone` once, after `load` so htmx has wired the form; it's stored as `NotificationSettings.tz` and applied by `notify.keeper_now()`. `tzdata` is a dependency, since slim images have no zoneinfo.
+  - **Notifications reach every open page:** they were published with the pet's id, so a page filtered to Pip never heard Quill calling. They're now unfiltered.
+  - "Send a test beep" → `POST /settings/notifications/test` (409 when off).
+  - **The beep** is two square-wave chirps (WebAudio). Browsers allow sound only after a click on the page, so a background tab may stay silent; the notification still shows.
+  - **Proof** (`scratchpad/cdp_notify.py`, headless Chromium over CDP with notifications reported as granted and the tab hidden, recording each `new Notification`):
+    - Hatching a practice pet while on Settings → "Beeper is calling you | Wants your OK to Write notes/hello.md".
+    - Quiet hours set to the current New York hour → hatching Hush showed nothing.
+    - The test beep → "tomabotchi says hi".
+    - The browser saved `tz: America/New_York` by itself. Unit: 142 passed (`test_notifications.py`: 6).

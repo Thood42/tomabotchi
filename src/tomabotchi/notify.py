@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import time
+from datetime import datetime, time
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .models import NotificationSettings, Pet
 
@@ -24,6 +25,20 @@ class Notice:
     pet_id: str
     url: str
     tag: str
+
+
+def keeper_now(settings: NotificationSettings, now: datetime | None = None) -> time:
+    """The time of day where the keeper is: the server's container clock is UTC."""
+    now = now or datetime.now().astimezone()
+    try:
+        return now.astimezone(ZoneInfo(settings.tz)).time() if settings.tz else now.time()
+    except (ZoneInfoNotFoundError, ValueError):
+        return now.time()
+
+
+def test_notice() -> Notice:
+    return Notice(title="tomabotchi says hi", body="This is what a call from a pet looks like.", pet_id="",
+                  url="/settings", tag="test")
 
 
 def in_quiet_hours(now: time, start: time, end: time) -> bool:

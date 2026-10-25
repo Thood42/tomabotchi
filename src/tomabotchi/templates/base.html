@@ -12,6 +12,13 @@
 <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body{% block body_attrs %}{% endblock %}>
+<div class="optin" role="region" aria-label="Notifications" hidden>
+  <p><b>Let tomabotchi beep you?</b> When a pet calls, gets sick or runs out of budget while you're on another tab, your browser can tell you.</p>
+  <div class="answers">
+    <button class="btn primary" type="button" data-optin="ask">Allow notifications</button>
+    <button class="btn quiet" type="button" data-optin="later">Not now</button>
+  </div>
+</div>
 <header class="top">
   <a class="brand" href="/"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
   <nav>

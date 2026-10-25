@@ -3,20 +3,22 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import json
 import logging
 import os
 import random
 from contextlib import asynccontextmanager
+from datetime import time
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import codeproxy, config, db, gateway, soul, store, views
-from .bus import Bus
+from . import codeproxy, config, db, gateway, notify, soul, store, views
+from .bus import Bus, BusMessage
 from .fleet import Fleet
-from .models import HatchForm, ToolRule
+from .models import HatchForm, NotificationSettings, ToolRule
 
 
 @asynccontextmanager
@@ -100,7 +102,36 @@ def hatch_page(request: Request):
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
     cfg = request.app.state.cfg
-    return _page("settings.html", homes=cfg.homes, home_status=await request.app.state.fleet.home_status())
+    return _page("settings.html", homes=cfg.homes, home_status=await request.app.state.fleet.home_status(),
+                 notes=store.get_notification_settings(request.app.state.conn))
+
+
+@app.put("/settings/notifications", response_class=HTMLResponse)
+async def put_notifications(request: Request):
+    """The switches post on every change. Unchecked boxes are absent; with the master switch off the
+    others arrive disabled (absent too), so keep what they were."""
+    conn = request.app.state.conn
+    form, old = await request.form(), store.get_notification_settings(conn)
+    on = form.get("enabled") == "1"
+    flags = {k: form.get(k) == "1" if on else getattr(old, k)
+             for k in ("calling", "sick", "finished", "out_of_budget", "quiet_enabled")}
+    try:
+        quiet_from = time.fromisoformat(form["quiet_from"]) if on else old.quiet_from
+        quiet_to = time.fromisoformat(form["quiet_to"]) if on else old.quiet_to
+    except (KeyError, ValueError):
+        raise HTTPException(400, "Pick quiet hours from the lists.") from None
+    notes = NotificationSettings(enabled=on, quiet_from=quiet_from, quiet_to=quiet_to,
+                                 tz=(form.get("tz") or "").strip() or old.tz, **flags)
+    store.put_notification_settings(conn, notes)
+    return views.render("_notifications.html", notes=notes, saved=True)
+
+
+@app.post("/settings/notifications/test", status_code=204)
+async def test_beep(request: Request):
+    if not store.get_notification_settings(request.app.state.conn).enabled:
+        raise HTTPException(409, "Notifications are off. Turn them on first.")
+    request.app.state.bus.publish(BusMessage(event="notify", data=json.dumps(notify.test_notice().__dict__)))
+    return Response(status_code=204)
 
 
 @app.get("/pets/{pet_id}", response_class=HTMLResponse)

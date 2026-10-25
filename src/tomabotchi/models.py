@@ -176,6 +176,7 @@ class NotificationSettings:
     quiet_enabled: bool = False
     quiet_from: time = time(22, 0)
     quiet_to: time = time(7, 0)
+    tz: str | None = None            # the keeper's timezone (from their browser), for quiet hours
 
 
 @dataclass
