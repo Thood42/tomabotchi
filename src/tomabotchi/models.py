@@ -9,7 +9,6 @@ BrainName = Literal["hermes", "claude", "fake"]
 TaskKind = Literal["task", "chat", "care"]      # only tasks count towards growing up
 PetState = Literal["hatching", "awake", "paused", "asleep", "retired"]
 Scene = Literal["egg", "alert", "work", "happy", "sleep", "sick"]
-Stage = Literal["egg", "baby", "kid", "teen", "adult"]
 Rule = Literal["free", "ask", "never"]
 CallOutcome = Literal["allow_once", "allow_always", "reject_once", "timeout", "cancelled"]
 EventKind = Literal["thought", "message", "tool_call", "tool_update", "plan", "notice", "state"]
@@ -148,21 +147,17 @@ class Lesson:
 
 
 @dataclass
-class Hearts:
-    hunger: int
-    happy: int
-    energy: int
-    health: int
+class Readout:
+    budget_left_pct: float | None     # None = no budget set; the lower of tokens and time left
+    context_pct: float | None         # from the last usage_update notice
+    steps_ok: tuple[int, int]         # (completed, finished) over the last ten finished tool calls
+    asked_first: tuple[int, int]      # what store.discipline returns
 
 
 @dataclass
 class Vitals:
-    hearts: Hearts
     scene: Scene
-    stage: Stage
-    energy_pct: float
-    mess_pct: float | None
-    discipline: tuple[int, int]
+    readout: Readout
     sick_reason: str | None
 
 

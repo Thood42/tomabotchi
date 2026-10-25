@@ -1,30 +1,13 @@
-"""Hearts, the LCD scene and the shelf metric, from store data. Pure functions."""
+"""The readout, the LCD scene and the typical-wait metric, from store data. Pure functions."""
 from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
 from statistics import median
 
-from .models import Call, Event, Hearts, Pet, Scene, Stage, Task, Vitals
+from .models import Call, Event, Pet, Readout, Scene, Task, Vitals
 
 SICK_AFTER = 3
-
-
-def stage(tasks_done: int) -> Stage:
-    if tasks_done <= 0:
-        return "egg"
-    if tasks_done <= 2:
-        return "baby"
-    if tasks_done <= 9:
-        return "kid"
-    if tasks_done <= 24:
-        return "teen"
-    return "adult"
-
-
-def _hearts_from_fraction(f: float) -> int:
-    """0..1 → 0..4 hearts, rounding half up so 41% left shows 2."""
-    return max(0, min(4, int(f * 4 + 0.5)))
 
 
 def failed_streak(recent_tool_updates: list[Event]) -> list[Event]:
@@ -69,24 +52,19 @@ def scene(pet: Pet, *, open_call: Call | None, sick_reason: str | None, task: Ta
 def compute(pet: Pet, *, task: Task | None, open_call: Call | None, recent_tool_updates: list[Event],
             tokens_used: int, elapsed: timedelta, loop_notice: Event | None, context_pct: float | None,
             discipline: tuple[int, int], now: datetime) -> Vitals:
-    working = task is not None and task.state in ("running", "waiting")
     finished = [e for e in recent_tool_updates if e.payload.get("status") in ("completed", "failed")][-10:]
-    happy_f = (sum(e.payload["status"] == "completed" for e in finished) / len(finished)) if finished else 1.0
     fractions = []
     if pet.budget_tokens:
         fractions.append(1 - tokens_used / pet.budget_tokens)
     if pet.budget_seconds:
         fractions.append(1 - elapsed.total_seconds() / pet.budget_seconds)
-    energy_f = max(0.0, min(fractions)) if fractions else 1.0
     reason = sick_reason(recent_tool_updates, loop_notice)
     return Vitals(
-        hearts=Hearts(hunger=4 if working else 1, happy=_hearts_from_fraction(happy_f),
-                      energy=_hearts_from_fraction(energy_f), health=1 if reason else 4),
         scene=scene(pet, open_call=open_call, sick_reason=reason, task=task),
-        stage=stage(pet.tasks_done),
-        energy_pct=round(energy_f * 100, 1),
-        mess_pct=context_pct,
-        discipline=discipline,
+        readout=Readout(budget_left_pct=round(max(0.0, min(fractions)) * 100, 1) if fractions else None,
+                        context_pct=context_pct,
+                        steps_ok=(sum(e.payload["status"] == "completed" for e in finished), len(finished)),
+                        asked_first=discipline),
         sick_reason=reason,
     )
 

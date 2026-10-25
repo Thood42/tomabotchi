@@ -1,7 +1,7 @@
 <div id="lesson-{{ pet.id }}" data-live class="lessons">
 {% for le in proposed %}
   <div class="proposed" role="group" aria-label="Proposed lesson">
-    <p>{{ lesson_asked[le.source] }}{% if le.note %} “{{ le.note }}”{% endif %}</p>
+    <p class="dim">{{ lesson_asked[le.source] }}{% if le.note %} “{{ le.note }}”{% endif %}</p>
     <form hx-post="/lessons/{{ le.id }}" hx-swap="none">
       <p class="add">{{ le.text }}</p>
       <div class="reword" hidden>

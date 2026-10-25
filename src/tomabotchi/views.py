@@ -105,6 +105,32 @@ ENV.globals["rule_label"] = rule_label
 ENV.filters["md"] = lambda text: Markup(soul.md_to_html(text))    # sanitised by nh3
 
 
+def stream_rows(events, open_call: Call | None, limit: int = 60) -> list[dict]:
+    """Thoughts, messages and tool calls on one spine, oldest first, one row per tool call. The open call's tool
+    reads 'needs you'. Keys: kind (think, said, tool, wait), at, text | title, detail, status."""
+    rows: list[dict] = []
+    tools: dict[str, dict] = {}
+    for ev in events:
+        p = ev.payload
+        if ev.kind in ("thought", "message"):
+            rows.append({"kind": "think" if ev.kind == "thought" else "said", "at": ev.ts, "text": p.get("text", "")})
+        elif ev.kind == "tool_call":
+            row = {"kind": "tool", "at": ev.ts, "title": p.get("title") or p.get("tool") or "Tool",
+                   "detail": ", ".join(p.get("paths") or []), "status": p.get("status") or "pending"}
+            tools[p["id"]] = row
+            rows.append(row)
+        elif ev.kind == "tool_update" and p.get("id") in tools:
+            tools[p["id"]]["status"] = "blocked" if p.get("blocked") else p.get("status") or tools[p["id"]]["status"]
+    if open_call:
+        row = tools.get(open_call.tool_call.get("toolCallId"))
+        if row is None:
+            row = {"kind": "tool", "at": open_call.asked_at, "title": open_call.tool_call.get("title") or "Use a tool",
+                   "detail": "", "status": "pending"}
+            rows.append(row)
+        row["status"] = "needs you"
+    return rows[-limit:]
+
+
 def tool_rows(events) -> list[dict]:
     """Merge tool_call and tool_update events into one row per tool call, in call order."""
     rows: dict[str, dict] = {}
@@ -164,9 +190,11 @@ def pet_context(conn, pet: Pet) -> dict:
     lights_off = pet.state == "asleep" and bool(switches) and switches[-1] == "lights_off"
     steps = store.plan(conn, task.id) if task else []
     done = sum(s.status == "completed" for s in steps)
+    stream = stream_rows([e for e in store.recent_events(conn, pet.id, {"thought", "message", "tool_call", "tool_update"}, 300)
+                          if task and e.task_id == task.id], open_call)
     track = track_context(conn, pet, updates, loop, working=working, now=now)
     return {"pet": pet, "track": track, "meters": module_meters(v), "led": led_state(pet, open_call, v, working), "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
-            "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
+            "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "stream": stream, "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
             "working": working, "tokens": tokens, "lights_off": lights_off,
             "trouble": trouble.payload.get("text") if trouble else None, "home": home_context(pet), **rules_context(conn, pet, open_call),
@@ -188,12 +216,13 @@ def _segments(filled: int, warn_from: int | None = None, bad: bool = False) -> l
 
 def module_meters(v) -> list[dict]:
     """The three meters on a pet's module: budget left, context used, health."""
-    budget = 5 if v.energy_pct is None else round(v.energy_pct / 20)
-    context = 0 if v.mess_pct is None else round(v.mess_pct / 20)
+    r = v.readout
+    budget = 5 if r.budget_left_pct is None else round(r.budget_left_pct / 20)
+    context = 0 if r.context_pct is None else round(r.context_pct / 20)
     return [{"label": "Budget left", "segs": _segments(budget, warn_from=None if budget > 1 else 0),
-             "text": f"{v.energy_pct:.0f}%" if v.energy_pct is not None else "no limit"},
+             "text": f"{r.budget_left_pct:.0f}%" if r.budget_left_pct is not None else "no limit"},
             {"label": "Context used", "segs": _segments(context, warn_from=4),
-             "text": f"{v.mess_pct:.0f}%" if v.mess_pct is not None else "unknown"},
+             "text": f"{r.context_pct:.0f}%" if r.context_pct is not None else "unknown"},
             {"label": "Health", "segs": _segments(1 if v.sick_reason else 5, bad=bool(v.sick_reason)),
              "text": v.sick_reason or "no errors or loops"}]
 
@@ -250,7 +279,7 @@ def memory_context(conn) -> dict:
     rested = []
     for pet in sorted(store.list_pets(conn, retired=True), key=lambda p: p.retired_at, reverse=True):
         home = home_context(pet)
-        rested.append({"pet": pet, "stage": vitals.stage(pet.tasks_done),
+        rested.append({"pet": pet,
                        "lived": max(1, (pet.retired_at - pet.born_at).days + 1), "home_name": home["home_name"],
                        "backup": Path(pet.backup_path).name if pet.backup_path else None})
     return {"rested": rested}
@@ -265,6 +294,7 @@ def rules_context(conn, pet: Pet, open_call: Call | None = None, saved: bool = F
     always = always_rule(open_call) if open_call else None
     return {"pet": pet, "rules": rules, "rule_summary": rule_summary(rules), "kind_labels": KIND_LABELS,
             "rules_saved": saved, "always": always,
+            "always_scope": rule_label(always["kind"], always["tool"], always["path_glob"]) if always else None,
             "always_label": ("Always allow " + rule_label(always["kind"], always["tool"], always["path_glob"]))
                             if always else None}
 

@@ -1,45 +1,32 @@
-{% set names = {"free": "Free to use", "ask": "Asks first", "never": "Never"} %}
-<section id="rules-{{ pet.id }}" data-live class="sheet rules-sheet" aria-labelledby="rules-h-{{ pet.id }}">
-  <h2 id="rules-h-{{ pet.id }}">Tool rules</h2>
-  <div class="rules">
-    {% for value in ("free", "ask", "never") %}
-      <span><b>{{ names[value] }}:</b> {{ rule_summary[value]|join(", ") if rule_summary[value] else "nothing" }}</span>
+{% set names = {"free": "free", "ask": "ask", "never": "never"} %}
+<section id="rules-{{ pet.id }}" data-live class="rules" aria-labelledby="rules-h-{{ pet.id }}">
+  <h2 id="rules-h-{{ pet.id }}">Rules <span class="lbl">most specific wins</span></h2>
+  <form hx-put="/pets/{{ pet.id }}/rules" hx-trigger="change[target.hasAttribute('data-save')]" hx-target="#rules-{{ pet.id }}" hx-swap="outerHTML">
+    {% for r in rules %}
+    <div class="rule">
+      <span>{{ rule_label(r.kind, r.tool, r.path_glob)|capitalize }}</span>
+      <input type="hidden" name="kind" value="{{ r.kind }}"><input type="hidden" name="tool" value="{{ r.tool or '' }}"><input type="hidden" name="path_glob" value="{{ r.path_glob or '' }}">
+      <input type="hidden" name="rule" value="{{ r.rule }}" data-save>
+      <span class="sw3" role="group" aria-label="{{ rule_label(r.kind, r.tool, r.path_glob) }}">
+        {% for value in ("free", "ask", "never") %}<button type="button" class="{{ value }}" data-set="{{ value }}" aria-pressed="{{ 'true' if r.rule == value else 'false' }}">{{ value }}</button>{% endfor %}
+      </span>
+      <button type="button" class="rm" data-set="remove" aria-label="Remove rule: {{ rule_label(r.kind, r.tool, r.path_glob) }}" title="Remove">×</button>
+    </div>
     {% endfor %}
-    <span class="muted">Dangerous commands always ask, whatever the rules say.</span>
-  </div>
-  <details{{ " open" if rules_saved }}>
-    <summary>Change {{ pet.name }}'s rules</summary>
-    <form class="rule-form" hx-put="/pets/{{ pet.id }}/rules" hx-target="#rules-{{ pet.id }}" hx-swap="outerHTML">
-      <p class="hint">The most specific rule wins: a tool name beats a kind of tool, and a folder beats no folder.
-        Leave Tool empty to cover every tool of that kind.</p>
-      <div class="rule-row head" aria-hidden="true"><span>What</span><span>Tool</span><span>Files</span><span>Rule</span></div>
-      {% for r in rules + [none] %}
-        {% set i = loop.index %}
-        <div class="rule-row{{ ' new' if r is none }}">
-          <label class="sr" for="kind-{{ pet.id }}-{{ i }}">What</label>
-          <select id="kind-{{ pet.id }}-{{ i }}" name="kind">
-            {% for k, label in kind_labels.items() %}
-              <option value="{{ k }}"{{ " selected" if r and r.kind == k }}>{{ label|capitalize }}</option>
-            {% endfor %}
-          </select>
-          <label class="sr" for="tool-{{ pet.id }}-{{ i }}">Tool</label>
-          <input id="tool-{{ pet.id }}-{{ i }}" type="text" name="tool" value="{{ r.tool or '' if r }}" placeholder="any">
-          <label class="sr" for="path-{{ pet.id }}-{{ i }}">Files</label>
-          <input id="path-{{ pet.id }}-{{ i }}" type="text" name="path_glob" value="{{ r.path_glob or '' if r }}" placeholder="{{ 'e.g. notes/**' if r is none else 'anywhere' }}">
-          <label class="sr" for="rule-{{ pet.id }}-{{ i }}">Rule</label>
-          <select id="rule-{{ pet.id }}-{{ i }}" name="rule">
-            {% if r is none %}<option value="">Add a rule...</option>{% endif %}
-            {% for value in ("free", "ask", "never") %}
-              <option value="{{ value }}"{{ " selected" if r and r.rule == value }}>{{ names[value] }}</option>
-            {% endfor %}
-            {% if r %}<option value="remove">Remove</option>{% endif %}
-          </select>
-        </div>
-      {% endfor %}
-      <div class="answers">
-        <button class="btn primary">Save rules</button>
-        {% if rules_saved %}<span class="saved" role="status">Saved. {{ pet.name }} uses them from its next tool call.</span>{% endif %}
+    <p class="dim">Dangerous commands always ask, whatever the rules say.{% if rules_saved %} <span class="saved" role="status">Saved. {{ pet.name }} uses them from its next tool call.</span>{% endif %}</p>
+    <details>
+      <summary>Add a rule</summary>
+      <p class="dim">The most specific rule wins: a tool name beats a kind of tool, and a folder beats no folder. Leave Tool empty to cover every tool of that kind.</p>
+      <div class="rule-new">
+        <label class="sr" for="kind-{{ pet.id }}">What</label>
+        <select id="kind-{{ pet.id }}" name="kind">{% for k, label in kind_labels.items() %}<option value="{{ k }}">{{ label|capitalize }}</option>{% endfor %}</select>
+        <label class="sr" for="tool-{{ pet.id }}">Tool</label>
+        <input id="tool-{{ pet.id }}" type="text" name="tool" placeholder="any tool">
+        <label class="sr" for="path-{{ pet.id }}">Files</label>
+        <input id="path-{{ pet.id }}" type="text" name="path_glob" placeholder="e.g. notes/**">
+        <label class="sr" for="rule-{{ pet.id }}">Rule</label>
+        <select id="rule-{{ pet.id }}" name="rule" data-save><option value="">Add as…</option>{% for value in names %}<option value="{{ value }}">{{ names[value]|capitalize }}</option>{% endfor %}</select>
       </div>
-    </form>
-  </details>
+    </details>
+  </form>
 </section>

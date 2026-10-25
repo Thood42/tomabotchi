@@ -42,34 +42,36 @@ def test_sick_after_three_identical_failures():
     assert vitals.sick_reason(recovered, None) is None
 
 
-def test_energy_hearts_from_budget():
-    v = vitals.compute(pet(budget_tokens=100_000), task=task(), open_call=None, recent_tool_updates=[],
-                       tokens_used=59_000, elapsed=timedelta(0), loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
-    assert v.energy_pct == 41.0
-    assert v.hearts.energy == 2
+def compute(p=None, ups=(), **kw):
+    args = dict(task=task(), open_call=None, recent_tool_updates=list(ups), tokens_used=0, elapsed=timedelta(0),
+                loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
+    return vitals.compute(p or pet(), **{**args, **kw})
 
 
-def test_energy_takes_the_lower_of_tokens_and_time():
-    v = vitals.compute(pet(budget_tokens=100_000, budget_seconds=3600), task=task(), open_call=None,
-                       recent_tool_updates=[], tokens_used=0, elapsed=timedelta(minutes=45), loop_notice=None, context_pct=None,
-                       discipline=(0, 0), now=NOW)
-    assert v.energy_pct == 25.0
+def test_budget_left_takes_the_lower_of_tokens_and_time():
+    v = compute(pet(budget_tokens=100_000, budget_seconds=3600), tokens_used=40_000, elapsed=timedelta(minutes=42))
+    assert v.readout.budget_left_pct == 30.0
 
 
-def test_happy_hearts_from_last_ten():
-    ups = [upd("failed", args={"n": i}, i=i) for i in range(5)] + [upd("completed", i=10 + i) for i in range(10)]
-    v = vitals.compute(pet(), task=task(), open_call=None, recent_tool_updates=ups, tokens_used=0,
-                       elapsed=timedelta(0), loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
-    assert v.hearts.happy == 4          # the five early failures fall outside the last ten
-    ups = [upd("completed", i=i) for i in range(5)] + [upd("failed", args={"n": i}, i=10 + i) for i in range(5)]
-    v = vitals.compute(pet(), task=task(), open_call=None, recent_tool_updates=ups, tokens_used=0,
-                       elapsed=timedelta(0), loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
-    assert v.hearts.happy == 2
+def test_budget_left_from_tokens_alone():
+    assert compute(pet(budget_tokens=100_000), tokens_used=59_000).readout.budget_left_pct == 41.0
 
 
-def test_stage_thresholds():
-    assert [vitals.stage(n) for n in (0, 1, 2, 3, 9, 10, 24, 25)] == \
-        ["egg", "baby", "baby", "kid", "kid", "teen", "teen", "adult"]
+def test_no_budget_reads_none():
+    assert compute().readout.budget_left_pct is None
+
+
+def test_steps_ok_counts_the_last_ten_finished():
+    ups = [upd("failed", args={"n": i}, i=i) for i in range(3)] + [upd("completed", i=10 + i) for i in range(9)]
+    assert compute(ups=ups).readout.steps_ok == (9, 10)      # one early failure falls outside the last ten
+    ups = [upd("completed", i=i) for i in range(7)] + [upd("failed", args={"n": i}, i=10 + i) for i in range(3)]
+    assert compute(ups=ups).readout.steps_ok == (7, 10)
+    assert compute().readout.steps_ok == (0, 0)
+
+
+def test_readout_carries_context_and_discipline():
+    r = compute(context_pct=78.0, discipline=(14, 14)).readout
+    assert (r.context_pct, r.asked_first) == (78.0, (14, 14))
 
 
 def test_median_wait_odd_even_empty():

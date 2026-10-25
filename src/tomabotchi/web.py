@@ -229,6 +229,8 @@ async def feed(request: Request, pet_id: str, prompt_md: str = Form(...), mode: 
     _pet_or_404(request, pet_id)
     sup = _ready(request, pet_id)
     await (sup.chat(prompt_md) if mode == "chat" else sup.feed(prompt_md))
+    if request.headers.get("HX-Request"):
+        return Response(status_code=204)            # the desk sends it in place; the live updates follow
     return RedirectResponse(f"/pets/{pet_id}", status_code=303)
 
 

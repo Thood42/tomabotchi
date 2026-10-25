@@ -96,7 +96,7 @@ async def test_energy_uses_metered_tokens(make_pet, conn):
                                 prompt_tokens=50_000, completion_tokens=9_000))
     ctx = views.pet_context(conn, store.get_pet(conn, sup.pet.id))
     assert ctx["tokens"] == 59_000
-    assert ctx["vitals"].energy_pct == 41.0
+    assert ctx["vitals"].readout.budget_left_pct == 41.0
 
 
 def test_usage_update_becomes_context_gauge():

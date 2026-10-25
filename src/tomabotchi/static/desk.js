@@ -31,7 +31,7 @@
     for (let t = Math.ceil((now - win()) / step) * step; t < now + step; t += step) {
       const left = `${100 + (t - now) / win() * 100}%`;
       grid.insertAdjacentHTML("beforeend", `<i style="left:${left}"></i>`);
-      if (t < now - win() * 0.04) ruler.insertAdjacentHTML("beforeend", `<span style="left:${left}">${hm(t)}</span>`);
+      if (t < now - win() * 0.07) ruler.insertAdjacentHTML("beforeend", `<span style="left:${left}">${hm(t)}</span>`);
     }
     ruler.dataset.origin = grid.dataset.origin = now;
   }

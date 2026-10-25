@@ -11,31 +11,38 @@
   es.addEventListener("open", () => { if (dropped) location.reload(); });
   const listening = new Set();
 
-  const held = new Map();          // id -> html that arrived while the keeper was typing inside it
+  const keepLcd = {
+    // kit.js draws each LCD from its data attributes; a morph must not wipe the drawing or the animation frame.
+    beforeNodeMorphed(oldNode, newNode) {
+      if (!oldNode.classList?.contains("lcd")) return true;
+      if (oldNode.dataset.scene !== newNode.dataset.scene || oldNode.dataset.seed !== newNode.dataset.seed) {
+        oldNode.dataset.scene = newNode.dataset.scene;
+        oldNode.dataset.seed = newNode.dataset.seed;
+        renderScene(oldNode);
+      }
+      return false;
+    },
+  };
 
+  // Updates are diffed into the live DOM, so scroll, focus, a half-typed reason and running animations survive.
   function swap(id, html) {
     const old = document.getElementById(id);
     if (!old) return;
-    const typing = document.activeElement;
-    if (typing && old.contains(typing) && typing.matches("input, textarea, select")) {
-      if (!held.has(id)) old.addEventListener("focusout", () => setTimeout(() => {
-        if (old.contains(document.activeElement)) return;
-        const later = held.get(id);
-        held.delete(id);
-        if (later !== undefined) swap(id, later);
-      }), { once: true });
-      held.set(id, html);
-      return;
-    }
     const tpl = document.createElement("template");
     tpl.innerHTML = html.trim();
     const el = tpl.content.firstElementChild;
     if (!el) return;
-    old.replaceWith(el);
-    hydrate(el);
-    if (window.htmx) htmx.process(el);
+    let now = el;
+    if (window.Idiomorph) {
+      Idiomorph.morph(old, el, { morphStyle: "outerHTML", ignoreActiveValue: true, callbacks: keepLcd });
+      now = document.getElementById(id) || el;
+    } else {
+      old.replaceWith(el);
+    }
+    hydrate(now);
+    if (window.htmx) htmx.process(now);
     listen();                       // a swapped partial may bring new live ids
-    window.onSwap?.(el);
+    window.onSwap?.(now);
   }
 
   function listen() {
@@ -152,3 +159,82 @@ function beep() {
   window.addEventListener("load", rememberZone);     // after htmx has wired the form
   document.body.addEventListener("htmx:afterSwap", () => { describePermission(); });
 })();
+
+// A line at the bottom of the page for what just happened, or why it didn't.
+function toast(message) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    el.setAttribute("role", "status");
+    document.body.append(el);
+  }
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(el.hide);
+  el.hide = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+function errorText(xhr) {
+  try { return JSON.parse(xhr.responseText).detail || xhr.statusText; } catch { return xhr.responseText?.slice(0, 160) || xhr.statusText; }
+}
+
+// Calls: A answers once, Shift A always allows, D denies. The key presses the keycap in the call in view.
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !["a", "A", "d"].includes(e.key)) return;
+  if (document.activeElement?.matches?.("input, textarea, select, [contenteditable]")) return;
+  const cap = document.querySelector(`.callform [data-key="${e.key}"]:not(:disabled)`);
+  if (!cap) return;
+  e.preventDefault();
+  cap.classList.add("hit");
+  setTimeout(() => cap.classList.remove("hit"), 140);
+  cap.click();
+});
+
+// Optimistic answers: the card says "Sending..." the moment you press, and comes back with the error if it fails.
+function sending(form) {
+  form.classList.add("busy");
+  form.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+  form.querySelector(".sending").hidden = false;
+  form.querySelector(".senderr").hidden = true;
+}
+
+function unsend(form, message) {
+  form.classList.remove("busy");
+  form.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+  form.querySelector(".sending").hidden = true;
+  const err = form.querySelector(".senderr");
+  err.textContent = message;
+  err.hidden = false;
+}
+
+document.addEventListener("htmx:beforeRequest", (e) => { if (e.target.matches?.(".callform")) sending(e.target); });
+document.addEventListener("htmx:responseError", (e) => {
+  const message = errorText(e.detail.xhr);
+  if (e.target.matches?.(".callform")) unsend(e.target, message); else toast(message);
+});
+document.addEventListener("htmx:sendError", (e) => {
+  if (e.target.matches?.(".callform")) unsend(e.target, "Couldn't reach tomabotchi."); else toast("Couldn't reach tomabotchi.");
+});
+
+// Three-way switches: a press sets the row's hidden value and fires a change, which saves the rules.
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-set]");
+  if (!b) return;
+  const row = b.closest(".rule");
+  const input = row.querySelector('input[name="rule"]');
+  if (input.value === b.dataset.set) return;
+  input.value = b.dataset.set;
+  row.querySelectorAll(".sw3 [data-set]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+});
+
+// How long a call has waited, kept current without republishing the card.
+setInterval(() => {
+  const now = Date.now();
+  document.querySelectorAll("[data-since]").forEach((el) => {
+    const s = Math.max(0, Math.round((now - Number(el.dataset.since)) / 1000));
+    el.textContent = `waiting ${s >= 60 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s` : `${s}s`}`;
+  });
+}, 1000);

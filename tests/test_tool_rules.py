@@ -46,7 +46,7 @@ def test_rules_editor_saves_rows_drops_removed_and_skips_blank(client):
             {"kind": "execute", "tool": "terminal", "path_glob": None, "rule": "never"}]
     assert rules_file(client, pet_id) == want
     assert [vars(x) for x in store.tool_rules(client.app.state.conn, pet_id)] == want
-    assert "<b>Never:</b> terminal" in client.get(f"/pets/{pet_id}").text
+    assert '<input type="hidden" name="rule" value="never" data-save>' in client.get(f"/pets/{pet_id}").text
 
 
 def test_rules_editor_rejects_unknown_kind(client):
@@ -74,7 +74,7 @@ def test_blocked_tool_counts_against_discipline(conn):
     store.append_event(conn, ev)
     store.open_call(conn, Call(id=0, pet_id="p", task_id=None, acp_request_id=1, tool_call={}, options=[], asked_at=NOW))
     assert store.discipline(conn, "p") == (1, 2)
-    assert "Asked first 1 of 2 times" in views.render("_vitals.html", **views.pet_context(conn, store.get_pet(conn, "p")))
+    assert "1/2" in views.render("_readout.html", **views.pet_context(conn, store.get_pet(conn, "p")))
 
 
 def _pet():
@@ -98,7 +98,7 @@ async def test_blocks_noted_by_the_leash_show_as_tools_and_count(cfg, conn, bus)
     await sup._on_update({"update": {"sessionUpdate": "usage_update", "size": 100, "used": 1}})
     ctx = views.pet_context(conn, store.get_pet(conn, "p"))
     assert [(t["title"], t["status"]) for t in ctx["tools"]] == [("terminal: date", "blocked")]
-    assert ctx["vitals"].discipline == (0, 1)
+    assert ctx["vitals"].readout.asked_first == (0, 1)
     await sup._on_update({"update": {"sessionUpdate": "usage_update", "size": 100, "used": 1}})
     assert store.discipline(conn, "p") == (0, 1)          # drained once, not counted again
     await sup.stop()

@@ -111,3 +111,80 @@ code, pre { font-family: "Chivo Mono", ui-monospace, monospace; font-size: 12.5p
 .optin p { flex: 1 1 360px; color: var(--dim); }
 .optin b { color: var(--text); }
 .answers { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* keycaps */
+.keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.key { display: grid; gap: 6px; justify-items: center; padding: 0; border: 0; background: none; }
+.key:disabled { opacity: .6; cursor: default; }
+.cap { width: 100%; height: 46px; display: grid; place-items: center; align-content: center; gap: 2px; border-radius: 6px; font-weight: 700;
+  background: var(--raise); box-shadow: 0 3px 0 var(--groove), inset 0 1px 0 rgba(255, 255, 255, .25); transition: transform .06s, box-shadow .06s; }
+.cap small { font: 500 10.5px/1 "Chivo Mono", monospace; opacity: .65; }
+.key:active .cap, .key.hit .cap { transform: translateY(2px); box-shadow: 0 1px 0 var(--groove); }
+.key.go .cap { background: var(--signal); color: var(--signal-ink); box-shadow: 0 3px 0 var(--signal-low); }
+.key.stop .cap { background: var(--stop); color: var(--stop-ink); box-shadow: 0 3px 0 var(--seam); }
+
+/* a call waiting on you */
+.call { display: grid; gap: 10px; padding: 12px; border-radius: 3px; background: var(--well); box-shadow: 0 0 0 2px var(--signal); }
+.call .q { display: flex; gap: 4px 10px; align-items: baseline; flex-wrap: wrap; }
+.call .q b { color: var(--signal); font-weight: 700; }
+.call .q span { color: var(--dim); }
+.call .q time { margin-left: auto; }
+.call pre { margin: 0; padding: 9px; max-height: 96px; overflow: auto; border-radius: 2px; background: var(--raise); white-space: pre-wrap; }
+.call input { width: 100%; padding: 6px 0; margin-bottom: 8px; border: 0; border-bottom: 1.5px solid var(--groove); background: none; outline: none; }
+.call input:focus { border-color: var(--signal); }
+.call .sending { margin-top: 8px; color: var(--dim); font: 500 12px/1 "Chivo Mono", monospace; }
+.call .senderr { margin-top: 8px; color: var(--red); }
+.trouble { display: grid; gap: 2px; padding: 10px 12px; border-radius: 3px; background: var(--stop); color: var(--stop-ink); }
+
+/* the stream: thoughts, messages and tool calls on one spine */
+.stream { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; }
+.ev { display: grid; grid-template-columns: 46px 18px 1fr; gap: 0 12px; padding-bottom: 14px; }
+.ev time { font: 500 11.5px/1.9 "Chivo Mono", monospace; color: var(--faint); text-align: right; }
+.ev .sp { position: relative; display: grid; justify-items: center; }
+.ev .sp::before { content: ""; position: absolute; top: 18px; bottom: -14px; width: 1px; background: var(--groove); }
+.ev:last-child .sp::before { display: none; }
+.ev .sp i { position: relative; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; border: 2px solid var(--dim); background: var(--chassis); }
+.ev.think .sp i { border-color: var(--violet); }
+.ev.think .b { color: var(--dim); font-style: italic; }
+.ev.tool .sp i { border-color: var(--led); border-radius: 1px; }
+.ev.said .sp i { background: var(--text); border-color: var(--text); }
+.ev.said .b { padding: 9px 13px; border-radius: 3px; background: var(--face); box-shadow: inset 0 -2px 0 var(--groove); }
+.ev.wait .sp i { background: var(--signal); border-color: var(--signal); }
+.ev .b { min-width: 0; overflow-wrap: anywhere; }
+.tr { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.tr b { font-weight: 500; }
+.tr code { color: var(--dim); }
+.st { padding: 0 6px; border-radius: 2px; font: 500 11px/1.6 "Chivo Mono", monospace; color: var(--dim); background: color-mix(in oklab, var(--dim), transparent 88%); }
+.st.ok { color: var(--led); background: color-mix(in oklab, var(--led), transparent 88%); }
+.st.wait { color: var(--signal); background: color-mix(in oklab, var(--signal), transparent 86%); }
+.st.bad { color: var(--red); background: color-mix(in oklab, var(--red), transparent 88%); }
+.stream .none { color: var(--dim); padding: 4px 0; }
+
+/* task progress, readout meters, rule rows */
+.segs { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: 3px; }
+.segs i { height: 5px; border-radius: 1px; background: var(--groove); }
+.segs i.d { background: var(--text); }
+.segs i.n { background: var(--signal); }
+.readout { display: grid; gap: 12px; }
+.meter { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.meter .v { font: 500 12px/1.5 "Chivo Mono", monospace; color: var(--dim); }
+.meter .vu { grid-column: 1 / -1; height: 7px; gap: 3px; }
+.health { color: var(--dim); }
+.health.bad { color: var(--red); }
+.rules { display: grid; gap: 10px; }
+.rules form { display: grid; gap: 10px; }
+.rule { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; }
+.rule .rm { width: 22px; height: 22px; border: 0; border-radius: 3px; background: none; color: var(--faint); }
+.rule .rm:hover { color: var(--red); }
+.rules summary { cursor: pointer; color: var(--dim); }
+.rule-new { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.rule-new select, .rule-new input { padding: 6px 8px; border: 0; border-radius: 3px; background: var(--well); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .15); }
+.saved { color: var(--led); }
+.lessons .proposed { display: grid; gap: 8px; padding: 12px; border-radius: 3px; background: var(--well); box-shadow: 0 0 0 1px var(--violet); }
+.lessons .add { font-weight: 500; }
+.lessons .reword input { width: 100%; padding: 6px 8px; border: 0; border-radius: 3px; background: var(--raise); }
+
+.toast { position: fixed; left: 50%; bottom: 22px; z-index: 20; translate: -50% 16px; opacity: 0; transition: .2s; max-width: 90vw; padding: 10px 14px; border-radius: 4px;
+  background: var(--lcd); color: var(--pixel); font: 500 13px/1.3 "Chivo Mono", monospace; box-shadow: 0 10px 30px var(--shadow); pointer-events: none; }
+.toast.show { translate: -50% 0; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast, .cap { transition: none; } }

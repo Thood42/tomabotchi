@@ -42,7 +42,7 @@ async def test_restart_mid_call_rejoins_the_session_and_the_call_is_still_answer
     await new.start(reattach=True)
     assert method_count(agent, "initialize") == 1 and method_count(agent, "session/new") == 1    # no new session
     assert new.busy and call.id in new._waiting
-    assert "is calling you" in views.render("_call.html", **views.pet_context(conn, store.get_pet(conn, pet.id)))
+    assert "wants to" in views.render("_call.html", **views.pet_context(conn, store.get_pet(conn, pet.id)))
 
     await new.answer(call.id, "allow_once", None)
     await until(lambda: store.get_task(conn, task_id).state == "done")    # the old prompt's answer closed it

@@ -1,24 +1,21 @@
 {% if call %}
 {% set tc = call.tool_call %}
-<section id="call-{{ pet.id }}" data-live class="sheet call-card" aria-labelledby="call-h-{{ pet.id }}">
-  <div class="title"><span data-icon="calls"></span><h2 id="call-h-{{ pet.id }}">{{ pet.name }} is calling you</h2></div>
-  <p class="why">It wants to {{ (tc.title or "use a tool")[:1]|lower }}{{ (tc.title or "use a tool")[1:] }}.
-    {{ "This command looks dangerous, so it always asks." if tc.dangerous else "Its rules say to ask you first." }}</p>
-  <dl class="req">
-    <dt>Tool</dt><dd>{{ tc.title or "A tool" }} <span class="muted">({{ tc.kind or "other" }})</span></dd>
-    {% for loc in tc.locations or [] %}<dt>File</dt><dd><code>{{ loc.path }}</code></dd>{% endfor %}
-  </dl>
+<section id="call-{{ pet.id }}" data-live class="call" aria-labelledby="call-h-{{ pet.id }}">
+  <p class="q"><b id="call-h-{{ pet.id }}">{{ pet.name }} wants to {{ (tc.title or "use a tool")[:1]|lower }}{{ (tc.title or "use a tool")[1:] }}</b>
+    <span>{{ "This command looks dangerous, so it always asks." if tc.dangerous else "Its rules say to ask you first." }}</span>
+    <time class="lbl" data-since="{{ call.asked_at|ms }}"></time></p>
+  {% for loc in tc.locations or [] %}<p class="lbl">file <code>{{ loc.path }}</code></p>{% endfor %}
   {% if tc.rawInput and tc.rawInput.content %}<pre>{{ tc.rawInput.content }}</pre>{% endif %}
-  <form hx-post="/calls/{{ call.id }}" hx-target="#call-{{ pet.id }}" hx-swap="outerHTML">
-    <div class="field">
-      <label for="why-{{ call.id }}">Tell {{ pet.name }} why (optional)</label>
-      <input id="why-{{ call.id }}" name="reason" type="text" placeholder="e.g. check notes/ for an existing note first">
+  <form class="callform" hx-post="/calls/{{ call.id }}" hx-target="#call-{{ pet.id }}" hx-swap="outerHTML">
+    <label class="sr" for="why-{{ call.id }}">Tell {{ pet.name }} why (optional)</label>
+    <input id="why-{{ call.id }}" name="reason" type="text" autocomplete="off" placeholder="Tell {{ pet.name }} why (optional; a reason on a denial becomes a lesson)">
+    <div class="keys">
+      <button class="key go" name="option" value="allow_once" data-key="a"><span class="cap">Allow<small>A</small></span><span class="lbl">once</span></button>
+      {% if always_label %}<button class="key" name="option" value="allow_always" data-key="A" title="{{ always_label }}"><span class="cap">Always<small>shift A</small></span><span class="lbl">{{ always_scope|truncate(14, True, '…') }}</span></button>{% endif %}
+      <button class="key stop" name="option" value="reject_once" data-key="d"><span class="cap">Deny<small>D</small></span><span class="lbl">tell it why</span></button>
     </div>
-    <div class="answers">
-      <button class="btn primary" name="option" value="allow_once">Allow once</button>
-      {% if always_label %}<button class="btn" name="option" value="allow_always">{{ always_label }}</button>{% endif %}
-      <button class="btn alarm" name="option" value="reject_once">Deny</button>
-    </div>
+    <p class="sending" role="status" hidden>Sending…</p>
+    <p class="senderr" role="alert" hidden></p>
   </form>
 </section>
 {% else %}

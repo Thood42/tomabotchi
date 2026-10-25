@@ -1,0 +1,9 @@
+{# Ten-segment meter. warn="high" lights the top segments when the value is high (context), "low" when it is low (budget). #}
+{% macro bar(pct, warn=None) -%}
+  {%- set on = ((pct or 0) / 10)|round|int -%}
+  <span class="vu" aria-hidden="true">
+    {%- for i in range(10) -%}
+      <i class="{{ ('w' if (warn == 'high' and i >= 7) or (warn == 'low' and on <= 2) else 'f') if i < on else '' }}"></i>
+    {%- endfor -%}
+  </span>
+{%- endmacro %}

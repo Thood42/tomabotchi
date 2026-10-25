@@ -1,8 +1,25 @@
 <section id="deck" class="deck" aria-label="{{ pet.name }}" data-pet="{{ pet.id }}">
   <div class="panel who">
-    <h1>{{ pet.name }}</h1>
-    <p>{{ home.brain_label }} on {{ home.model_label }}, day {{ day }}</p>
-    <p>{{ doing }}</p>
-    <p><a class="btn" href="/pets/{{ pet.id }}">Open {{ pet.name }}</a></p>
+    <div><h1>{{ pet.name }}</h1><p>{{ home.brain_label }} on {{ home.model_label }}, day {{ day }}</p></div>
+    {% include "_trouble.html" %}
+    {% if not call %}<p class="doing">{{ doing }}</p>{% endif %}
+    {% include "_call.html" %}
+    {% include "_lesson.html" %}
+    <p class="links"><a href="/pets/{{ pet.id }}">Open console</a>{% if pet.brain != "fake" %} <a href="/pets/{{ pet.id }}/workspace">Workspace</a>{% endif %} <a href="/pets/{{ pet.id }}/soul">Soul</a></p>
+  </div>
+  <div class="panel">
+    {% include "_steps.html" %}
+    <div class="log">{% include "_stream.html" %}</div>
+    <form class="feed" hx-post="/pets/{{ pet.id }}/tasks" hx-swap="none" hx-on::after-request="if (event.detail.successful) this.reset()">
+      <label class="sr" for="feed-{{ pet.id }}">Task or message for {{ pet.name }}</label>
+      <input id="feed-{{ pet.id }}" name="prompt_md" type="text" required autocomplete="off" placeholder="New task, or just talk">
+      <button class="btn primary" name="mode" value="task">New task</button>
+      <button class="btn" name="mode" value="chat">Chat</button>
+    </form>
+  </div>
+  <div class="panel side">
+    {% include "_rules.html" %}
+    <h2>Readout</h2>
+    {% include "_readout.html" %}
   </div>
 </section>

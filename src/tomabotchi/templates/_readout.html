@@ -1,0 +1,9 @@
+{% from "_macros.html" import bar %}
+{% set r = vitals.readout %}
+<section id="readout-{{ pet.id }}" data-live class="readout" aria-label="Readout">
+  <div class="meter"><span>Budget left</span><span class="v">{{ (r.budget_left_pct|round|int ~ "%") if r.budget_left_pct is not none else "no limit" }}</span>{{ bar(r.budget_left_pct if r.budget_left_pct is not none else 100, "low") }}</div>
+  <div class="meter"><span>Context used</span><span class="v">{{ (r.context_pct|round|int ~ "%") if r.context_pct is not none else "unknown" }}</span>{{ bar(r.context_pct or 0, "high") }}</div>
+  <div class="meter"><span>Steps succeeding</span><span class="v">{{ r.steps_ok[0] }}/{{ r.steps_ok[1] }}</span>{{ bar(100 * r.steps_ok[0] / r.steps_ok[1] if r.steps_ok[1] else 100) }}</div>
+  <div class="meter"><span>Asked before acting</span><span class="v">{{ r.asked_first[0] }}/{{ r.asked_first[1] }}</span>{{ bar(100 * r.asked_first[0] / r.asked_first[1] if r.asked_first[1] else 100) }}</div>
+  <p class="health{{ ' bad' if vitals.sick_reason }}">{{ vitals.sick_reason or "No errors or loops." }}{% if tokens %} <span class="lbl">{{ "{:,}".format(tokens) }} tokens this task</span>{% endif %}</p>
+</section>

@@ -65,3 +65,31 @@ def test_retire_hides_module_and_track(client):
     client.post(f"/pets/{pet_id}/retire")
     hidden = {m.event for m in seen if "hidden" in m.data}
     assert {f"module-{pet_id}", f"track-{pet_id}"} <= hidden and "status" in {m.event for m in seen}
+
+
+def test_deck_has_keycaps_task_log_switches_and_readout(client):
+    pet_id = hatch(client, "Pip")
+    wait_for(lambda: store.pending_calls(client.app.state.conn, pet_id))
+    deck = client.get(f"/pets/{pet_id}/deck").text
+    for key in ('data-key="a"', 'data-key="A"', 'data-key="d"'):
+        assert key in deck
+    assert f'id="stream-{pet_id}"' in deck and "needs you" in deck
+    assert f'id="readout-{pet_id}"' in deck and "Budget left" in deck and "Asked before acting" in deck
+    assert 'data-set="never"' in deck and f'id="rules-{pet_id}"' in deck
+    assert 'hx-post="/pets/' in deck and "New task" in deck
+
+
+def test_feeding_from_the_desk_answers_without_a_redirect(client):
+    pet_id = hatch(client, "Pip", first_task_md="")
+    r = client.post(f"/pets/{pet_id}/tasks", data={"prompt_md": "write a note", "mode": "task"},
+                    headers={"HX-Request": "true"}, follow_redirects=False)
+    assert r.status_code == 204
+
+
+def test_answering_a_call_swaps_the_card_out_and_the_log_moves_on(client):
+    pet_id = hatch(client, "Pip")
+    conn = client.app.state.conn
+    wait_for(lambda: store.pending_calls(conn, pet_id))
+    call = store.pending_calls(conn, pet_id)[0]
+    assert client.post(f"/calls/{call.id}", data={"option": "allow_once"}).status_code == 200
+    wait_for(lambda: 'class="st wait"' not in client.get(f"/pets/{pet_id}/deck").text)

@@ -1,0 +1,15 @@
+{% set states = {"pending": "running", "in_progress": "running", "completed": "done", "failed": "failed", "blocked": "blocked", "needs you": "needs you"} %}
+<ol id="stream-{{ pet.id }}" data-live class="stream" aria-label="{{ pet.name }}'s activity">
+  {% for r in stream %}
+  <li class="ev {{ r.kind }}{{ ' wait' if r.status == 'needs you' }}">
+    <time>{{ r.at|hm }}</time><span class="sp"><i></i></span>
+    {% if r.kind == "tool" %}
+    <div class="b tr"><b>{{ r.title }}</b>{% if r.detail %}<code>{{ r.detail }}</code>{% endif %}<span class="st {{ 'ok' if r.status == 'completed' else 'wait' if r.status == 'needs you' else 'bad' if r.status in ('failed', 'blocked') else '' }}">{{ states.get(r.status, r.status) }}</span></div>
+    {% else %}
+    <div class="b">{{ r.text }}</div>
+    {% endif %}
+  </li>
+  {% else %}
+  <li class="none">Nothing yet. {{ pet.name }}'s thoughts, messages and tools show up here as they happen.</li>
+  {% endfor %}
+</ol>
