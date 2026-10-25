@@ -9,7 +9,8 @@
     </div>
     <div>
       <h1>{{ pet.name }}'s soul</h1>
-      <p class="muted">{{ pet.name }} reads this before every task.
+      <p class="muted">{% if pet.state == "retired" %}{{ pet.name }} rests on the <a href="/memory">memory shelf</a>.
+        {% else %}{{ pet.name }} reads this before every task.{% endif %}
         {% if changes %}Changed {{ changes }} time{{ "s" if changes != 1 }} since it hatched.{% else %}Unchanged since it hatched.{% endif %}</p>
     </div>
     {% set tab = "soul" %}{% include "_tabs.html" %}
@@ -21,6 +22,7 @@
         <span>{{ brain_file }}, version {{ soul.version }}</span>
       </div>
       {% include "_soul_doc.html" %}
+      {% if pet.state != "retired" %}
       {% include "_lesson.html" %}
       <details class="soul-edit"{{ " open" if editing }}>
         <summary class="btn">Edit the soul</summary>
@@ -34,9 +36,13 @@
           <div class="answers"><button class="btn primary">Save the soul</button></div>
         </form>
       </details>
+      {% else %}
+      <div class="answers"><a class="btn primary" href="/hatch?from={{ pet.id }}">Hatch a new pet from this soul</a></div>
+      {% endif %}
     </section>
 
     <div class="side">
+      {% if pet.state != "retired" %}
       <section class="sheet teach" aria-labelledby="teach-h">
         <h2 id="teach-h">Teach {{ pet.name }}</h2>
         <p class="muted">Say it in your own words. {{ pet.name }} drafts the change to its soul and you approve it.</p>
@@ -51,6 +57,7 @@
         </form>
       </section>
 
+      {% endif %}
       <section class="sheet" aria-labelledby="shaped-h">
         <h2 id="shaped-h">What shaped this soul</h2>
         {% include "_timeline.html" %}

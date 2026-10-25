@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 import logging
 import secrets
+import shutil
 import sqlite3
 from dataclasses import asdict
 from datetime import date
@@ -16,7 +17,7 @@ from pathlib import Path
 
 from websockets.exceptions import InvalidHandshake, InvalidMessage
 
-from . import brains, lessons, soul, store, views
+from . import archive, brains, lessons, soul, store, views
 from .bus import Bus, BusMessage
 from .config import Config
 from .docker_ops import DockerOps, container_name
@@ -80,7 +81,8 @@ class Fleet:
             await self.docker.create_network(pet.id)      # a recreated server must rejoin the pet's network
             self._spawn(self._attach(pet, self._token(pet.id), first_task=None))
 
-    async def hatch(self, form: HatchForm) -> Pet:
+    async def hatch(self, form: HatchForm, lessons_from: str | None = None) -> Pet:
+        """lessons_from: a (retired) pet whose lessons the new soul keeps."""
         brain = brains.get(form.brain)                 # KeyError for an unknown brain
         self.cfg.home(form.home)
         model = self.cfg.model(form.model)
@@ -102,8 +104,12 @@ class Fleet:
         token_file.write_text(token)
         token_file.chmod(0o600)
 
-        soul_md = soul.render_initial(form, born=date.today())
-        store.add_soul_revision(self.conn, pet.id, soul_md, "hatched", None)
+        soul_md, note = soul.render_initial(form, born=date.today()), None
+        if lessons_from:
+            parent = store.get_pet(self.conn, lessons_from)
+            kept = soul.sections(store.latest_soul(self.conn, parent.id).content).get("Lessons", "")
+            soul_md, note = soul.with_lessons(soul_md, kept), f"Hatched from {parent.name}'s soul"
+        store.add_soul_revision(self.conn, pet.id, soul_md, "hatched", note)
         store.replace_tool_rules(self.conn, pet.id, [ToolRule(**r) for r in DEFAULT_RULES])
         brains.write_soul(brain, self.brain_home(pet.id), soul_md)
         brains.write_rules(brain, self.brain_home(pet.id), list(DEFAULT_RULES))
@@ -280,6 +286,44 @@ class Fleet:
         brains.write_rules(brains.get(pet.brain), self.brain_home(pet_id), [asdict(r) for r in rules])
         html = views.render("_rules.html", **views.rules_context(self.conn, pet))
         self.bus.publish(BusMessage(event=f"rules-{pet_id}", data=html, pet_id=pet_id))
+
+    async def retire(self, pet_id: str, reason: str | None) -> Pet:
+        """No death: stop the pet, zip its workspace and brain into the archive and check the zip,
+        and only then remove its home and files. The pet and its souls stay in the database."""
+        pet = store.get_pet(self.conn, pet_id)
+        if pet.state == "retired":
+            raise ValueError(f"{pet.name} is already on the memory shelf")
+        sup = self._sups.pop(pet_id, None)
+        if sup:
+            await sup.cancel_turn()
+            await sup.stop()
+        agent = self._fakes.pop(pet_id, None)
+        if agent:
+            await agent.stop()
+        self._lights_off.pop(pet_id, None)
+        container = self.docker is not None and pet.brain != "fake"
+        if container:
+            await self.docker.stop(pet_id)              # quiet files while they're packed
+        pet_dir = self.cfg.pet_dir(pet_id)
+        dest = archive.backup_name(pet.name, date.today(), self.cfg.archive_dir)
+        try:
+            size = await asyncio.to_thread(archive.pack, pet_dir, dest)
+        except (OSError, archive.BackupError) as e:
+            store.set_pet_state(self.conn, pet_id, "asleep")
+            self._notice(pet, "retire_failed", f"Couldn't retire it: {e}. Nothing was deleted.")
+            raise
+        if container:
+            await self.docker.remove_pet(pet_id)
+        await asyncio.to_thread(shutil.rmtree, pet_dir, True)
+        for call in store.pending_calls(self.conn, pet_id):
+            store.answer_call(self.conn, call.id, "cancelled", "retired", store.now())
+        views.HOME_STATS.pop(pet_id, None)
+        store.update_pet(self.conn, pet_id, state="retired", retired_at=store.now(), retire_reason=reason,
+                         backup_path=str(dest), backup_bytes=size, container_id=None)
+        self.bus.publish(BusMessage(event=f"slot-{pet_id}", data=f'<li id="slot-{pet_id}" hidden></li>'))
+        self.bus.publish(BusMessage(event="shelf-head", data=views.render(
+            "_shelf_head.html", **views.shelf_context(self.conn))))
+        return store.get_pet(self.conn, pet_id)
 
     async def shutdown(self) -> None:
         """Close our side only: pet containers keep running and are reattached on the next boot."""

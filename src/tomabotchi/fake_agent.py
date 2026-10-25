@@ -195,7 +195,9 @@ class FakeAgent:
                 for t in list(self._turns):
                     t.cancel()
             elif method is None and req_id in self._waiting:
-                self._waiting.pop(req_id).set_result(msg.get("result") or {})
+                fut = self._waiting.pop(req_id)
+                if not fut.done():                # a session/cancel can overtake the keeper's answer
+                    fut.set_result(msg.get("result") or {})
 
     async def _turn(self, ws: ServerConnection, req_id, session_id: str, text: str) -> None:
         try:

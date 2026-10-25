@@ -15,6 +15,27 @@
       {% include "_bigegg.html" %}
       {% include "_vitals.html" %}
       {% include "_home.html" %}
+      {% if pet.state != "retired" %}
+      <div class="retire-row">
+        {% if pet.brain != "fake" %}<a class="btn" href="/pets/{{ pet.id }}/workspace">Open workspace</a>{% endif %}
+        <button class="btn quiet" type="button" onclick="document.getElementById('retire').showModal()">Retire {{ pet.name }}</button>
+      </div>
+      <dialog id="retire" class="sheet retire" aria-labelledby="retire-h">
+        <form method="post" action="/pets/{{ pet.id }}/retire">
+          <h2 id="retire-h">Retire {{ pet.name }}?</h2>
+          <p>{{ pet.name }} stops working and moves to the memory shelf. Its workspace is packed into a backup in the
+            archive folder, and its soul is kept. You can hatch a new pet from that soul any time.</p>
+          <div class="field">
+            <label for="retire-why">Why are you retiring it? (optional)</label>
+            <input id="retire-why" name="reason_md" type="text" placeholder="e.g. replaced by a pet with a browser home">
+          </div>
+          <div class="answers">
+            <button class="btn alarm">Retire {{ pet.name }}</button>
+            <button class="btn quiet" type="button" onclick="this.closest('dialog').close()">Keep {{ pet.name }}</button>
+          </div>
+        </form>
+      </dialog>
+      {% endif %}
     </div>
     <div class="right">
       {% include "_call.html" %}

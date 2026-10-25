@@ -22,5 +22,5 @@
   </ul>
 
   <div class="shelf-edge" aria-hidden="true"></div>
-  {% if retired_count %}<p class="retired">{{ retired_count }} retired pets on the memory shelf.</p>{% endif %}
+  {% if retired_count %}<p class="retired"><a href="/memory">{{ retired_count }} retired pet{{ "s" if retired_count != 1 }} on the memory shelf.</a></p>{% endif %}
 {% endblock %}

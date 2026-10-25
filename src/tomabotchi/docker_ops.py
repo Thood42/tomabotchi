@@ -255,5 +255,16 @@ class DockerOps:
             return out
         return await asyncio.to_thread(ls)
 
+    async def stop(self, pet_id: str) -> None:
+        def stop():
+            c = self.client.containers.get(container_name(pet_id))
+            if c.status == "paused":
+                c.unpause()
+            c.stop(timeout=10)
+        try:
+            await asyncio.to_thread(stop)
+        except NotFound:
+            pass
+
     async def start(self, pet_id: str) -> None:
         await asyncio.to_thread(lambda: self.client.containers.get(container_name(pet_id)).start())

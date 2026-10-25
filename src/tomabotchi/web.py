@@ -11,8 +11,9 @@ from contextlib import asynccontextmanager
 from datetime import time
 from pathlib import Path
 
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
+from fastapi import FastAPI, Form, HTTPException, Query, Request
+from fastapi.responses import (FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, Response,
+                               StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 
 from . import codeproxy, config, db, gateway, notify, soul, store, views
@@ -93,10 +94,28 @@ def shelf(request: Request):
 
 
 @app.get("/hatch", response_class=HTMLResponse)
-def hatch_page(request: Request):
-    cfg = request.app.state.cfg
+def hatch_page(request: Request, from_: str | None = Query(None, alias="from")):
+    """?from=<retired pet> prefills the soul answers from that pet's soul, and keeps its lessons."""
+    cfg, conn = request.app.state.cfg, request.app.state.conn
+    parent = _pet_or_404(request, from_) if from_ else None
+    prefill = soul.prefill_from(store.latest_soul(conn, parent.id).content) if parent else {}
     return _page("hatch.html", homes=cfg.homes, models=cfg.models, shells=views.SHELLS,
-                 seed=random.randrange(1, 99999), anthropic_ready=bool(cfg.anthropic_key))
+                 seed=parent.look_seed if parent else random.randrange(1, 99999),
+                 anthropic_ready=bool(cfg.anthropic_key), parent=parent, prefill=prefill)
+
+
+@app.get("/memory", response_class=HTMLResponse)
+def memory_page(request: Request):
+    return _page("memory.html", **views.memory_context(request.app.state.conn))
+
+
+@app.get("/memory/{pet_id}/backup")
+def download_backup(request: Request, pet_id: str):
+    pet = _pet_or_404(request, pet_id)
+    path = Path(pet.backup_path) if pet.backup_path else None
+    if pet.state != "retired" or path is None or not path.is_file():
+        raise HTTPException(404, "There's no backup for that pet.")
+    return FileResponse(path, media_type="application/zip", filename=path.name)
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -137,6 +156,8 @@ async def test_beep(request: Request):
 @app.get("/pets/{pet_id}", response_class=HTMLResponse)
 def pet_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
+    if pet.state == "retired":
+        return RedirectResponse(f"/pets/{pet_id}/soul", status_code=303)    # all that's left is its soul
     return _page("pet.html", **views.pet_context(request.app.state.conn, pet))
 
 
@@ -161,14 +182,15 @@ def soul_page(request: Request, pet_id: str):
 async def hatch(request: Request, name: str = Form(...), shell: str = Form("grape"), look_seed: int = Form(15),
                 purpose_md: str = Form(""), voice_md: str = Form(""), ask_first_md: str = Form(""),
                 never_md: str = Form(""), home: str = Form("python"), brain: str = Form("fake"),
-                model: str = Form("local-qwen"), budget: str = Form("100k-2h"), first_task_md: str = Form("")):
+                model: str = Form("local-qwen"), budget: str = Form("100k-2h"), first_task_md: str = Form(""),
+                lessons_from: str = Form("")):
     if shell not in views.SHELLS:
         raise HTTPException(400, f"Pick one of the shells: {', '.join(views.SHELLS)}.")
     form = HatchForm(name=name, shell=shell, look_seed=look_seed, purpose_md=purpose_md, voice_md=voice_md,
                      ask_first_md=ask_first_md, never_md=never_md, home=home, brain=brain, model=model,
                      budget=budget, first_task_md=first_task_md or None)
     try:
-        pet = await request.app.state.fleet.hatch(form)
+        pet = await request.app.state.fleet.hatch(form, lessons_from=lessons_from or None)
     except KeyError as e:
         raise HTTPException(400, f"Unknown choice: {e}. Pick from the lists on the hatch page.") from None
     except RuntimeError as e:
@@ -232,6 +254,18 @@ async def tidy(request: Request, pet_id: str):
     _pet_or_404(request, pet_id)
     await _ready(request, pet_id).tidy()
     return Response(status_code=204)
+
+
+@app.post("/pets/{pet_id}/retire")
+async def retire(request: Request, pet_id: str, reason_md: str = Form("")):
+    _pet_or_404(request, pet_id)
+    try:
+        await request.app.state.fleet.retire(pet_id, reason_md.strip() or None)
+    except ValueError as e:
+        raise HTTPException(409, f"{e}.") from None
+    except (OSError, RuntimeError) as e:
+        raise HTTPException(500, f"Couldn't retire it: {e}. Nothing was deleted.") from None
+    return RedirectResponse("/memory", status_code=303)
 
 
 @app.post("/pets/{pet_id}/pause", status_code=204)

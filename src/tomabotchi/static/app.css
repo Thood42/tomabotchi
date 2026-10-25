@@ -243,3 +243,26 @@ a.ico { text-decoration: none; }
 #notifications .answers { align-items: center; margin-top: 14px; }
 #notifications .saved { color: var(--ok); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .switch span::after { transition: none; } }
+
+/* ---- memory shelf: the same toy shelf with the lights turned down ---- */
+body.dusk { --shelf: #c9c4e6; --shelf-dot: #b9b3dc; }
+.rested { list-style: none; margin: 0; padding: 0; display: grid; gap: 30px; }
+.rested > li { display: grid; grid-template-columns: 170px 1fr; gap: 32px; align-items: center; }
+.rested .egg { --egg-w: 160px; filter: saturate(0.35) brightness(0.95); }
+.rested .egg .lcd { background: #9aa58a; }
+.card { display: grid; gap: 10px; }
+.card .who { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.card .who span { color: var(--ink-soft); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 18px; margin: 0; font-size: 15.5px; }
+.facts dt { font-weight: 700; }
+.facts dd { margin: 0; }
+.facts code { font-size: 13px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.where { margin-top: 18px; color: var(--ink-soft); }
+.retire-row { display: flex; gap: 10px; flex-wrap: wrap; width: 100%; }
+dialog.retire { max-width: 460px; color: var(--ink); }
+dialog.retire::backdrop { background: rgba(42, 35, 80, 0.35); }
+dialog.retire p { margin-top: 10px; }
+dialog.retire .field { margin-top: 14px; }
+.parent-note { margin-bottom: 18px; }
+@media (max-width: 700px) { .rested > li { grid-template-columns: 1fr; justify-items: center; } }

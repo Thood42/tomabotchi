@@ -160,7 +160,8 @@ def timeline(pet: Pet, revisions: list[SoulRevision], lessons: list[Lesson]) -> 
     items = []
     for r in revisions:
         if r.source == "hatched":
-            items.append({"cls": "", "kind": "Hatched", "at": r.created_at, "text": "Soul written from your answers."})
+            items.append({"cls": "", "kind": "Hatched", "at": r.created_at,
+                          "text": f"{r.note}, keeping its lessons." if r.note else "Soul written from your answers."})
         elif r.source == "edited":
             items.append({"cls": "edited", "kind": "You edited", "at": r.created_at,
                           "text": r.note or f"Rewrote the soul by hand (version {r.version})."})
@@ -177,6 +178,17 @@ def soul_context(conn, pet: Pet) -> dict:
     latest = revisions[0]
     return {"pet": pet, "soul": latest, "changes": len(revisions) - 1, "brain_file": soul_file_name(pet),
             "timeline": timeline(pet, revisions, store.lessons(conn, pet.id)), **lessons_context(conn, pet)}
+
+
+def memory_context(conn) -> dict:
+    """The memory shelf: retired pets, most recently retired first."""
+    rested = []
+    for pet in sorted(store.list_pets(conn, retired=True), key=lambda p: p.retired_at, reverse=True):
+        home = home_context(pet)
+        rested.append({"pet": pet, "stage": vitals.stage(pet.tasks_done),
+                       "lived": max(1, (pet.retired_at - pet.born_at).days + 1), "home_name": home["home_name"],
+                       "backup": Path(pet.backup_path).name if pet.backup_path else None})
+    return {"rested": rested}
 
 
 def soul_file_name(pet: Pet) -> str:

@@ -34,8 +34,12 @@ def render_initial(form: HatchForm, *, born: date) -> str:
 
 
 def add_lesson_line(soul_md: str, lesson: str, *, on: date) -> str:
-    """Append "- <lesson> (learned 25 Oct)" at the end of ## Lessons, creating the section if missing."""
-    line = f"- {lesson.strip().rstrip('.')}. (learned {on.day} {on:%b})"
+    """Append "- <lesson>. (learned 25 Oct)" at the end of ## Lessons, creating the section if missing."""
+    return insert_lesson(soul_md, f"- {lesson.strip().rstrip('.')}. (learned {on.day} {on:%b})")
+
+
+def insert_lesson(soul_md: str, line: str) -> str:
+    """Append an already-formatted lesson line at the end of ## Lessons."""
     lines = soul_md.rstrip("\n").split("\n")
     try:
         start = next(i for i, ln in enumerate(lines) if ln.strip().lower() == "## lessons")
@@ -62,3 +66,29 @@ def md_to_html(md: str) -> str:
     """Keeper-written Markdown to HTML that is safe to put in the page."""
     return nh3.clean(_MD.render(md or ""), tags=_TAGS, attributes={"a": {"href", "title"}},
                      url_schemes={"http", "https", "mailto"}, link_rel="noopener noreferrer")
+
+
+def sections(soul_md: str) -> dict[str, str]:
+    """## heading → its body, as written."""
+    out, title = {}, None
+    for line in soul_md.splitlines():
+        if line.startswith("## "):
+            title = line[3:].strip()
+            out[title] = []
+        elif title is not None:
+            out[title].append(line)
+    return {t: "\n".join(body).strip() for t, body in out.items()}
+
+
+def prefill_from(soul_md: str) -> dict[str, str]:
+    """The hatch screen's answers, read back out of a soul (for "Hatch a new pet from this soul")."""
+    s = sections(soul_md)
+    return {"purpose_md": s.get("Who I am", ""), "voice_md": s.get("How I talk", ""),
+            "ask_first_md": s.get("What my keeper wants to approve", ""), "never_md": s.get("Never", "")}
+
+
+def with_lessons(soul_md: str, lessons_md: str) -> str:
+    """A fresh soul that keeps an old one's lessons."""
+    for line in (ln for ln in lessons_md.splitlines() if ln.strip()):
+        soul_md = insert_lesson(soul_md, line)
+    return soul_md

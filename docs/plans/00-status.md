@@ -16,7 +16,7 @@
 - [x] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
 - [x] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
 - [x] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
-- [ ] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
+- [x] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
 - [ ] Slice 12 — resilience: server restart reattach, petd replay, pending calls survive, clear error states
 - [ ] Slice 13 — polish and docs: shuffle, phone layouts, focus, README, final screenshot pass, full test run
 
@@ -204,3 +204,24 @@
     - Quiet hours set to the current New York hour → hatching Hush showed nothing.
     - The test beep → "tomabotchi says hi".
     - The browser saved `tz: America/New_York` by itself. Unit: 142 passed (`test_notifications.py`: 6).
+- Slice 11 notes (2026-10-25):
+  - **Retire:** a "Retire <name>" button under Home opens a `<dialog>` (outside the live partials, so SSE can't close it) with an optional reason, which posts to `POST /pets/{id}/retire` and then goes to `/memory`. `Fleet.retire` runs in this order:
+    1. Cancel the turn and stop the supervisor and fake agent.
+    2. `docker stop`, unpausing first.
+    3. `archive.pack` → `archive/<slug>-<date>[-n].zip`.
+    4. Only then remove the container and network and `rmtree` the pet dir.
+    5. Cancel pending calls, set `retired`/`retired_at`/`retire_reason`/`backup_path`/`backup_bytes`, and hide the shelf slot over SSE.
+    - **A failed backup deletes nothing.** The pet goes asleep with "Couldn't retire it: … Nothing was deleted." and the request returns 500.
+  - **`archive.pack`** zips `workspace/` and `brain/`:
+    - Includes regular files, **symlinks as links** (the leash plugin link dangles on the host) and **empty folders**.
+    - Skips **sockets and pipes** (Hermes leaves `gateway.sock`, code-server an ipc socket; zipping one failed the first live retire).
+    - Leaves out the gateway `.token`.
+    - Writes to `.zip.part`, verifies (`testzip`, every entry present, sizes equal), then renames. A failed pack removes the part file.
+  - **Memory shelf** `/memory` (header link, and the shelf's "N retired pets" line links to it) is the "dusk" shelf. It shows stage, days lived, tasks, the retire date and reason, home, and the backup name and size, with Download backup (`GET /memory/{id}/backup`), Read its soul, and Hatch a new pet from this soul.
+    - A retired pet's Live page redirects to its soul. The soul page is read-only for retired pets: no teach or edit, and the tabs are Memory shelf / Soul.
+  - **Hatch from soul:** `/hatch?from=<id>` prefills the four answers from the soul's sections (`soul.prefill_from`), plus the name "<name> Jr", the parent's shell and its look seed, and a note. The hidden `lessons_from` makes `Fleet.hatch` copy the parent's `## Lessons` lines into the new soul (`soul.with_lessons` / `insert_lesson`). The revision note "Hatched from Pip's soul" shows in the timeline.
+  - **Fixed a fake-agent race:** `session/cancel` can overtake the keeper's "cancelled" answer, and the fake then set a result on a cancelled future and dropped the connection.
+  - **Proof:**
+    - Retired the original Biscuit (`abe8a3c9`, Hermes) → `archive/biscuit-2026-10-25.zip` (2.0 MB). The container, network and pet dir are gone. Unzipped and diffed against a copy taken before: the workspace is identical. Re-packing that copy with the final code also matches the brain except its 3 sockets. (Biscuit's own zip predates the empty-folder fix.)
+    - Retired Pip ("Learned to use drafts/…") → hatched "Pip Jr" from its soul, and Pip Jr's SOUL.md has "Store all new notes in the drafts/ folder…". The shelf lists both, with backups.
+    - Unit: 148 passed (`test_archive.py`: 6).

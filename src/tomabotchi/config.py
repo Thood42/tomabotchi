@@ -43,6 +43,7 @@ class Config:
     def pet_dir(self, pet_id: str) -> Path:
         return self.data_dir / "pets" / pet_id
 
+    @property
     def archive_dir(self) -> Path:
         return self.data_dir / "archive"
 

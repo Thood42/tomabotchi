@@ -10,6 +10,11 @@
     </section>
 
     <form method="post" action="/pets">
+      {% if parent %}
+      <input type="hidden" name="lessons_from" value="{{ parent.id }}">
+      <p class="sheet parent-note">Hatching from <b>{{ parent.name }}</b>'s soul. Its answers are filled in below, and
+        the new pet keeps every lesson {{ parent.name }} learned.</p>
+      {% endif %}
       <input type="hidden" name="look_seed" id="look_seed" value="{{ seed }}">
       <div class="step">
         <span class="num">1</span>
@@ -17,7 +22,7 @@
           <h2>Name it</h2>
           <div class="field">
             <label for="name">Name</label>
-            <input id="name" name="name" type="text" required maxlength="24" value="Biscuit">
+            <input id="name" name="name" type="text" required maxlength="24" value="{{ parent.name ~ ' Jr' if parent else 'Biscuit' }}">
           </div>
         </div>
       </div>
@@ -28,7 +33,7 @@
           <h2>Pick a shell and a look</h2>
           <div class="swatches" role="radiogroup" aria-label="Shell colour">
             {% for s in shells %}
-              <label><input type="radio" name="shell" value="{{ s }}"{% if loop.first %} checked{% endif %}><span class="chip" style="--c: var(--{{ s }})"></span>{{ s|capitalize }}</label>
+              <label><input type="radio" name="shell" value="{{ s }}"{% if (parent and s == parent.shell) or (not parent and loop.first) %} checked{% endif %}><span class="chip" style="--c: var(--{{ s }})"></span>{{ s|capitalize }}</label>
             {% endfor %}
           </div>
           <div class="looks-head">
@@ -45,11 +50,11 @@
           <h2>Give it a soul</h2>
           <p class="hint">Markdown works in every box here: lists, **bold**, `code`.</p>
           {{ md_field("purpose_md", "What is it for?", "purpose",
-                      value="Writing short notes for my keeper, and saying what it did.") }}
-          {{ md_field("voice_md", "How should it talk to you?", "voice", value="Short sentences. Lead with what it did.") }}
+                      value=prefill.purpose_md or "Writing short notes for my keeper, and saying what it did.") }}
+          {{ md_field("voice_md", "How should it talk to you?", "voice", value=prefill.voice_md or "Short sentences. Lead with what it did.") }}
           <div class="row">
-            {{ md_field("ask_first_md", "When must it ask you first?", "ask", value="Before writing or deleting any file.") }}
-            {{ md_field("never_md", "What must it never do?", "never", value="Run shell commands. Email or post anything.") }}
+            {{ md_field("ask_first_md", "When must it ask you first?", "ask", value=prefill.ask_first_md or "Before writing or deleting any file.") }}
+            {{ md_field("never_md", "What must it never do?", "never", value=prefill.never_md if parent else "Run shell commands. Email or post anything.") }}
           </div>
         </div>
       </div>
@@ -104,7 +109,7 @@
   </div>
 
   <aside class="preview" aria-label="Preview">
-    <div class="egg" id="preview-egg" style="--shell: var(--{{ shells[0] }})">
+    <div class="egg" id="preview-egg" style="--shell: var(--{{ parent.shell if parent else shells[0] }})">
       <div class="bezel"><div class="lcd" id="preview-lcd" data-scene="happy" data-seed="{{ seed }}"></div></div>
       <div class="keys"><i></i><i></i><i></i></div>
     </div>
