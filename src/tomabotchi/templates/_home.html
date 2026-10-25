@@ -12,7 +12,7 @@
       {% else %}
         <dt>Memory</dt><dd><small>Checking...</small></dd>
       {% endif %}
-      <dt>Workspace</dt><dd><small>{{ home.files }} files, {{ home.size|bytes }}</small></dd>
+      <dt>Workspace</dt><dd><small>{% if home.workspace %}{{ home.workspace[0] }} files, {{ home.workspace[1]|bytes }}{% else %}Checking...{% endif %}</small></dd>
       <dt>Network</dt><dd><small>Web only, no access to your machine</small></dd>
     </dl>
   {% endif %}

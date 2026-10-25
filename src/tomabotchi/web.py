@@ -57,7 +57,17 @@ def _docker(cfg):
 
 
 app = FastAPI(title="tomabotchi", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
+class ImmutableStatic(StaticFiles):
+    """Asset URLs carry ?v=<hash of static/>, so a browser may keep each one for good."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
+app.mount("/static", ImmutableStatic(directory=Path(__file__).with_name("static")), name="static")
 app.include_router(gateway.router)
 app.include_router(codeproxy.router)
 
@@ -74,6 +84,11 @@ async def pet_subnet_guard(request: Request, call_next):
         except ValueError:
             pass
     return await call_next(request)
+
+
+@app.get("/healthz", response_class=PlainTextResponse)
+def healthz() -> str:
+    return "ok"
 
 
 def _page(request: Request, name: str, **ctx) -> HTMLResponse:

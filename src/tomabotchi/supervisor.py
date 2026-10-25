@@ -399,9 +399,9 @@ def publish_pet(conn, bus: Bus, pet: Pet) -> None:
     ctx = views.pet_context(conn, pet)
     for name in PARTIALS:
         html = views.render(name, **ctx)
-        bus.publish(BusMessage(event=f"{name[1:-5]}-{pet.id}", data=html, pet_id=pet.id))
+        bus.publish_changed(BusMessage(event=f"{name[1:-5]}-{pet.id}", data=html, pet_id=pet.id))
     publish_status(conn, bus)
 
 
 def publish_status(conn, bus: Bus) -> None:
-    bus.publish(BusMessage(event="status", data=views.render("_status.html", **views.status_context(conn))))
+    bus.publish_changed(BusMessage(event="status", data=views.render("_status.html", **views.status_context(conn))))

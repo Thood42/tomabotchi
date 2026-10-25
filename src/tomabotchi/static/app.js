@@ -5,6 +5,10 @@
   const params = new URLSearchParams();
   if (document.body.dataset.pet) params.set("pet", document.body.dataset.pet);
   const es = new EventSource("/events" + (params.size ? `?${params}` : ""));
+  // Updates sent while the stream was down aren't replayed, so coming back means showing the page afresh.
+  let dropped = false;
+  es.addEventListener("error", () => { dropped = true; });
+  es.addEventListener("open", () => { if (dropped) location.reload(); });
   const listening = new Set();
 
   const held = new Map();          // id -> html that arrived while the keeper was typing inside it

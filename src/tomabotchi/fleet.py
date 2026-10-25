@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 BUDGETS = {"100k-2h": (100_000, 7200), "25k-30m": (25_000, 1800), "none": (None, None)}
 ATTACH_TRIES = 90
-STATS_EVERY = 15                # seconds between container stats polls
+STATS_EVERY = 10                # seconds between container stats and workspace size polls
 
 
 class Fleet:
@@ -338,6 +338,7 @@ class Fleet:
         for call in store.pending_calls(self.conn, pet_id):
             store.answer_call(self.conn, call.id, "cancelled", "retired", store.now())
         views.HOME_STATS.pop(pet_id, None)
+        views.WORKSPACE_STATS.pop(pet_id, None)
         store.update_pet(self.conn, pet_id, state="retired", retired_at=store.now(), retire_reason=reason,
                          backup_path=str(dest), backup_bytes=size, container_id=None)
         for part in ("module", "track"):
@@ -364,15 +365,21 @@ class Fleet:
 
     async def _poll_stats(self) -> None:
         while True:
-            for pet_id, sup in list(self._sups.items()):
-                if sup.pet.brain == "fake":
-                    continue
-                try:
-                    views.HOME_STATS[pet_id] = await self.docker.stats(pet_id)
-                    publish_pet(self.conn, self.bus, store.get_pet(self.conn, pet_id))
-                except Exception:  # noqa: BLE001 - container gone or paused; try again next round
-                    log.debug("no stats for %s", pet_id, exc_info=True)
+            await self._poll_once()
             await asyncio.sleep(STATS_EVERY)
+
+    async def _poll_once(self) -> None:
+        """Container stats, and each workspace's size measured off the event loop. Renders only read these."""
+        for pet_id, sup in list(self._sups.items()):
+            if sup.pet.brain == "fake":
+                continue
+            try:
+                views.HOME_STATS[pet_id] = await self.docker.stats(pet_id)
+                views.WORKSPACE_STATS[pet_id] = await asyncio.to_thread(views.workspace_size,
+                                                                        self.workspace(pet_id))
+                publish_pet(self.conn, self.bus, store.get_pet(self.conn, pet_id))
+            except Exception:  # noqa: BLE001 - container gone or paused; try again next round
+                log.debug("no stats for %s", pet_id, exc_info=True)
 
     def _spawn(self, coro) -> None:
         task = asyncio.create_task(coro)

@@ -58,6 +58,7 @@ def test_status_key_counts_calls_and_links_the_oldest(client):
 
 def test_retire_hides_module_and_track(client):
     pet_id = hatch(client, "Pip")
+    wait_for(lambda: store.pending_calls(client.app.state.conn, pet_id))      # so the calls key has something to drop
     bus, seen = client.app.state.bus, []
     real = bus.publish
     bus.publish = lambda msg: (seen.append(msg), real(msg))[1]

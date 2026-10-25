@@ -15,6 +15,7 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")      # safe under WAL; streamed chunks stop forcing a disk sync
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA.read_text())
     for (table, column), decl in ADDED_COLUMNS.items():

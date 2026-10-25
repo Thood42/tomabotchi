@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> None:
         from . import config
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
         uvicorn.run("tomabotchi.web:app", host=args.host, port=args.port or config.load().port,
-                    proxy_headers=False, log_level="info")
+                    proxy_headers=False, log_level="info", loop="uvloop", http="httptools")
 
 
 if __name__ == "__main__":

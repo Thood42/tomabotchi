@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}tomabotchi{% endblock %}</title>
-<link rel="stylesheet" href="/static/shell.css">
+<link rel="stylesheet" href="{{ asset('shell.css') }}">
 {% block styles %}{% endblock %}
-<script src="/static/vendor/htmx.min.js"></script>
+<script src="{{ asset('vendor/htmx.min.js') }}"></script>
 </head>
 <body{% block body_attrs %}{% endblock %}>
 <div class="optin" role="region" aria-label="Notifications" hidden>
@@ -27,8 +27,8 @@
   </nav>
 </header>
 {% block content %}{% endblock %}
-<script src="/static/kit.js"></script>
-<script src="/static/app.js"></script>
+<script src="{{ asset('kit.js') }}"></script>
+<script src="{{ asset('app.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

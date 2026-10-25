@@ -17,6 +17,7 @@ class Bus:
     def __init__(self, maxsize: int = 500) -> None:
         self._maxsize = maxsize
         self._subs: set[tuple[str | None, asyncio.Queue[BusMessage]]] = set()
+        self._last: dict[str, int] = {}          # event name -> hash of the data last sent under it
 
     def publish(self, msg: BusMessage) -> None:
         for pet_id, q in list(self._subs):
@@ -25,6 +26,16 @@ class Bus:
             if q.full():                     # slow client: drop its oldest message
                 q.get_nowait()
             q.put_nowait(msg)
+
+    def publish_changed(self, msg: BusMessage) -> bool:
+        """Deliver unless this partial's HTML is what was last sent under its event name. Returns whether it
+        went out. The map holds one hash per event name, so it is bounded by pets x partials."""
+        digest = hash(msg.data)
+        if self._last.get(msg.event) == digest:
+            return False
+        self._last[msg.event] = digest
+        self.publish(msg)
+        return True
 
     async def subscribe(self, pet_id: str | None = None) -> AsyncIterator[BusMessage]:
         sub = (pet_id, asyncio.Queue(self._maxsize))

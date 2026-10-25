@@ -5,6 +5,7 @@ context here so a swapped partial always matches what a page load would show.
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,6 +25,8 @@ SHELLS = ["grape", "lagoon", "tangerine", "bubblegum"]
 
 # Latest container stats per pet, filled by Fleet's poller (docker_ops.HomeStats), read when rendering.
 HOME_STATS: dict = {}
+# Workspace (file count, bytes) per pet, measured by Fleet's poller. Renders read it and never touch the disk.
+WORKSPACE_STATS: dict[str, tuple[int, int]] = {}
 CONFIG = None                     # set by web.py at startup so views can name homes and models
 
 
@@ -41,6 +44,21 @@ def _ago(ts: datetime) -> str:
 ENV.filters["hm"] = _ago
 ENV.filters["ms"] = lambda ts: int(ts.timestamp() * 1000)         # epoch milliseconds, for the timeline's data-t0 / data-t1
 ENV.globals["human_wait"] = human_wait
+
+
+def _asset_version() -> str:
+    """A hash of everything under static/, appended to asset URLs so they can be cached forever."""
+    digest = hashlib.sha1()
+    root = Path(__file__).with_name("static")
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            digest.update(path.relative_to(root).as_posix().encode())
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+ASSET_VERSION = _asset_version()
+ENV.globals["asset"] = lambda path: f"/static/{path}?v={ASSET_VERSION}"
 
 
 def render(name: str, **ctx) -> str:
@@ -243,7 +261,7 @@ def rules_context(conn, pet: Pet, open_call: Call | None = None, saved: bool = F
                             if always else None}
 
 
-def _workspace_size(path: Path) -> tuple[int, int]:
+def workspace_size(path: Path) -> tuple[int, int]:
     files = size = 0
     if path.is_dir():
         for p in path.rglob("*"):
@@ -268,14 +286,13 @@ def home_context(pet: Pet) -> dict:
     cfg = CONFIG
     ctx = {"stats": HOME_STATS.get(pet.id), "home_name": pet.home, "model_label": pet.model,
            "brain_label": {"hermes": "Hermes", "claude": "Claude Code", "fake": "Practice"}.get(pet.brain, pet.brain),
-           "files": 0, "size": 0}
+           "workspace": WORKSPACE_STATS.get(pet.id)}
     if cfg is not None:
         try:
             ctx["home_name"] = cfg.home(pet.home).name
             ctx["model_label"] = cfg.model(pet.model).label
         except KeyError:
             pass
-        ctx["files"], ctx["size"] = _workspace_size(cfg.pet_dir(pet.id) / "workspace")
     return ctx
 
 
