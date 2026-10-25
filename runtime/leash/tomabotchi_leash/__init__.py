@@ -14,7 +14,7 @@ import logging
 import os
 
 from . import kinds
-from .rules import decide, load_rules_file
+from .rules import block_message, decide, load_rules_file, record_block
 
 log = logging.getLogger("tomabotchi_leash")
 
@@ -35,12 +35,12 @@ def judge(tool_name: str, args: dict) -> dict | None:
     verdict = decide(rules, kind=kind, tool=tool_name, paths=paths)
     if verdict == "free":
         return None
+    target = ", ".join(paths) or kinds.command_of(tool_name, args) or tool_name
     if verdict == "never":
-        return {"action": "block", "message": f"My keeper's rules never allow {tool_name} here. "
-                                             "Find another way, or ask my keeper to change the rule."}
+        record_block(rules_path(), tool=tool_name, kind=kind, target=target)
+        return {"action": "block", "message": block_message(tool_name)}
     if kind == "execute" and kinds.is_dangerous(tool_name, args):
         return None                       # Hermes's dangerous-command gate will ask
-    target = ", ".join(paths) or kinds.command_of(tool_name, args) or tool_name
     return {"action": "approve", "message": describe(tool_name, kind, target, args),
             "rule_key": f"tomabotchi:{tool_name}:{target}"}
 

@@ -9,11 +9,12 @@ import re
 import sqlite3
 from datetime import datetime, timezone
 
-from . import notify, store, views
+from . import brains, notify, store, views
 from .acp import AcpConnection
 from .bus import Bus, BusMessage
 from .config import Config
 from .models import Call, CallOutcome, Event, Pet, PlanStep
+from .rules import BLOCK_MARK, drain_blocks
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +44,8 @@ def normalize_permission(tool_call: dict) -> dict:
             out["locations"] = [{"path": p.strip()} for p in target.split(",") if p.strip()]
         return out
     if raw.get("command") and tool_call.get("kind") == "execute":
-        return {**tool_call, "title": f"Run {raw['command']}", "tool": "terminal"}
+        # Hermes's own dangerous-command gate: it asks every time, whatever the rules say
+        return {**tool_call, "title": f"Run {raw['command']}", "tool": "terminal", "dangerous": True}
     return tool_call
 
 
@@ -70,9 +72,11 @@ def translate(update: dict, *, pet_id: str, task_id: int | None, tool_index: dic
                                  "tool": info["title"], **info})]
     if kind == "tool_call_update":
         info = tool_index.get(update["toolCallId"], {})
-        return [ev("tool_update", {"id": update["toolCallId"], "status": update.get("status"),
-                                   "tool": info.get("title"), "title": info.get("title"),
-                                   "args": info.get("args")})]
+        payload = {"id": update["toolCallId"], "status": update.get("status"), "tool": info.get("title"),
+                   "title": info.get("title"), "args": info.get("args")}
+        if BLOCK_MARK in json.dumps([update.get("content"), update.get("rawOutput")]):
+            payload["blocked"] = True              # a "never" rule stopped it
+        return [ev("tool_update", payload)]
     if kind == "plan":
         return [ev("plan", {"entries": update.get("entries", [])})]
     if kind == "usage_update" and update.get("size"):
@@ -96,6 +100,8 @@ class PetSupervisor:
         self._thoughts_this_turn = 0
         self._last_publish = 0.0
         self._publish_later: asyncio.TimerHandle | None = None
+        self._blocks = 0
+        self._rules_file = str(brains.get(pet.brain).rules_path(cfg.pet_dir(pet.id) / "brain"))
 
     # ---- lifecycle ----
 
@@ -126,7 +132,9 @@ class PetSupervisor:
         call = store.answer_call(self.conn, call_id, outcome, reason, store.now())
         fut, options = self._waiting.pop(call_id, (None, []))
         if fut is not None and not fut.done():
-            fut.set_result(_permission_result(outcome, options))
+            # "Always" lives in tomabotchi's rules (the fleet adds one), so the brain is told "once"
+            # and keeps no allowlist of its own that the rules editor couldn't see or undo.
+            fut.set_result(_permission_result("allow_once" if outcome == "allow_always" else outcome, options))
         self._refresh()
         return call
 
@@ -143,6 +151,7 @@ class PetSupervisor:
             log.exception("turn failed for %s", self.pet.name)
         finally:
             self._stream = None
+            self._take_blocks(task_id)
             store.end_task(self.conn, task_id, state)
             self.pet = store.get_pet(self.conn, self.pet.id)
             self._refresh()
@@ -159,6 +168,7 @@ class PetSupervisor:
             return
         self._stream = None
         before_sick = views.pet_context(self.conn, self.pet)["vitals"].sick_reason
+        self._take_blocks(task_id)
         for ev in translate(update, pet_id=self.pet.id, task_id=task_id, tool_index=self._tools, now=store.now()):
             store.append_event(self.conn, ev)
             if ev.kind == "plan" and task_id is not None:
@@ -169,6 +179,16 @@ class PetSupervisor:
         after = views.pet_context(self.conn, self.pet)["vitals"].sick_reason
         if after and not before_sick:
             self._notify("sick", after)
+
+    def _take_blocks(self, task_id: int | None) -> None:
+        """Calls a "never" rule blocked never reach ACP; the leash notes them in a file instead."""
+        for b in drain_blocks(self._rules_file):
+            self._blocks += 1
+            base = {"id": f"blocked-{store.now().timestamp()}-{self._blocks}", "status": "failed",
+                    "title": f"{b.get('tool')}: {b.get('target')}", "blocked": True}
+            for kind in ("tool_call", "tool_update"):
+                store.append_event(self.conn, Event(id=0, pet_id=self.pet.id, task_id=task_id, ts=store.now(),
+                                                    kind=kind, payload={**base, "kind": b.get("kind")}))
 
     async def _on_permission(self, req_id, params: dict) -> dict:
         task = store.current_task(self.conn, self.pet.id)

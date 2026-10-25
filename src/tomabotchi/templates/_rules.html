@@ -1,0 +1,45 @@
+{% set names = {"free": "Free to use", "ask": "Asks first", "never": "Never"} %}
+<section id="rules-{{ pet.id }}" data-live class="sheet rules-sheet" aria-labelledby="rules-h-{{ pet.id }}">
+  <h2 id="rules-h-{{ pet.id }}">Tool rules</h2>
+  <div class="rules">
+    {% for value in ("free", "ask", "never") %}
+      <span><b>{{ names[value] }}:</b> {{ rule_summary[value]|join(", ") if rule_summary[value] else "nothing" }}</span>
+    {% endfor %}
+    <span class="muted">Dangerous commands always ask, whatever the rules say.</span>
+  </div>
+  <details{{ " open" if rules_saved }}>
+    <summary>Change {{ pet.name }}'s rules</summary>
+    <form class="rule-form" hx-put="/pets/{{ pet.id }}/rules" hx-target="#rules-{{ pet.id }}" hx-swap="outerHTML">
+      <p class="hint">The most specific rule wins: a tool name beats a kind of tool, and a folder beats no folder.
+        Leave Tool empty to cover every tool of that kind.</p>
+      <div class="rule-row head" aria-hidden="true"><span>What</span><span>Tool</span><span>Files</span><span>Rule</span></div>
+      {% for r in rules + [none] %}
+        {% set i = loop.index %}
+        <div class="rule-row{{ ' new' if r is none }}">
+          <label class="sr" for="kind-{{ pet.id }}-{{ i }}">What</label>
+          <select id="kind-{{ pet.id }}-{{ i }}" name="kind">
+            {% for k, label in kind_labels.items() %}
+              <option value="{{ k }}"{{ " selected" if r and r.kind == k }}>{{ label|capitalize }}</option>
+            {% endfor %}
+          </select>
+          <label class="sr" for="tool-{{ pet.id }}-{{ i }}">Tool</label>
+          <input id="tool-{{ pet.id }}-{{ i }}" type="text" name="tool" value="{{ r.tool or '' if r }}" placeholder="any">
+          <label class="sr" for="path-{{ pet.id }}-{{ i }}">Files</label>
+          <input id="path-{{ pet.id }}-{{ i }}" type="text" name="path_glob" value="{{ r.path_glob or '' if r }}" placeholder="{{ 'e.g. notes/**' if r is none else 'anywhere' }}">
+          <label class="sr" for="rule-{{ pet.id }}-{{ i }}">Rule</label>
+          <select id="rule-{{ pet.id }}-{{ i }}" name="rule">
+            {% if r is none %}<option value="">Add a rule...</option>{% endif %}
+            {% for value in ("free", "ask", "never") %}
+              <option value="{{ value }}"{{ " selected" if r and r.rule == value }}>{{ names[value] }}</option>
+            {% endfor %}
+            {% if r %}<option value="remove">Remove</option>{% endif %}
+          </select>
+        </div>
+      {% endfor %}
+      <div class="answers">
+        <button class="btn primary">Save rules</button>
+        {% if rules_saved %}<span class="saved" role="status">Saved. {{ pet.name }} uses them from its next tool call.</span>{% endif %}
+      </div>
+    </form>
+  </details>
+</section>

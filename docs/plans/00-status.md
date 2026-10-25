@@ -9,7 +9,7 @@
 - [x] Slice 1 — tracer bullet (done 2026-10-25): mocked pet (fake ACP agent) end to end, from hatch to call card to answer to shelf metric, served by compose on :8770
 - [x] Slice 2 — real Hermes pet (done 2026-10-25): runtime and Python-home images, petd, OpenAI gateway route, leash gates write_file, pet-subnet guard
 - [x] Slice 3 — live view from real data: thoughts, tools, plan, hearts and scene, sick detection, Energy, Home stats
-- [ ] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
+- [x] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
 - [ ] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
 - [ ] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
 - [ ] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
@@ -85,3 +85,14 @@
   - **Restart:** the server rejoins every pet network on boot, then reattaches. Feeding or answering a pet that isn't attached returns 409.
   - **Hermes's todo list:** Qwen kept its todo list in prose rather than calling Hermes's `todo` tool, so a real pet's plan panel can stay empty ("No steps were recorded"). The panel works whenever a brain sends ACP `plan`.
   - **Proof:** Biscuit (Hermes, `abe8a3c9`) was given "list files, then write notes/pgvector.md, keep a todo list". It made 2 calls (`ls -la`, then `write_file` with a preview) and the file landed. The page showed coalesced thoughts, 4 tools, 40,968 tokens, Mess 21% and the Home stats. The `#sick` practice pet showed a skull on the shelf with "4 times in a row". Unit tests: 67 passed.
+- Slice 4 notes (2026-10-25):
+  - **"Always allow" is tomabotchi's rule, not the brain's.** `Fleet.answer` adds `rules.rule_for_allow_always` (the tool, or the kind when the brain gave no tool name, under the common folder of its paths) via `with_rule`, rewrites the rules file, and then tells the brain **allow_once**. Hermes and Claude therefore keep no allowlist the rules editor can't see or undo. The button names the rule, for example "Always allow write_file in notes/".
+  - **Dangerous commands** (Hermes's own gate; `normalize_permission` marks them `dangerous`) get no Always button, and a hand-made allow_always for one adds no rule.
+  - **Rules editor:** `_rules.html` sits under Tools used, with a summary plus a `<details>` form. `PUT /pets/{id}/rules` takes one row per rule; rule "" skips the blank add row and "remove" drops a row. It isn't one of the SSE PARTIALS (re-rendering it would wipe a half-made edit). `Fleet.set_rules` publishes `rules-<id>` only when the rules change.
+  - **Blocks reach the server through a file.** Hermes emits no ACP tool events for a call its `pre_tool_call` hook blocks. So the leash appends to `tomabotchi_blocks.jsonl`, next to the rules file in the bind-mounted brain home, and the supervisor drains it on every non-chunk update and at turn end. Each block becomes a tool row "blocked by a rule" and counts in Discipline = asked ÷ (asked + blocked). Slice 5's Claude hook uses the same `rules.record_block`.
+  - **Proof on Biscuit (Hermes):**
+    - "Write notes/sqlite.md" was asked about, with the button "Always allow write_file in notes/". Clicking it added `{edit, write_file, notes/**, free}` to the rules file.
+    - "Write notes/duckdb.md" then ran with 0 calls, and the file landed.
+    - With "running commands" set to Never in the editor, "run `date`" made 0 calls, and Biscuit replied quoting "My keeper's rules never allow terminal here…".
+    - `pytest -m docker -k "never or runtime"`: 2 passed, on a fresh runtime. Unit: 75 passed.
+  - **No `ANTHROPIC_API_KEY` is set on this host** (the server container has none). Slice 5 proves Claude-on-Sonnet against a stub upstream in tests, plus Claude on the local model live. The Sonnet choice on the hatch screen says it needs the key.

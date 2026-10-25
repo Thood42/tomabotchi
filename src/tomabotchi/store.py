@@ -193,6 +193,14 @@ def call_waits(conn, since: datetime) -> list[timedelta]:
     return [_dt(r["answered_at"]) - _dt(r["asked_at"]) for r in rows]
 
 
+def discipline(conn, pet_id: str) -> tuple[int, int]:
+    """(times it asked first, times it asked or tried a tool its rules never allow), lifetime."""
+    asked = conn.execute("SELECT COUNT(*) FROM calls WHERE pet_id = ?", (pet_id,)).fetchone()[0]
+    blocked = conn.execute("SELECT COUNT(*) FROM events WHERE pet_id = ? AND kind = 'tool_update' "
+                           "AND json_extract(payload, '$.blocked')", (pet_id,)).fetchone()[0]
+    return asked, asked + blocked
+
+
 # ---- tool rules ----
 
 def tool_rules(conn, pet_id: str) -> list[ToolRule]:

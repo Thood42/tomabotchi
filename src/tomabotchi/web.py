@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from . import config, db, gateway, store, views
 from .bus import Bus
 from .fleet import Fleet
-from .models import HatchForm
+from .models import HatchForm, ToolRule
 
 
 @asynccontextmanager
@@ -132,6 +132,25 @@ async def feed(request: Request, pet_id: str, prompt_md: str = Form(...)):
     return RedirectResponse(f"/pets/{pet_id}", status_code=303)
 
 
+@app.put("/pets/{pet_id}/rules", response_class=HTMLResponse)
+async def put_rules(request: Request, pet_id: str):
+    """The rules editor posts one row per rule (kind, tool, path_glob, rule); rule "" skips the
+    blank add row and "remove" drops a row."""
+    pet = _pet_or_404(request, pet_id)
+    form = await request.form()
+    rows = zip(form.getlist("kind"), form.getlist("tool"), form.getlist("path_glob"), form.getlist("rule"))
+    rules = []
+    for kind, tool, path_glob, rule in rows:
+        if rule in ("", "remove"):
+            continue
+        if kind not in views.KIND_LABELS or rule not in views.RULE_VALUES:
+            raise HTTPException(400, f"Pick a kind and a rule from the lists (got {kind!r}, {rule!r}).")
+        rules.append(ToolRule(kind=kind, tool=tool.strip() or None, path_glob=path_glob.strip().lstrip("/") or None,
+                              rule=rule))
+    await request.app.state.fleet.set_rules(pet_id, rules)
+    return views.render("_rules.html", **views.rules_context(request.app.state.conn, pet, saved=True))
+
+
 @app.post("/calls/{call_id}", response_class=HTMLResponse)
 async def answer_call(request: Request, call_id: int, option: str = Form(...), reason: str = Form("")):
     if option not in ("allow_once", "allow_always", "reject_once"):
@@ -145,7 +164,7 @@ async def answer_call(request: Request, call_id: int, option: str = Form(...), r
         raise HTTPException(409, "That call was already answered.")
     if not request.app.state.fleet.is_awake(call.pet_id):
         raise HTTPException(409, "That pet is still waking up. Try again in a moment.")
-    await request.app.state.fleet.get(call.pet_id).answer(call_id, option, reason.strip() or None)
+    await request.app.state.fleet.answer(call_id, option, reason.strip() or None)
     pet = store.get_pet(conn, call.pet_id)
     return views.render("_call.html", **views.pet_context(conn, pet))
 

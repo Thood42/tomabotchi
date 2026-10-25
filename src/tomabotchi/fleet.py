@@ -10,18 +10,19 @@ import hashlib
 import logging
 import secrets
 import sqlite3
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 
 from websockets.exceptions import InvalidHandshake, InvalidMessage
 
 from . import brains, soul, store, views
-from .bus import Bus
+from .bus import Bus, BusMessage
 from .config import Config
 from .docker_ops import DockerOps, container_name
 from .fake_agent import FakeAgent
-from .models import Event, HatchForm, Pet, ToolRule
-from .rules import DEFAULT_RULES
+from .models import Call, CallOutcome, Event, HatchForm, Pet, ToolRule
+from .rules import DEFAULT_RULES, with_rule
 from .supervisor import PetSupervisor, publish_pet
 
 log = logging.getLogger(__name__)
@@ -113,6 +114,23 @@ class Fleet:
 
     def get(self, pet_id: str) -> PetSupervisor:
         return self._sups[pet_id]
+
+    async def answer(self, call_id: int, outcome: CallOutcome, reason: str | None) -> Call:
+        """Answer a call. "Always allow" first adds the narrow rule, so the pet's next try runs free."""
+        call = store.get_call(self.conn, call_id)
+        new = views.always_rule(call) if outcome == "allow_always" else None    # None: dangerous, allowed once
+        if new:
+            current = [asdict(r) for r in store.tool_rules(self.conn, call.pet_id)]
+            await self.set_rules(call.pet_id, [ToolRule(**r) for r in with_rule(current, new)])
+        return await self.get(call.pet_id).answer(call_id, outcome, reason)
+
+    async def set_rules(self, pet_id: str, rules: list[ToolRule]) -> None:
+        """Rules live in the DB and in the file the pet's leash reads before every tool call."""
+        pet = store.get_pet(self.conn, pet_id)
+        store.replace_tool_rules(self.conn, pet_id, rules)
+        brains.write_rules(brains.get(pet.brain), self.brain_home(pet_id), [asdict(r) for r in rules])
+        html = views.render("_rules.html", **views.rules_context(self.conn, pet))
+        self.bus.publish(BusMessage(event=f"rules-{pet_id}", data=html, pet_id=pet_id))
 
     async def shutdown(self) -> None:
         """Close our side only: pet containers keep running and are reattached on the next boot."""

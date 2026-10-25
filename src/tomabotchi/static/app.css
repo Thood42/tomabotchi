@@ -80,7 +80,23 @@
 .tools code { grid-column: 1; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12.5px; }
 .tools .res { font-size: 14px; color: var(--ok); font-weight: 700; }
 .tools .res.pending, .tools .res.in_progress { color: var(--ink-soft); }
-.tools .res.failed, .tools .res.waiting { color: var(--alarm); }
+.tools .res.failed, .tools .res.waiting, .tools .res.blocked { color: var(--alarm); }
+.rules { margin-top: 14px; font-size: 14.5px; display: grid; gap: 2px; }
+.rules-sheet details { margin-top: 14px; }
+.rules-sheet summary { cursor: pointer; font-weight: 700; width: fit-content; }
+.rule-form { display: grid; gap: 8px; margin-top: 10px; }
+.rule-form .hint { font-size: 14px; color: var(--ink-soft); max-width: 62ch; }
+.rule-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 8px; align-items: center; }
+.rule-row.head { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.rule-row.new { padding-top: 8px; border-top: 2px dotted var(--shelf-dot); }
+.rule-row select, .rule-row input { padding: 6px 10px; font-size: 15px; }
+.rule-form .saved { align-self: center; color: var(--ok); font-weight: 700; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .rule-row { grid-template-columns: 1fr 1fr; }
+  .rule-row.head { display: none; }
+  .rule-row:not(.head) + .rule-row { padding-top: 8px; border-top: 2px dotted var(--shelf-dot); }
+}
 .empty-note { margin-top: 12px; color: var(--ink-soft); }
 .feed { display: grid; gap: 10px; }
 .feed .answers { margin-top: 0; }

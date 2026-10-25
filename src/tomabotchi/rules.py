@@ -34,6 +34,14 @@ DEFAULT_RULES: tuple[ToolRuleDict, ...] = (
 
 _STRICTNESS = {"free": 0, "ask": 1, "never": 2}
 WORKSPACE = "/workspace"
+BLOCK_MARK = "My keeper's rules never allow"
+BLOCKS_FILE = "tomabotchi_blocks.jsonl"     # next to the rules file; a blocked call never reaches ACP
+
+
+def block_message(tool: str) -> str:
+    """What the agent sees in place of a tool result when a "never" rule blocks it. The server
+    spots BLOCK_MARK in tool results to count blocks."""
+    return f"{BLOCK_MARK} {tool} here. Find another way, or ask my keeper to change the rule."
 
 
 def normalize_path(path: str) -> str:
@@ -85,11 +93,18 @@ def decide(rules: Sequence[ToolRuleDict], *, kind: str, tool: str, paths: Sequen
     return max((_decide_one(rules, kind, tool, p) for p in norm), key=_STRICTNESS.__getitem__)
 
 
-def rule_for_allow_always(*, kind: str, tool: str, paths: Sequence[str]) -> ToolRuleDict:
-    """The narrowest useful rule for "Always allow": this tool, under the common parent of its paths."""
+def rule_for_allow_always(*, kind: str, tool: str | None, paths: Sequence[str]) -> ToolRuleDict:
+    """The narrowest useful rule for "Always allow": this tool (or kind, when the brain didn't
+    name the tool), under the common parent of its paths."""
     dirs = [posixpath.dirname(normalize_path(p)) for p in paths]
     common = posixpath.commonpath(dirs) if dirs and all(d and not d.startswith("..") for d in dirs) else ""
     return {"kind": kind, "tool": tool, "path_glob": f"{common}/**" if common else None, "rule": "free"}
+
+
+def with_rule(rules: Sequence[ToolRuleDict], new: ToolRuleDict) -> list[ToolRuleDict]:
+    """Add a rule, replacing any rule for the same kind, tool and path."""
+    key = lambda r: (r["kind"], r["tool"], r["path_glob"])  # noqa: E731
+    return [r for r in rules if key(r) != key(new)] + [new]
 
 
 _cache: dict[str, tuple[float, list[ToolRuleDict]]] = {}
@@ -113,3 +128,30 @@ def dump_rules_file(path: str, rules: Sequence[ToolRuleDict]) -> None:
     with os.fdopen(fd, "w") as f:
         json.dump({"rules": list(rules)}, f, indent=1)
     os.replace(tmp, path)
+
+
+def _blocks_path(rules_file: str) -> str:
+    return os.path.join(os.path.dirname(rules_file), BLOCKS_FILE)
+
+
+def record_block(rules_file: str, *, tool: str, kind: str, target: str) -> None:
+    """The leash notes each block for the server, which counts it against Discipline."""
+    try:
+        with open(_blocks_path(rules_file), "a") as f:
+            f.write(json.dumps({"tool": tool, "kind": kind, "target": target}) + "\n")
+    except OSError:
+        pass                                    # never let bookkeeping break the block itself
+
+
+def drain_blocks(rules_file: str) -> list[dict]:
+    """Take every block noted so far (the server side of record_block)."""
+    path = _blocks_path(rules_file)
+    taken = path + ".taken"
+    try:
+        os.replace(path, taken)
+    except FileNotFoundError:
+        return []
+    with open(taken) as f:
+        blocks = [json.loads(line) for line in f if line.strip()]
+    os.remove(taken)
+    return blocks

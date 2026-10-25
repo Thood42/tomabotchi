@@ -11,7 +11,8 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from . import store, vitals
-from .models import Pet
+from .models import Call, Pet, ToolRule
+from .rules import rule_for_allow_always
 
 ENV = Environment(loader=FileSystemLoader(Path(__file__).with_name("templates")),
                   autoescape=select_autoescape(["html"]))
@@ -42,6 +43,42 @@ def render(name: str, **ctx) -> str:
     return ENV.get_template(name).render(**ctx)
 
 
+# ---- tool rules ----
+
+KIND_LABELS = {"read": "reading files", "search": "searching", "fetch": "reading web pages",
+               "think": "thinking and planning", "edit": "editing files", "delete": "deleting files",
+               "move": "moving files", "execute": "running commands", "switch_mode": "switching mode",
+               "other": "other tools", "*": "any tool"}
+RULE_VALUES = ("free", "ask", "never")
+
+
+def rule_label(kind: str, tool: str | None, path_glob: str | None) -> str:
+    what = tool or KIND_LABELS.get(kind, kind)
+    if path_glob:
+        where = path_glob[:-3] + "/" if path_glob.endswith("/**") else path_glob
+        what += f" in {where}"
+    return what
+
+
+def rule_summary(rules: list[ToolRule]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {v: [] for v in RULE_VALUES}
+    for r in rules:
+        out[r.rule].append(rule_label(r.kind, r.tool, r.path_glob))
+    return out
+
+
+def always_rule(call: Call) -> dict | None:
+    """The rule "Always allow" would add, or None when this call can't be always-allowed."""
+    tc = call.tool_call
+    if tc.get("dangerous"):
+        return None
+    return rule_for_allow_always(kind=tc.get("kind") or "other", tool=tc.get("tool"),
+                                 paths=[loc["path"] for loc in tc.get("locations") or [] if loc.get("path")])
+
+
+ENV.globals["rule_label"] = rule_label
+
+
 def tool_rows(events) -> list[dict]:
     """Merge tool_call and tool_update events into one row per tool call, in call order."""
     rows: dict[str, dict] = {}
@@ -52,7 +89,7 @@ def tool_rows(events) -> list[dict]:
         if ev.kind == "tool_call":
             row.update(title=p.get("title") or row["title"], kind=p.get("kind"),
                        detail=", ".join(p.get("paths") or []))
-        row["status"] = p.get("status") or row["status"]
+        row["status"] = "blocked" if p.get("blocked") else p.get("status") or row["status"]
     return list(rows.values())
 
 
@@ -74,7 +111,7 @@ def pet_context(conn, pet: Pet) -> dict:
     v = vitals.compute(pet, task=task, open_call=open_call, recent_tool_updates=updates, tokens_used=tokens,
                        elapsed=((task.ended_at or now) - task.started_at) if task else timedelta(0),
                        loop_notice=loop, context_pct=usage.payload.get("context_pct") if usage else None,
-                       discipline=(0, 0), now=now)
+                       discipline=store.discipline(conn, pet.id), now=now)
     if open_call:
         title = open_call.tool_call.get("title") or "Use a tool"
         doing = f"Wants your OK to {title[:1].lower()}{title[1:]}"
@@ -98,7 +135,16 @@ def pet_context(conn, pet: Pet) -> dict:
     return {"pet": pet, "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
-            "working": working, "tokens": tokens, "home": home_context(pet)}
+            "working": working, "tokens": tokens, "home": home_context(pet), **rules_context(conn, pet, open_call)}
+
+
+def rules_context(conn, pet: Pet, open_call: Call | None = None, saved: bool = False) -> dict:
+    rules = store.tool_rules(conn, pet.id)
+    always = always_rule(open_call) if open_call else None
+    return {"pet": pet, "rules": rules, "rule_summary": rule_summary(rules), "kind_labels": KIND_LABELS,
+            "rules_saved": saved, "always": always,
+            "always_label": ("Always allow " + rule_label(always["kind"], always["tool"], always["path_glob"]))
+                            if always else None}
 
 
 def _workspace_size(path: Path) -> tuple[int, int]:

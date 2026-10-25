@@ -57,3 +57,14 @@ def test_rules_file_roundtrip_atomic(tmp_path):
     dump_rules_file(path, DEFAULT_RULES)
     assert load_rules_file(path) == list(DEFAULT_RULES)
     assert [p.name for p in (tmp_path / "home").iterdir()] == ["tomabotchi_rules.json"]   # no temp files left
+
+
+def test_with_rule_replaces_the_same_rule_instead_of_duplicating():
+    from tomabotchi.rules import with_rule
+    rules = [r("edit", "ask"), r("edit", "ask", tool="write_file", path_glob="notes/**")]
+    out = with_rule(rules, r("edit", "free", tool="write_file", path_glob="notes/**"))
+    assert out == [r("edit", "ask"), r("edit", "free", tool="write_file", path_glob="notes/**")]
+
+
+def test_allow_always_without_a_tool_name_uses_the_kind():
+    assert rule_for_allow_always(kind="edit", tool=None, paths=["notes/a.md"]) == r("edit", "free", path_glob="notes/**")

@@ -27,6 +27,7 @@
         {% include "_thoughts.html" %}
         {% include "_tools.html" %}
       </div>
+      {% include "_rules.html" %}
       <section class="sheet feed" aria-labelledby="feed-h">
         <h2 id="feed-h">Feed {{ pet.name }} a task</h2>
         <form class="feed" method="post" action="/pets/{{ pet.id }}/tasks">

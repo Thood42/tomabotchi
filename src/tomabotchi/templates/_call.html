@@ -2,7 +2,8 @@
 {% set tc = call.tool_call %}
 <section id="call-{{ pet.id }}" data-live class="sheet call-card" aria-labelledby="call-h-{{ pet.id }}">
   <div class="title"><span data-icon="calls"></span><h2 id="call-h-{{ pet.id }}">{{ pet.name }} is calling you</h2></div>
-  <p class="why">It wants to {{ (tc.title or "use a tool")[:1]|lower }}{{ (tc.title or "use a tool")[1:] }}. Its rules say to ask you first.</p>
+  <p class="why">It wants to {{ (tc.title or "use a tool")[:1]|lower }}{{ (tc.title or "use a tool")[1:] }}.
+    {{ "This command looks dangerous, so it always asks." if tc.dangerous else "Its rules say to ask you first." }}</p>
   <dl class="req">
     <dt>Tool</dt><dd>{{ tc.title or "A tool" }} <span class="muted">({{ tc.kind or "other" }})</span></dd>
     {% for loc in tc.locations or [] %}<dt>File</dt><dd><code>{{ loc.path }}</code></dd>{% endfor %}
@@ -15,7 +16,7 @@
     </div>
     <div class="answers">
       <button class="btn primary" name="option" value="allow_once">Allow once</button>
-      <button class="btn" name="option" value="allow_always">Always allow</button>
+      {% if always_label %}<button class="btn" name="option" value="allow_always">{{ always_label }}</button>{% endif %}
       <button class="btn alarm" name="option" value="reject_once">Deny</button>
     </div>
   </form>

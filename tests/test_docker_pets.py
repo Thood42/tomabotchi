@@ -18,7 +18,7 @@ docker = pytest.importorskip("docker")
 from tomabotchi import brains, config  # noqa: E402
 from tomabotchi.acp import AcpConnection  # noqa: E402
 from tomabotchi.docker_ops import DockerOps, pet_image_tag  # noqa: E402
-from tomabotchi.rules import DEFAULT_RULES, dump_rules_file  # noqa: E402
+from tomabotchi.rules import DEFAULT_RULES, drain_blocks, dump_rules_file, with_rule  # noqa: E402
 
 pytestmark = [pytest.mark.docker]
 OLLAMA = os.environ.get("TEST_OLLAMA", "http://host.docker.internal:11434")
@@ -79,6 +79,7 @@ async def _drive(pet, prompt: str, answer: str | None):
 
     async def on_permission(req_id, params):
         asked.append(params)
+        assert answer, f"nothing should have asked: {json.dumps(params)[:300]}"
         assert not (pet["workspace"] / "notes" / "hello.md").exists(), "file written before the keeper answered"
         opt = next(o for o in params["options"] if o["kind"] == answer)
         return {"outcome": {"outcome": "selected", "optionId": opt["optionId"]}}
@@ -122,3 +123,15 @@ def test_soul_loaded_and_allow_writes_the_file(pet):
     assert len(asked) == 1
     assert (pet["workspace"] / "notes" / "hello.md").read_text().strip()
     assert said.lstrip().upper().startswith("PICKLE"), said[:200]
+
+
+def test_never_rule_blocks_without_asking_and_notes_the_block(pet, tmp_path):
+    """A "never" rule needs no keeper. Hermes sends no ACP tool events for a call its pre_tool_call
+    hook blocks, so the leash notes the block in a file the server drains."""
+    rules_file = str(tmp_path / "brain" / ".hermes" / "tomabotchi_rules.json")
+    dump_rules_file(rules_file, with_rule(DEFAULT_RULES, {"kind": "execute", "tool": None, "path_glob": None,
+                                                          "rule": "never"}))
+    asked, said = asyncio.run(_drive(pet, "Run `date` with your terminal tool and tell me what it printed.", None))
+    assert not asked
+    blocks = drain_blocks(rules_file)
+    assert blocks and blocks[0]["kind"] == "execute", said[:300]

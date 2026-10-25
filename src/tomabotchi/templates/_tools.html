@@ -5,7 +5,7 @@
       {% for t in tools %}
         {% set waiting = call and call.tool_call.toolCallId == t.id %}
         <li><b>{{ t.title }}</b>
-          <span class="res {{ 'waiting' if waiting else t.status }}">{{ "needs you" if waiting else {"completed": "done", "failed": "failed", "in_progress": "running", "pending": "starting"}.get(t.status, t.status) }}</span>
+          <span class="res {{ 'waiting' if waiting else t.status }}">{{ "needs you" if waiting else {"completed": "done", "failed": "failed", "blocked": "blocked by a rule", "in_progress": "running", "pending": "starting"}.get(t.status, t.status) }}</span>
           {% if t.detail %}<code>{{ t.detail }}</code>{% endif %}</li>
       {% endfor %}
     </ul>
