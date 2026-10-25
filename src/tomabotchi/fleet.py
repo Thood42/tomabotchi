@@ -40,6 +40,7 @@ class Fleet:
         self._fakes: dict[str, FakeAgent] = {}
         self._lights_off: dict[str, str | None] = {}       # pet id → the task Lights off interrupted
         self._tasks: set[asyncio.Task] = set()
+        self._warming: dict[str, str] = {}                 # home slug -> what its first image build is doing
         if docker is not None:
             self._spawn(self._poll_stats())
 
@@ -91,6 +92,21 @@ class Fleet:
                 await self.docker.start(pet.id)
             await self.docker.create_network(pet.id)      # a recreated server must rejoin the pet's network
             self._spawn(self._attach(pet, self._token(pet.id), first_task=None, reattach=running))
+        if self.docker is not None:
+            self._spawn(self._warm_images())
+
+    async def _warm_images(self) -> None:
+        """Build the runtime and the default home's pet image in the background, so the first hatch is quick."""
+        home = next((h for h in self.cfg.homes if h.default), self.cfg.homes[0])
+        try:
+            if await self.docker.has_pet_image(home):
+                return
+            self._warming[home.slug] = "starting"
+            await self.docker.ensure_pet_image(home, lambda text: self._warming.__setitem__(home.slug, text))
+        except Exception:  # noqa: BLE001 - the first hatch will try again and say what went wrong
+            log.warning("couldn't warm the %s image", home.slug, exc_info=True)
+        finally:
+            self._warming.pop(home.slug, None)
 
     async def hatch(self, form: HatchForm, lessons_from: str | None = None) -> Pet:
         """lessons_from: a (retired) pet whose lessons the new soul keeps."""
@@ -159,6 +175,8 @@ class Fleet:
         for h in self.cfg.homes:
             if self.docker is None:
                 out[h.slug] = "Docker isn't reachable, so only practice pets can hatch."
+            elif h.slug in self._warming:
+                out[h.slug] = f"Getting ready in the background: {self._warming[h.slug]}"
             elif await self.docker.has_pet_image(h):
                 out[h.slug] = "Ready: pets hatch in seconds."
             else:

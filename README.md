@@ -12,10 +12,15 @@ Needs Docker, and Ollama on the host for local models (`ollama pull qwen3.6:35b`
 
 ```bash
 cp .env.example .env                    # add ANTHROPIC_API_KEY if you want Claude models
-bin/tomabotchi up                       # build and start the server container
+docker compose up -d --build            # build and start the server (bin/tomabotchi up does the same)
 bin/tomabotchi logs                     # follow its log
-bin/tomabotchi down                     # stop the server (pets keep running; it reattaches)
+bin/tomabotchi ps                       # the server, and the pets' containers
+docker compose down                     # stop the server (pets keep running; it reattaches)
 ```
+
+The server joins whichever group owns the Docker socket, so there's no group id to look up. On a machine
+with no Ollama of its own, `docker compose --profile ollama up -d` also runs one and pulls the models listed
+in `tomabotchi.toml`; set `OLLAMA_BASE_URL` as `.env.example` says.
 
 Hatch a pet at **Hatch a pet**. The first hatch on a home builds the pet runtime and that home's
 image, which takes a few minutes. Later hatches take seconds.

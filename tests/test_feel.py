@@ -134,3 +134,35 @@ async def test_poller_fills_workspace_stats(cfg, conn, bus):
     await fleet._poll_once()
     assert views.WORKSPACE_STATS["p1"] == (2, 5)
     assert views.HOME_STATS["p1"].cpu_pct == 3.0
+
+
+async def test_boot_warms_the_default_home_and_settings_says_so(cfg, conn, bus):
+    from tomabotchi.fleet import Fleet
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    class FakeDocker:
+        async def list_pet_containers(self):
+            return []
+
+        async def has_pet_image(self, home):
+            return release.is_set()
+
+        async def ensure_pet_image(self, home, progress):
+            progress("Building the pet runtime")
+            started.set()
+            await release.wait()
+            return "tag"
+
+        async def stats(self, pet_id):
+            raise RuntimeError("none")
+
+    fleet = Fleet(cfg, conn, bus, FakeDocker())
+    for t in list(fleet._tasks):
+        t.cancel()
+    await fleet.boot()
+    await asyncio.wait_for(started.wait(), 1)
+    assert "Building the pet runtime" in (await fleet.home_status())["python"]
+    release.set()
+    await asyncio.sleep(0.05)
+    assert (await fleet.home_status())["python"].startswith("Ready")

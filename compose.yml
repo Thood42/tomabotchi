@@ -1,5 +1,5 @@
-# tomabotchi server. Start it with bin/tomabotchi up, which sets TOMABOTCHI_ROOT (this folder) and
-# DOCKER_GID, and reads .env (ANTHROPIC_API_KEY, optional TOMABOTCHI_PORT and OLLAMA_BASE_URL).
+# tomabotchi: `docker compose up -d` from this folder starts everything. Reads .env (ANTHROPIC_API_KEY,
+# optional TOMABOTCHI_PORT and OLLAMA_BASE_URL). `--profile ollama` also runs an Ollama of its own.
 name: tomabotchi
 services:
   tomabotchi:
@@ -12,17 +12,48 @@ services:
       - 127.0.0.1:${TOMABOTCHI_PORT:-8770}:8770          # localhost only
     extra_hosts:
       - host.docker.internal:host-gateway
-    # The Docker socket lets tomabotchi build pet homes and run one container per pet.
-    # Pets never get it; it stays with the server.
-    group_add:
-      - "${DOCKER_GID}"
     environment:
-      TOMABOTCHI_ROOT: ${TOMABOTCHI_ROOT}
+      TOMABOTCHI_ROOT: ${TOMABOTCHI_ROOT:-${PWD}}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       # Mounted at the same absolute paths as on the host, so the bind mounts tomabotchi hands to
       # Docker for each pet (its workspace and brain home under data/pets/<id>/) resolve on the host.
-      - ${TOMABOTCHI_ROOT}:${TOMABOTCHI_ROOT}:ro
-      - ${TOMABOTCHI_ROOT}/data:${TOMABOTCHI_ROOT}/data
+      - ${TOMABOTCHI_ROOT:-${PWD}}:${TOMABOTCHI_ROOT:-${PWD}}:ro
+      - ${TOMABOTCHI_ROOT:-${PWD}}/data:${TOMABOTCHI_ROOT:-${PWD}}/data
+      # The Docker socket lets tomabotchi build pet homes and run one container per pet.
+      # Pets never get it; it stays with the server.
       - /var/run/docker.sock:/var/run/docker.sock
+
+  # Models, for machines with no Ollama of their own: `docker compose --profile ollama up -d`, then set
+  # OLLAMA_BASE_URL=http://host.docker.internal:11435 in .env. Published on the Docker bridge address only.
+  ollama:
+    image: ollama/ollama:0.40.11
+    profiles: [ollama]
+    restart: unless-stopped
+    ports:
+      - ${OLLAMA_BIND:-172.17.0.1}:11435:11434
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Pulls every Ollama model in tomabotchi.toml into the volume, then exits.
+  ollama-pull:
+    image: ollama/ollama:0.40.11
+    profiles: [ollama]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["/bin/sh", "/docker/ollama-pull.sh"]
+    volumes:
+      - ./docker/ollama-pull.sh:/docker/ollama-pull.sh:ro
+      - ./tomabotchi.toml:/config/tomabotchi.toml:ro
+
+volumes:
+  ollama:
