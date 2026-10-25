@@ -198,6 +198,7 @@ async def _relay(request: Request, pet: Pet, task_id: int | None, model: str, ur
                  headers: dict[str, str], meter_stream, meter_json) -> Response:
     """Forward one model call, stream the answer back, and meter it once it's done."""
     client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10))
+    headers = {**headers, "accept-encoding": "identity"}      # the stream is relayed byte for byte and metered as text
     try:
         if not body.get("stream"):
             r = await client.post(url, json=body, headers=headers)

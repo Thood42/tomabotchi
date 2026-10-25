@@ -50,8 +50,13 @@ def test_claude_env_uses_the_pets_one_model_for_every_role(model):
     assert {env[r] for r in ROLES} == {model.model}       # the adapter asks for "opus" unless told otherwise
 
 
-def test_hermes_and_fake_need_no_container_env():
+def test_hermes_on_claude_gets_its_gateway_token_as_the_key_and_on_ollama_needs_nothing():
+    env = brains.get("hermes").container_env(pet("hermes", model="claude-sonnet"), SONNET, "pet-tok")
+    assert env["ANTHROPIC_API_KEY"] == "pet-tok" and env["ANTHROPIC_BASE_URL"].endswith("/pet-tok/anthropic")
     assert brains.get("hermes").container_env(pet("hermes"), LOCAL, "t") == {}
+
+
+def test_fake_needs_no_container_env():
     assert brains.get("fake").container_env(pet("fake"), LOCAL, "t") == {}
 
 

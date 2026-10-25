@@ -132,3 +132,21 @@ def test_count_tokens_is_estimated_for_local_models(tmp_path, monkeypatch, upstr
 def test_meter_anthropic_stream_reads_usage_and_thinking():
     m = gateway.meter_anthropic_stream([sse_bytes()[:50], sse_bytes()[50:]])
     assert (m.prompt_tokens, m.completion_tokens, m.reasoning) == (1500, 42, "Which file first?")
+
+
+async def test_relay_asks_upstream_for_an_uncompressed_body(monkeypatch):
+    from types import SimpleNamespace
+    import httpx
+    from tomabotchi import gateway
+    seen = {}
+
+    def handler(request):
+        seen.update(request.headers)
+        return httpx.Response(200, json={"usage": {}, "content": []})
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(gateway.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr(gateway, "_record", lambda *a, **k: None)
+    await gateway._relay(SimpleNamespace(), SimpleNamespace(id="p"), None, "m", "http://up/v1/messages",
+                         {"stream": False}, {"x-api-key": "k"}, None, lambda d: None)
+    assert seen["accept-encoding"] == "identity" and seen["x-api-key"] == "k"

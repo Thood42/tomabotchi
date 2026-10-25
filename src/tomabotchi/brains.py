@@ -83,7 +83,12 @@ class HermesBrain:
         return [cfg_path, link]
 
     def container_env(self, pet: Pet, model: ModelChoice, token: str) -> dict[str, str]:
-        return {}                              # everything is in config.yaml
+        """Ollama needs nothing (it's all in config.yaml). Hermes's Anthropic provider looks for its credentials in
+        the environment, not in config.yaml, so the pet's gateway token goes there as the key. It's only ever the
+        pet's own token; the gateway swaps in the real key."""
+        if model.provider != "anthropic":
+            return {}
+        return {"ANTHROPIC_API_KEY": token, "ANTHROPIC_BASE_URL": f"{GATEWAY}/{token}/anthropic"}
 
 
 class ClaudeBrain:
