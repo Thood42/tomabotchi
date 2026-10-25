@@ -12,7 +12,7 @@ MODELS = [{"key": "local-qwen", "label": "Local", "provider": "ollama", "model":
 
 @pytest.fixture
 def cfg(tmp_path: Path):
-    return from_dicts({"homes": HOMES, "models": MODELS}, {}, data_dir=tmp_path, config_file=tmp_path / "t.toml")
+    return from_dicts({"homes": HOMES, "models": MODELS}, data_dir=tmp_path, config_file=tmp_path / "t.toml")
 
 
 @pytest.fixture

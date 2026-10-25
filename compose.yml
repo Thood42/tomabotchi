@@ -1,14 +1,15 @@
-# tomabotchi: pocket pets for AI agents (source in ../tomabotchi, config in ../tomabotchi.toml).
-# Started with the rest of the stack by ../bin/stack, which exports AI_ROOT.
+# tomabotchi server. Start it with bin/tomabotchi up, which sets TOMABOTCHI_ROOT (this folder) and
+# DOCKER_GID, and reads .env (ANTHROPIC_API_KEY, optional TOMABOTCHI_PORT and OLLAMA_BASE_URL).
+name: tomabotchi
 services:
   tomabotchi:
-    build: ../tomabotchi
+    build: .
     image: tomabotchi-server:0.1.0
     restart: unless-stopped
-    # Default docker bridge, like Open WebUI: the host firewall (ufw) lets it reach Ollama on :11434.
+    # Default docker bridge: the host firewall lets it reach Ollama on the host's :11434.
     network_mode: bridge
     ports:
-      - 127.0.0.1:8770:8770          # localhost only
+      - 127.0.0.1:${TOMABOTCHI_PORT:-8770}:8770          # localhost only
     extra_hosts:
       - host.docker.internal:host-gateway
     # The Docker socket lets tomabotchi build pet homes and run one container per pet.
@@ -16,13 +17,12 @@ services:
     group_add:
       - "${DOCKER_GID}"
     environment:
-      AI_ROOT: ${AI_ROOT}
-      TOMABOTCHI_DATA_DIR: ${AI_ROOT}/platform/data/tomabotchi
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      TOMABOTCHI_ROOT: ${TOMABOTCHI_ROOT}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
-      # Mounted at the same absolute paths as on the host, so the bind mounts tomabotchi
-      # hands to Docker for each pet resolve on the host (from slice 2).
-      - ${AI_ROOT}/platform:${AI_ROOT}/platform:ro
-      - ${AI_ROOT}/platform/data/tomabotchi:${AI_ROOT}/platform/data/tomabotchi
+      # Mounted at the same absolute paths as on the host, so the bind mounts tomabotchi hands to
+      # Docker for each pet (its workspace and brain home under data/pets/<id>/) resolve on the host.
+      - ${TOMABOTCHI_ROOT}:${TOMABOTCHI_ROOT}:ro
+      - ${TOMABOTCHI_ROOT}/data:${TOMABOTCHI_ROOT}/data
       - /var/run/docker.sock:/var/run/docker.sock

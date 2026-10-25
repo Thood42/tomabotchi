@@ -1,5 +1,9 @@
-"""Env, platform/tomabotchi.toml and platform/containment.toml, loaded once into typed config.
-This is the only place paths are worked out."""
+"""Env and tomabotchi.toml, loaded once into typed config. This is the only place paths are worked out.
+
+ROOT is the repo checkout: it holds tomabotchi.toml, the runtime image's sources (the Docker build
+context for pets) and, by default, data/. In the server container it's mounted at the same absolute
+path as on the host and named by TOMABOTCHI_ROOT, so the bind mounts handed to Docker for each pet
+resolve on the host."""
 from __future__ import annotations
 
 import hashlib
@@ -14,7 +18,7 @@ from pathlib import Path
 from . import __version__
 from .models import Home, Limits, ModelChoice
 
-AI_ROOT = Path(os.environ.get("AI_ROOT", Path.home() / "Projects" / "ai")).resolve()
+ROOT = Path(os.environ.get("TOMABOTCHI_ROOT", Path(__file__).resolve().parents[2])).resolve()
 
 
 @dataclass(frozen=True)
@@ -28,13 +32,12 @@ class Config:
     homes: list[Home]
     models: list[ModelChoice]
     limits_default: Limits
-    limits_ceiling: Limits
     max_awake_pets: int
     pet_subnet_pool: IPv4Network
     direct_code_ports: bool
     runtime_version: str
     approval_timeout: timedelta
-    source_dir: Path              # platform/tomabotchi: the runtime image's build context
+    source_dir: Path              # the repo root: the runtime image's build context
 
     @property
     def db_path(self) -> Path:
@@ -74,34 +77,15 @@ def parse_duration(s: str) -> timedelta:
     return timedelta(**{{"s": "seconds", "m": "minutes", "h": "hours", "d": "days"}[unit]: n})
 
 
-def _cpus(quota: str) -> float:
-    """containment.toml writes CPU as a systemd quota: "200%" means two cores."""
-    return float(str(quota).rstrip("%")) / 100
+_MEMORY = re.compile(r"^\d+(\.\d+)?[KMGT]?$", re.I)
 
 
-def _limits(table: dict, fallback: Limits | None = None) -> Limits:
-    fb = fallback or Limits(memory="4G", cpus=2.0, pids=256)
-    return Limits(
-        memory=str(table.get("memory_max", fb.memory)),
-        cpus=_cpus(table["cpu_quota"]) if "cpu_quota" in table else fb.cpus,
-        pids=int(table.get("tasks_max", fb.pids)),
-    )
-
-
-_UNITS = {"K": 1 << 10, "M": 1 << 20, "G": 1 << 30, "T": 1 << 40}
-
-
-def _bytes(mem: str) -> int:
-    mem = mem.strip().upper()
-    return int(float(mem[:-1]) * _UNITS[mem[-1]]) if mem[-1] in _UNITS else int(mem)
-
-
-def clamp(limits: Limits, ceiling: Limits) -> Limits:
-    return Limits(
-        memory=limits.memory if _bytes(limits.memory) <= _bytes(ceiling.memory) else ceiling.memory,
-        cpus=min(limits.cpus, ceiling.cpus),
-        pids=min(limits.pids, ceiling.pids),
-    )
+def pet_limits(pets: dict) -> Limits:
+    """[pets] in tomabotchi.toml: what each pet's container may use."""
+    memory = str(pets.get("memory", "4G"))
+    if not _MEMORY.match(memory):
+        raise ValueError(f"[pets] memory {memory!r} isn't a size (use e.g. 4G or 512M)")
+    return Limits(memory=memory, cpus=float(pets.get("cpus", 2)), pids=int(pets.get("pids", 256)))
 
 
 def runtime_version(source_dir: Path) -> str:
@@ -116,7 +100,7 @@ def runtime_version(source_dir: Path) -> str:
     return f"{__version__}-{h.hexdigest()[:8]}" if (source_dir / "runtime").is_dir() else __version__
 
 
-def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path) -> Config:
+def from_dicts(tb: dict, *, data_dir: Path, config_file: Path) -> Config:
     homes = [Home(name=h["name"], slug=h["slug"], image=h["image"],
                   description=h.get("description", ""), default=bool(h.get("default", False)), build=h.get("build"))
              for h in tb.get("homes", [])]
@@ -126,8 +110,8 @@ def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path
     models = [ModelChoice(key=m["key"], label=m["label"], provider=m["provider"], model=m["model"])
               for m in tb.get("models", [])]
     server = tb.get("server", {})
-    source_dir = Path(os.environ.get("TOMABOTCHI_SOURCE", AI_ROOT / "platform" / "tomabotchi"))
-    ceiling = _limits(containment.get("ceiling", {}))
+    source_dir = Path(os.environ.get("TOMABOTCHI_SOURCE", ROOT))
+    pets = tb.get("pets", {})
     return Config(
         data_dir=data_dir,
         config_file=config_file,
@@ -137,9 +121,8 @@ def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path
         anthropic_url=os.environ.get("ANTHROPIC_UPSTREAM_URL", "https://api.anthropic.com"),
         homes=homes,
         models=models,
-        limits_default=clamp(_limits(containment.get("defaults", {})), ceiling),
-        limits_ceiling=ceiling,
-        max_awake_pets=int(containment.get("tomabotchi", {}).get("max_awake_pets", 6)),
+        limits_default=pet_limits(pets),
+        max_awake_pets=int(pets.get("max_awake", 6)),
         pet_subnet_pool=IPv4Network(tb.get("network", {}).get("pet_subnet_pool", "172.30.0.0/16")),
         direct_code_ports=bool(server.get("direct_code_ports", False)),
         runtime_version=runtime_version(source_dir),
@@ -149,14 +132,9 @@ def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path
 
 
 def load() -> Config:
-    config_file = Path(os.environ.get("TOMABOTCHI_CONFIG", AI_ROOT / "platform" / "tomabotchi.toml"))
-    containment_file = Path(os.environ.get("TOMABOTCHI_CONTAINMENT", AI_ROOT / "platform" / "containment.toml"))
-    data_dir = Path(os.environ.get("TOMABOTCHI_DATA_DIR", AI_ROOT / "platform" / "data" / "tomabotchi"))
+    config_file = Path(os.environ.get("TOMABOTCHI_CONFIG", ROOT / "tomabotchi.toml"))
+    data_dir = Path(os.environ.get("TOMABOTCHI_DATA_DIR", ROOT / "data"))
     with config_file.open("rb") as f:
         tb = tomllib.load(f)
-    containment = {}
-    if containment_file.exists():
-        with containment_file.open("rb") as f:
-            containment = tomllib.load(f)
     data_dir.mkdir(parents=True, exist_ok=True)
-    return from_dicts(tb, containment, data_dir=data_dir, config_file=config_file)
+    return from_dicts(tb, data_dir=data_dir, config_file=config_file)

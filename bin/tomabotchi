@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Run tomabotchi.  Usage: bin/tomabotchi up | down | restart | ps | logs | test [pytest args]
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export TOMABOTCHI_ROOT="$PWD"
+export DOCKER_GID="${DOCKER_GID:-$(stat -c %g /var/run/docker.sock)}"
+mkdir -p data
+envfile=()
+[[ -f .env ]] && envfile=(--env-file .env)
+dc() { docker compose "${envfile[@]}" -f compose.yml "$@"; }
+case "${1:-ps}" in
+  up)      dc up -d --build ;;
+  down)    dc down ;;
+  restart) dc restart ;;
+  ps)      dc ps ;;
+  logs)    dc logs -f --tail=100 ;;
+  test)    shift
+           if [[ ! -x .venv/bin/pytest ]]; then python3 -m venv .venv && .venv/bin/pip install -q -e '.[dev]'; fi
+           .venv/bin/pytest -q "$@" ;;
+  *)       dc "$@" ;;
+esac

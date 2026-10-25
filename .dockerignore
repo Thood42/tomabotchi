@@ -1,4 +1,9 @@
-.venv/
-tests/
-**/__pycache__/
-.pytest_cache/
+# The repo root is the build context for both the server image and the pet runtime image.
+.git
+.venv
+data
+docs
+tests
+.env
+**/__pycache__
+**/.pytest_cache

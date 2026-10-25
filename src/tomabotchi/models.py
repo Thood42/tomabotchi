@@ -23,7 +23,7 @@ class Home:
     image: str
     description: str
     default: bool
-    build: str | None = None     # a Dockerfile folder under platform/tomabotchi, built as `image`
+    build: str | None = None     # a Dockerfile folder in the repo, built as `image`
 
 
 @dataclass(frozen=True)

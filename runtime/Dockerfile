@@ -1,5 +1,5 @@
 # tomabotchi pet runtime: everything a pet needs, laid out under /opt so any glibc home can carry it.
-# Build context is platform/tomabotchi (so rules.py is shared with the server). Never run directly:
+# Build context is the repo root (so rules.py is shared with the server). Never run directly:
 # each pet image is `FROM <home>` + `COPY --from=` this image (see pet.Dockerfile.tmpl).
 #
 #   /opt/hermes       Hermes Agent with its own standalone Python 3.14 (from the pinned upstream image)

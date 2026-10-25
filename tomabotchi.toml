@@ -1,4 +1,4 @@
-# tomabotchi: pocket pets for AI agents. Read by platform/tomabotchi (config.py).
+# tomabotchi: pocket pets for AI agents. Read by src/tomabotchi/config.py.
 # Homes are the base images a pet can live in. tomabotchi layers its runtime on top,
 # so each one must be glibc-based (Debian/Ubuntu). Edit here and restart to change the list.
 
@@ -6,6 +6,12 @@
 port = 8770
 approval_timeout = "8h"        # how long a call waits for you before the pet is told "no answer"
 direct_code_ports = false      # also publish each pet's VS Code on 127.0.0.1:<port>
+
+[pets]                         # what each pet's own container may use
+memory = "4G"
+cpus = 2
+pids = 256                     # processes and threads
+max_awake = 6
 
 [network]
 pet_subnet_pool = "172.30.0.0/16"   # each pet gets its own /28 from here

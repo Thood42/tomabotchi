@@ -5,14 +5,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tomabotchi import store
-from tomabotchi.config import AI_ROOT
+from tomabotchi.config import ROOT
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("TOMABOTCHI_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("TOMABOTCHI_DOCKER", "0")
-    monkeypatch.setenv("TOMABOTCHI_CONFIG", str(AI_ROOT / "platform" / "tomabotchi.toml"))
+    monkeypatch.setenv("TOMABOTCHI_CONFIG", str(ROOT / "tomabotchi.toml"))
     from tomabotchi.web import app
     with TestClient(app) as c:
         yield c

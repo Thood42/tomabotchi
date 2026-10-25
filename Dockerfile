@@ -1,4 +1,4 @@
-# tomabotchi server. Built and started by platform/bin/stack (platform/stack/tomabotchi.compose.yml).
+# tomabotchi server. Built and started by bin/tomabotchi (compose.yml).
 FROM python:3.12-slim
 
 WORKDIR /app

@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
 from tomabotchi import gateway, store
-from tomabotchi.config import AI_ROOT
+from tomabotchi.config import ROOT
 from tomabotchi.models import Pet
 
 SSE = [
@@ -62,7 +62,7 @@ def upstream():
 def make_client(tmp_path, monkeypatch, upstream, key="real-key"):
     monkeypatch.setenv("TOMABOTCHI_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("TOMABOTCHI_DOCKER", "0")
-    monkeypatch.setenv("TOMABOTCHI_CONFIG", str(AI_ROOT / "platform" / "tomabotchi.toml"))
+    monkeypatch.setenv("TOMABOTCHI_CONFIG", str(ROOT / "tomabotchi.toml"))
     monkeypatch.setenv("ANTHROPIC_UPSTREAM_URL", upstream["url"])
     monkeypatch.setenv("OLLAMA_BASE_URL", upstream["url"])
     if key:

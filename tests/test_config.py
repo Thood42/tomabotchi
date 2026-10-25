@@ -3,32 +3,30 @@ from pathlib import Path
 
 import pytest
 
-from tomabotchi.config import AI_ROOT, clamp, from_dicts, parse_duration
+from tomabotchi.config import ROOT, from_dicts, parse_duration
 from tomabotchi.models import Limits
 
 HOMES = [{"slug": "python", "name": "Python", "image": "python:3.12-slim", "default": True},
          {"slug": "node", "name": "Node.js", "image": "node:22-slim"}]
 
 
-def cfg(tb=None, containment=None):
-    return from_dicts(tb or {"homes": HOMES}, containment or {}, data_dir=Path("/tmp/x"), config_file=Path("x"))
+def cfg(tb=None, pets=None):
+    return from_dicts({**(tb or {"homes": HOMES}), "pets": pets or {}}, data_dir=Path("/tmp/x"), config_file=Path("x"))
 
 
-def test_limits_clamped_to_ceiling():
-    c = cfg(containment={"defaults": {"cpu_quota": "1200%", "memory_max": "32G", "tasks_max": 4096},
-                         "ceiling": {"cpu_quota": "800%", "memory_max": "16G", "tasks_max": 1024}})
-    assert c.limits_default == Limits(memory="16G", cpus=8.0, pids=1024)
+def test_pet_limits_from_the_pets_table():
+    c = cfg(pets={"memory": "8G", "cpus": 4, "pids": 512, "max_awake": 3})
+    assert c.limits_default == Limits(memory="8G", cpus=4.0, pids=512) and c.max_awake_pets == 3
 
 
-def test_limits_under_ceiling_kept():
-    c = cfg(containment={"defaults": {"cpu_quota": "200%", "memory_max": "4G", "tasks_max": 256},
-                         "ceiling": {"cpu_quota": "800%", "memory_max": "16G", "tasks_max": 1024}})
-    assert c.limits_default == Limits(memory="4G", cpus=2.0, pids=256)
+def test_pet_limits_default_without_a_pets_table():
+    c = cfg()
+    assert c.limits_default == Limits(memory="4G", cpus=2.0, pids=256) and c.max_awake_pets == 6
 
 
-def test_clamp_compares_memory_units():
-    assert clamp(Limits("2048M", 1, 1), Limits("4G", 1, 1)).memory == "2048M"
-    assert clamp(Limits("8G", 1, 1), Limits("4096M", 1, 1)).memory == "4096M"
+def test_pet_memory_must_be_a_size():
+    with pytest.raises(ValueError, match="isn't a size"):
+        cfg(pets={"memory": "lots"})
 
 
 def test_unknown_home_raises():
@@ -51,10 +49,10 @@ def test_parse_duration():
 
 
 def test_repo_config_file_loads():
-    """The real platform/tomabotchi.toml and containment.toml parse and validate."""
+    """The repo's own tomabotchi.toml parses and validates."""
     import tomllib
-    tb = tomllib.loads((AI_ROOT / "platform" / "tomabotchi.toml").read_text())
-    containment = tomllib.loads((AI_ROOT / "platform" / "containment.toml").read_text())
-    c = from_dicts(tb, containment, data_dir=Path("/tmp/x"), config_file=Path("x"))
+    tb = tomllib.loads((ROOT / "tomabotchi.toml").read_text())
+    c = from_dicts(tb, data_dir=Path("/tmp/x"), config_file=Path("x"))
     assert c.default_home().slug == "python"
-    assert c.max_awake_pets == 6
+    assert c.max_awake_pets == 6 and c.limits_default == Limits(memory="4G", cpus=2.0, pids=256)
+    assert c.source_dir == ROOT and (ROOT / "runtime" / "Dockerfile").is_file()

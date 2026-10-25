@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
 from tomabotchi import codeproxy, store
-from tomabotchi.config import AI_ROOT
+from tomabotchi.config import ROOT
 from tomabotchi.models import Pet
 
 
@@ -60,7 +60,7 @@ def code_server():
 def client(tmp_path, monkeypatch, code_server):
     monkeypatch.setenv("TOMABOTCHI_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("TOMABOTCHI_DOCKER", "0")
-    monkeypatch.setenv("TOMABOTCHI_CONFIG", str(AI_ROOT / "platform" / "tomabotchi.toml"))
+    monkeypatch.setenv("TOMABOTCHI_CONFIG", str(ROOT / "tomabotchi.toml"))
     monkeypatch.setattr(codeproxy, "upstream", lambda pet_id: code_server["addr"])
     monkeypatch.setattr(codeproxy, "_client", None)
     from tomabotchi.web import app

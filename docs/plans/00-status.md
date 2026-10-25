@@ -21,6 +21,7 @@
 - [x] Slice 13 — polish and docs: shuffle, phone layouts, focus, README, final screenshot pass, full test run
 
 ## Notes for a fresh session
+- **2026-10-25: tomabotchi moved to its own repo** (`~/Projects/tomabotchi`), with the 13 slice commits' history kept (via `git filter-repo`). Paths in the notes below are from the old home: `platform/tomabotchi/` is now the repo root, `platform/tomabotchi.toml` is `tomabotchi.toml`, `platform/stack/tomabotchi.compose.yml` is `compose.yml`, `platform/bin/stack up tomabotchi` is `bin/tomabotchi up`, `platform/data/tomabotchi/` is `data/`, and these docs are `docs/plans/`. Pet limits moved from aihub's `containment.toml` into `[pets]` in `tomabotchi.toml`.
 - Code, config and data live under `~/Projects/ai/platform/` (`platform/tomabotchi/`, `platform/tomabotchi.toml`, `platform/data/tomabotchi/`). This folder (`sessions/tomabotchi/docs/plans/tomabotchi/`) holds only the planning docs. Repo: `~/Projects/ai` (local agentic platform).
 - Existing platform pieces worth considering at Gate 2 (do not decide before then):
   - aihub (`platform/hub`, FastAPI+HTMX, :8765): contained runs as systemd --user units in `aihub.slice`; README lists "human approval gates" as not built yet.
