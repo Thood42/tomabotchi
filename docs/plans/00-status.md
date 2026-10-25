@@ -13,7 +13,7 @@
 - [x] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
 - [x] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
 - [x] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
-- [ ] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
+- [x] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
 - [ ] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
 - [ ] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
 - [ ] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
@@ -154,3 +154,26 @@
     - Pause → the agent's state is `T` (stopped), VS Code still returns 200, feeding returns 409, and the bar says "Fig is paused while you edit" with Resume. Resume → `S`.
     - "Read notes/todo.md and tell me both secret words" → "The two secret words in the file are **MARMALADE** and **PERSIMMON**."
     - `pytest -m docker -k "pause or runtime"`: 2 passed. Unit: 121 passed (`test_codeproxy.py`, `test_pause.py`).
+- Slice 8 notes (2026-10-25):
+  - **The egg keys work:**
+    - **Task** and **Chat** jump to the feed box, which now has "Give it this task" and "Just chat" (`mode=chat`).
+    - **Lights** posts `/pets/{id}/lights` (`on=0|1`); the key lights up red while off.
+    - **Medicine** is enabled while working or sick.
+    - **Tidy** is enabled when idle and awake.
+    - **Train** opens the soul page.
+  - **Task kinds:** `tasks.kind` is `task|chat|care` (migrated through `db.ADDED_COLUMNS`). Only `task` counts towards `tasks_done` and growing up. `feed(prompt_md, kind, send)` shows the keeper's words, but the brain gets `send`.
+    - Chat sends `CHAT_PREFIX` + text ("just chatting… don't use tools unless asked").
+    - Tidy sends the brain's `tidy_command` (Hermes `/compress`, which its ACP adapter runs as a slash command and refuses mid-turn; Claude `/compact`).
+    - Medicine runs `cancel_turn()`, then sends "You seemed stuck (<sick reason>)… try a different approach… Your task was: <prompt>".
+  - **`PetSupervisor.cancel_turn()`** answers every open call as `cancelled` (as ACP requires of the client), sends `session/cancel`, and waits up to 20 s for the turn to end (hard-cancelling it otherwise). `busy` says whether a turn is running. Feeding, chatting or tidying a busy pet returns 409 ("give it Medicine if it's stuck").
+  - **Lights off:** remember the interrupted task, run `cancel_turn()`, **close the ACP socket** (a frozen petd can't answer pings, and the client would time out), then `docker pause`. State `asleep`, notice `lights_off`.
+  - **Lights on:** `docker unpause`, then `acp.connect()` again. petd kept the agent and its session, so no new session is needed. The interrupted task is re-fed as "Continue where you left off. Your task was: …".
+  - **After a restart:** a container still paused on boot stays lights-off and asleep, and isn't attached until Lights on.
+  - **Out of budget:** the gateway's `app.state.on_budget` → `Fleet.on_budget`. The pet goes asleep at once (so repeat 429s are ignored), the turn is cancelled, the notice reads "Out of budget: … Feed it a new task to give it a fresh budget.", and an `out_of_budget` browser notification fires. Feeding an asleep pet (lights on) wakes it, because the budget is per task. An asleep pet stays asleep across a server restart (`PetSupervisor.start` no longer forces `awake`).
+  - The practice brain gained `#slow`, chat, tidy and a "recover after Medicine" script.
+  - **Proof:**
+    - **Fig (Hermes):** fed "list notes/, then write notes/plan.md…", then Lights off 15 s in → the container was paused, task 16 cancelled, the egg showed the sleep scene with Lights lit red. Lights on → unpaused, reconnected, and task 17 "continue" asked to run `ls`, then to write `notes/plan.md`. Allowed → the file landed.
+    - **Bean (Hermes, 25k budget, 3 files to read):** 2 model calls used 26,735 tokens, the 3rd got a 429, the task was cancelled, and the pet fell asleep with "Out of budget: Bean has used its 25,000-token budget…".
+    - **Clover (practice, `#sick`):** showed "Sick: … failed 4 times in a row". Medicine → "My keeper stopped me… I'll use the RSS feed instead", done, and no longer sick.
+    - Unit: 129 passed (`test_care.py`: 8).
+  - **Nit:** after Medicine cures a pet, Happy can still say "Recent steps going badly" until newer tool results push the failures out of the window.

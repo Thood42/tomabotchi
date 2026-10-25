@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
     fleet = Fleet(cfg, conn, bus, _docker(cfg))
     app.state.cfg, app.state.conn, app.state.bus, app.state.fleet = cfg, conn, bus, fleet
     app.state.on_usage = fleet.on_usage
+    app.state.on_budget = fleet.on_budget
     views.CONFIG = cfg
     await fleet.boot()
     yield
@@ -139,15 +140,61 @@ async def hatch(request: Request, name: str = Form(...), shell: str = Form("grap
 
 
 @app.post("/pets/{pet_id}/tasks")
-async def feed(request: Request, pet_id: str, prompt_md: str = Form(...)):
+async def feed(request: Request, pet_id: str, prompt_md: str = Form(...), mode: str = Form("task")):
+    """Feed it a task, or (mode=chat) just talk to it."""
     _pet_or_404(request, pet_id)
-    fleet = request.app.state.fleet
+    sup = _ready(request, pet_id)
+    await (sup.chat(prompt_md) if mode == "chat" else sup.feed(prompt_md))
+    return RedirectResponse(f"/pets/{pet_id}", status_code=303)
+
+
+def _ready(request: Request, pet_id: str):
+    """The pet's supervisor, if it can take a new turn now. Feeding an out-of-budget pet wakes it:
+    a new task brings a new budget."""
+    fleet, conn = request.app.state.fleet, request.app.state.conn
+    if fleet.lights_are_off(pet_id):
+        raise HTTPException(409, "Its lights are off. Turn them on first.")
     if not fleet.is_awake(pet_id):
         raise HTTPException(409, "It's still waking up. Try again in a moment.")
-    if store.get_pet(request.app.state.conn, pet_id).state == "paused":
+    pet = store.get_pet(conn, pet_id)
+    if pet.state == "paused":
         raise HTTPException(409, "It's paused while you edit. Resume it first.")
-    await fleet.get(pet_id).feed(prompt_md)
-    return RedirectResponse(f"/pets/{pet_id}", status_code=303)
+    sup = fleet.get(pet_id)
+    if sup.busy:
+        raise HTTPException(409, "It's busy with a task. Wait for it, or give it Medicine if it's stuck.")
+    if pet.state == "asleep":
+        store.set_pet_state(conn, pet_id, "awake")
+    return sup
+
+
+@app.post("/pets/{pet_id}/lights", status_code=204)
+async def lights(request: Request, pet_id: str, on: int = Form(...)):
+    pet = _pet_or_404(request, pet_id)
+    fleet = request.app.state.fleet
+    if not fleet.lights_are_off(pet_id) and not fleet.is_awake(pet_id):
+        raise HTTPException(409, "It isn't awake yet.")
+    if pet.state == "paused":
+        raise HTTPException(409, "It's paused while you edit. Resume it first.")
+    await fleet.lights(pet_id, bool(on))
+    return Response(status_code=204)
+
+
+@app.post("/pets/{pet_id}/medicine", status_code=204)
+async def medicine(request: Request, pet_id: str):
+    pet = _pet_or_404(request, pet_id)
+    fleet = request.app.state.fleet
+    if fleet.lights_are_off(pet_id) or not fleet.is_awake(pet_id) or pet.state == "paused":
+        raise HTTPException(409, "It can't take medicine right now: wake it or resume it first.")
+    ctx = views.pet_context(request.app.state.conn, pet)
+    await fleet.get(pet_id).medicine(ctx["vitals"].sick_reason)
+    return Response(status_code=204)
+
+
+@app.post("/pets/{pet_id}/tidy", status_code=204)
+async def tidy(request: Request, pet_id: str):
+    _pet_or_404(request, pet_id)
+    await _ready(request, pet_id).tidy()
+    return Response(status_code=204)
 
 
 @app.post("/pets/{pet_id}/pause", status_code=204)

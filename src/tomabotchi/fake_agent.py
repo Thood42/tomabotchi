@@ -104,7 +104,48 @@ async def sick_script(t: Turn, prompt: str) -> str:
     return "end_turn"
 
 
+async def chat_script(t: Turn, prompt: str) -> str:
+    await t.message("Hi! I'm only a practice pet, but I'm listening.")
+    return "end_turn"
+
+
+async def tidy_script(t: Turn, prompt: str) -> str:
+    await t.message("Tidied my memory.")
+    await t._update({"sessionUpdate": "usage_update", "used": 900, "size": 65536})
+    return "end_turn"
+
+
+async def slow_script(t: Turn, prompt: str) -> str:
+    """Works for a long time without asking: for cancelling mid-task (Lights off, Medicine)."""
+    await t.plan(["Think hard", "Think harder"], current=0)
+    for _ in range(600):
+        await t.thought("Still thinking...")
+        await asyncio.sleep(1)
+    return "end_turn"
+
+
+async def recover_script(t: Turn, prompt: str) -> str:
+    """After Medicine: tries another way, and it works."""
+    await t.thought("My keeper stopped me. That page kept failing, so I'll use the listing's RSS feed instead.")
+    await t.plan(["Fetch the papers another way", "Summarise them"], current=0)
+    await t.tool_call({"toolCallId": "rss-1", "title": "Read page export.arxiv.org/rss/cs.AI", "kind": "fetch",
+                       "rawInput": {"url": "https://export.arxiv.org/rss/cs.AI"}})
+    await t.tool_update("rss-1", "completed")
+    await t.plan(["Fetch the papers another way", "Summarise them"], current=1)
+    await t.message("Got them this time, from the RSS feed. Three papers on agents this week.")
+    await t.plan(["Fetch the papers another way", "Summarise them"], current=2)
+    return "end_turn"
+
+
 def pick_script(prompt: str) -> Script:
+    if prompt.startswith("You seemed stuck"):
+        return recover_script
+    if prompt.startswith(("/compress", "/compact")):
+        return tidy_script
+    if prompt.startswith("(My keeper is just chatting"):
+        return chat_script
+    if "#slow" in prompt:
+        return slow_script
     return sick_script if "#sick" in prompt else write_note_script
 
 

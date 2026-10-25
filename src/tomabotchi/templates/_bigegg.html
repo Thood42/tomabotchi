@@ -1,14 +1,20 @@
 <div id="bigegg-{{ pet.id }}" data-live class="egg big{% if call %} calling{% endif %}" style="--shell: var(--{{ pet.shell }})">
   <div class="bezel">
     <div class="icons upper">
-      <button class="ico" data-icon="task" title="Feed it a task (below)">Task</button>
-      <button class="ico" data-icon="lights" disabled title="Arrives in slice 8">Lights</button>
-      <button class="ico" data-icon="chat" disabled title="Arrives in slice 8">Chat</button>
-      <button class="ico" data-icon="medicine" disabled title="Arrives in slice 8">Medicine</button>
+      <a class="ico" data-icon="task" href="#feed-text" title="Feed it a task">Task</a>
+      <button class="ico{% if lights_off %} lit{% endif %}" data-icon="lights" hx-post="/pets/{{ pet.id }}/lights"
+              hx-vals='{"on": {{ 1 if lights_off else 0 }}}' hx-swap="none"{{ " disabled" if pet.state in ("hatching", "paused") }}
+              title="{{ 'Turn the lights on: wake it up' if lights_off else 'Lights off: pause it' }}">Lights</button>
+      <a class="ico" data-icon="chat" href="#feed-text" title="Just chat with it">Chat</a>
+      <button class="ico" data-icon="medicine" hx-post="/pets/{{ pet.id }}/medicine" hx-swap="none"
+              {{ "" if (working or vitals.sick_reason) and not lights_off else "disabled" }}
+              title="Unstick it: stop this turn and nudge it to try another way">Medicine</button>
     </div>
     <div class="lcd" data-scene="{{ vitals.scene }}" data-seed="{{ pet.look_seed }}"></div>
     <div class="icons lower">
-      <button class="ico" data-icon="tidy" disabled title="Arrives in slice 8">Tidy</button>
+      <button class="ico" data-icon="tidy" hx-post="/pets/{{ pet.id }}/tidy" hx-swap="none"
+              {{ "disabled" if working or lights_off or pet.state != "awake" }}
+              title="Tidy its memory (compacts the conversation)">Tidy</button>
       <button class="ico" data-icon="vitals">Vitals</button>
       <a class="ico" data-icon="train" href="/pets/{{ pet.id }}/soul#teach-h" title="Teach it: lessons for its soul">Train</a>
       <button class="ico{% if call %} lit{% endif %}" data-icon="calls">Calls</button>

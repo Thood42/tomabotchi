@@ -6,6 +6,7 @@ from datetime import datetime, time
 from typing import Literal
 
 BrainName = Literal["hermes", "claude", "fake"]
+TaskKind = Literal["task", "chat", "care"]      # only tasks count towards growing up
 PetState = Literal["hatching", "awake", "paused", "asleep", "retired"]
 Scene = Literal["egg", "alert", "work", "happy", "sleep", "sick"]
 Stage = Literal["egg", "baby", "kid", "teen", "adult"]
@@ -69,6 +70,7 @@ class Task:
     state: Literal["running", "waiting", "done", "failed", "cancelled"]
     started_at: datetime
     ended_at: datetime | None = None
+    kind: TaskKind = "task"
 
 
 @dataclass

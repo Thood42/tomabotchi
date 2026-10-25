@@ -8,7 +8,7 @@ from typing import Iterator
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 # Columns added after a table first shipped: CREATE TABLE IF NOT EXISTS won't add them to an old database.
-ADDED_COLUMNS = {("lessons", "note"): "TEXT"}
+ADDED_COLUMNS = {("lessons", "note"): "TEXT", ("tasks", "kind"): "TEXT NOT NULL DEFAULT 'task'"}
 
 
 def connect(path: Path | str) -> sqlite3.Connection:

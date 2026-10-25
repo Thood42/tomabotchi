@@ -31,6 +31,7 @@ class Brain(Protocol):
     name: BrainName
     label: str
     session_mode: str | None
+    tidy_command: str
 
     def soul_path(self, brain_home: Path) -> Path: ...
     def rules_path(self, brain_home: Path) -> Path: ...
@@ -43,6 +44,7 @@ class HermesBrain:
     name: BrainName = "hermes"
     label = "Hermes"
     session_mode = "dont_ask"          # Hermes's native edit prompts off; the leash decides
+    tidy_command = "/compress"         # an ACP slash command (refused mid-turn)
 
     def soul_path(self, brain_home: Path) -> Path:
         return brain_home / ".hermes" / "SOUL.md"
@@ -90,6 +92,7 @@ class ClaudeBrain:
     name: BrainName = "claude"
     label = "Claude Code"
     session_mode = None                # "default", from settings.json
+    tidy_command = "/compact"
 
     def soul_path(self, brain_home: Path) -> Path:
         return brain_home / ".claude" / "CLAUDE.md"        # user memory: loaded into every session
@@ -130,6 +133,7 @@ class FakeBrain:
     name: BrainName = "fake"
     label = "Practice brain"
     session_mode = None
+    tidy_command = "/compress"
 
     def soul_path(self, brain_home: Path) -> Path:
         return brain_home / "SOUL.md"

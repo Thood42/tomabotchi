@@ -122,12 +122,9 @@ def pet_context(conn, pet: Pet) -> dict:
         doing = f"Sick: {v.sick_reason}"
     elif pet.state == "paused":
         doing = "Paused while you edit its workspace"
-    elif pet.state == "hatching":
-        note = store.recent_events(conn, pet.id, {"notice"}, 1)
-        doing = (note[0].payload.get("text") if note else None) or "Hatching..."
-    elif pet.state == "asleep":
-        note = store.recent_events(conn, pet.id, {"notice"}, 1)
-        doing = (note[0].payload.get("text") if note else None) or "Asleep"
+    elif pet.state in ("hatching", "asleep"):
+        said = [e.payload["text"] for e in store.recent_events(conn, pet.id, {"notice"}, 10) if e.payload.get("text")]
+        doing = said[-1] if said else ("Hatching..." if pet.state == "hatching" else "Asleep")
     elif working:
         last = next((t for t in reversed(thoughts) if t.kind == "thought"), None)
         doing = f"Thinking: “{last.payload['text']}”" if last else "Getting started"
@@ -135,12 +132,15 @@ def pet_context(conn, pet: Pet) -> dict:
         doing = "Finished its task. Hungry for another."
     else:
         doing = "Hungry for a task"
+    switches = [e.payload.get("type") for e in store.recent_events(conn, pet.id, {"notice"}, 30)
+                if e.payload.get("type") in ("lights_off", "lights_on")]
+    lights_off = pet.state == "asleep" and bool(switches) and switches[-1] == "lights_off"
     steps = store.plan(conn, task.id) if task else []
     done = sum(s.status == "completed" for s in steps)
     return {"pet": pet, "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
-            "working": working, "tokens": tokens, "home": home_context(pet), **rules_context(conn, pet, open_call),
+            "working": working, "tokens": tokens, "lights_off": lights_off, "home": home_context(pet), **rules_context(conn, pet, open_call),
             **lessons_context(conn, pet)}
 
 

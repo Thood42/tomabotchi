@@ -28,8 +28,12 @@
       <section class="sheet feed" aria-labelledby="feed-h">
         <h2 id="feed-h">Feed {{ pet.name }} a task</h2>
         <form class="feed" method="post" action="/pets/{{ pet.id }}/tasks">
-          <textarea name="prompt_md" required placeholder="e.g. Write a short note about pgvector">{{ "" }}</textarea>
-          <div class="answers"><button class="btn primary">Give it this task</button></div>
+          <label class="sr" for="feed-text">Task or message</label>
+          <textarea id="feed-text" name="prompt_md" required placeholder="e.g. Write a short note about pgvector">{{ "" }}</textarea>
+          <div class="answers">
+            <button class="btn primary" name="mode" value="task">Give it this task</button>
+            <button class="btn" name="mode" value="chat">Just chat</button>
+          </div>
         </form>
       </section>
     </div>

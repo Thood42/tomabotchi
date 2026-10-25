@@ -13,7 +13,7 @@ from . import brains, notify, store, views
 from .acp import AcpConnection
 from .bus import Bus, BusMessage
 from .config import Config
-from .models import Call, CallOutcome, Event, Pet, PlanStep
+from .models import Call, CallOutcome, Event, Pet, PlanStep, TaskKind
 from .rules import BLOCK_MARK, drain_blocks
 
 log = logging.getLogger(__name__)
@@ -23,6 +23,8 @@ INTERNAL_TOOL_IDS = ("perm-check-",)
 QUIET_UPDATES = {"available_commands_update", "session_info_update", "current_mode_update", "config_option_update"}
 PUBLISH_EVERY = 0.4            # seconds between live re-renders while text streams in
 
+CHAT_PREFIX = ("(My keeper is just chatting, not giving me a task. I reply briefly and warmly, and I don't use "
+               "tools unless they ask me to.)\n\n")
 _LEASH_MESSAGE = re.compile(r"^(?P<tool>\S+) \((?P<kind>\w+)\): (?P<target>[^\n]*)(?:\n---\n(?P<preview>.*))?$", re.S)
 _VERBS = {"write_file": "Write", "patch": "Edit", "read_file": "Read", "terminal": "Run", "process": "Run",
           "execute_code": "Run code in", "web_search": "Search the web for", "web_extract": "Read the page"}
@@ -110,7 +112,8 @@ class PetSupervisor:
         await self.acp.connect()
         await self.acp.initialize()
         await self._new_session()
-        store.update_pet(self.conn, self.pet.id, state="awake")
+        if self.pet.state != "asleep":           # out of budget stays asleep across a restart, until it's fed
+            store.update_pet(self.conn, self.pet.id, state="awake")
         self._refresh()
 
     async def _new_session(self) -> None:
@@ -130,15 +133,52 @@ class PetSupervisor:
 
     # ---- keeper actions ----
 
-    async def feed(self, prompt_md: str) -> int:
-        if self._soul_changed and not (self._turn and not self._turn.done()):
+    @property
+    def busy(self) -> bool:
+        return bool(self._turn and not self._turn.done())
+
+    async def feed(self, prompt_md: str, kind: TaskKind = "task", send: str | None = None) -> int:
+        """Start a turn. `prompt_md` is what the keeper sees; `send` (default the same) is what the brain gets."""
+        if self._soul_changed and not self.busy:
             self._soul_changed = False
             await self._new_session()
-        task = store.start_task(self.conn, self.pet.id, prompt_md)
+        task = store.start_task(self.conn, self.pet.id, prompt_md, kind)
         self._stream, self._thoughts_this_turn = None, 0
-        self._turn = asyncio.create_task(self._run_turn(task.id, prompt_md))
+        self._turn = asyncio.create_task(self._run_turn(task.id, send or prompt_md))
         self._refresh()
         return task.id
+
+    async def chat(self, text_md: str) -> int:
+        return await self.feed(text_md, "chat", CHAT_PREFIX + text_md)
+
+    async def tidy(self) -> int:
+        return await self.feed("Tidy your memory", "care", brains.get(self.pet.brain).tidy_command)
+
+    async def medicine(self, sick_reason: str | None) -> int:
+        """Stop the stuck turn, then nudge it with what looked wrong."""
+        task = store.current_task(self.conn, self.pet.id)
+        await self.cancel_turn()
+        what = f"You seemed stuck ({sick_reason})." if sick_reason else "You seemed stuck."
+        goal = f" Your task was: {task.prompt.strip()}" if task and task.kind == "task" else ""
+        nudge = (f"{what} I stopped you. Step back: don't repeat what just failed. Try a different approach, "
+                 f"or tell me plainly what is blocking you.{goal}")
+        return await self.feed("Medicine: try another way", "care", nudge)
+
+    async def cancel_turn(self, wait: float = 20) -> None:
+        """session/cancel, answer any open call as cancelled (as ACP asks of clients), and wait for the turn to end."""
+        if not self.busy:
+            return
+        for call_id, (fut, _) in list(self._waiting.items()):
+            store.answer_call(self.conn, call_id, "cancelled", "the keeper stopped the turn", store.now())
+            if not fut.done():
+                fut.set_result({"outcome": {"outcome": "cancelled"}})
+            self._waiting.pop(call_id, None)
+        await self.acp.cancel(self.session_id)
+        try:
+            await asyncio.wait_for(asyncio.shield(self._turn), wait)
+        except asyncio.TimeoutError:
+            self._turn.cancel()              # the brain never answered the cancel; stop waiting for it
+            await asyncio.gather(self._turn, return_exceptions=True)
 
     async def answer(self, call_id: int, outcome: CallOutcome, reason: str | None) -> Call:
         call = store.answer_call(self.conn, call_id, outcome, reason, store.now())
@@ -168,7 +208,7 @@ class PetSupervisor:
             self.pet = store.get_pet(self.conn, self.pet.id)
             self._refresh()
             if state == "done":
-                self._notify("finished", "Its task is done. It's ready for another.")
+                self.notify("finished", "Its task is done. It's ready for another.")
 
     async def _on_update(self, params: dict) -> None:
         update = params.get("update") or {}
@@ -190,7 +230,7 @@ class PetSupervisor:
         self._refresh()
         after = views.pet_context(self.conn, self.pet)["vitals"].sick_reason
         if after and not before_sick:
-            self._notify("sick", after)
+            self.notify("sick", after)
 
     def _take_blocks(self, task_id: int | None) -> None:
         """Calls a "never" rule blocked never reach ACP; the leash notes them in a file instead."""
@@ -211,7 +251,7 @@ class PetSupervisor:
         fut = asyncio.get_running_loop().create_future()
         self._waiting[call_id] = (fut, call.options)
         self._refresh()
-        self._notify("calling", f"Wants your OK to {call.tool_call.get('title', 'use a tool')}")
+        self.notify("calling", f"Wants your OK to {call.tool_call.get('title', 'use a tool')}")
         return await fut
 
     # ---- streamed text ----
@@ -262,7 +302,7 @@ class PetSupervisor:
         self.pet = store.get_pet(self.conn, self.pet.id)
         publish_pet(self.conn, self.bus, self.pet)
 
-    def _notify(self, kind: notify.NoticeKind, detail: str) -> None:
+    def notify(self, kind: notify.NoticeKind, detail: str) -> None:
         settings = store.get_notification_settings(self.conn)
         notice = notify.for_event(kind, self.pet, detail, settings, datetime.now().time())
         if notice:

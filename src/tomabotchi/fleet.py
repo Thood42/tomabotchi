@@ -37,6 +37,7 @@ class Fleet:
         self.cfg, self.conn, self.bus, self.docker = cfg, conn, bus, docker
         self._sups: dict[str, PetSupervisor] = {}
         self._fakes: dict[str, FakeAgent] = {}
+        self._lights_off: dict[str, str | None] = {}       # pet id → the task Lights off interrupted
         self._tasks: set[asyncio.Task] = set()
         if docker is not None:
             self._spawn(self._poll_stats())
@@ -68,6 +69,10 @@ class Fleet:
                 continue
             if pet.id not in containers or self.docker is None:
                 self._notice(pet, "home_missing", "Its home isn't running. Hatch it again or retire it.")
+                store.set_pet_state(self.conn, pet.id, "asleep")
+                continue
+            if containers[pet.id].paused:
+                self._lights_off[pet.id] = None                 # it went to sleep before the restart
                 store.set_pet_state(self.conn, pet.id, "asleep")
                 continue
             if not containers[pet.id].running:
@@ -128,6 +133,63 @@ class Fleet:
         if outcome == "reject_once" and reason:
             self._spawn(self.draft_lesson(call.pet_id, "scold", reason, call_id=call_id))
         return answered
+
+    # ---- care ----
+
+    def lights_are_off(self, pet_id: str) -> bool:
+        return pet_id in self._lights_off
+
+    async def lights(self, pet_id: str, on: bool) -> None:
+        """Off: stop the turn, hang up, and docker pause the whole home. On: unpause, reconnect (petd
+        kept the session), and pick up the interrupted task."""
+        pet = store.get_pet(self.conn, pet_id)
+        sup = self._sups.get(pet_id)
+        container = self.docker is not None and pet.brain != "fake"
+        if not on:
+            if pet_id in self._lights_off:
+                return
+            task = store.current_task(self.conn, pet_id)
+            interrupted = task.prompt if sup and sup.busy and task and task.kind == "task" else None
+            if sup:
+                await sup.cancel_turn()
+                await sup.acp.close()            # a frozen petd can't answer pings, so don't leave it to time out
+            if container:
+                await self.docker.pause(pet_id)
+            self._lights_off[pet_id] = interrupted
+            store.set_pet_state(self.conn, pet_id, "asleep")
+            self._notice(pet, "lights_off", "Lights off. Sleeping until you turn them on.")
+            return
+        if pet_id not in self._lights_off:
+            return
+        interrupted = self._lights_off.pop(pet_id)
+        if container:
+            await self.docker.unpause(pet_id)
+        if sup:
+            await sup.acp.connect()
+            store.set_pet_state(self.conn, pet_id, "awake")
+        else:
+            await self._attach(pet, self._token(pet_id), first_task=None)
+            sup = self._sups[pet_id]
+        self._notice(pet, "lights_on", "Lights on. Awake again.")
+        if interrupted:
+            await sup.feed(interrupted, send=f"Continue where you left off. Your task was: {interrupted}")
+
+    def on_budget(self, pet_id: str, reason: str) -> None:
+        """The gateway refused a model call: the pet falls asleep until it's fed a new task (a new budget)."""
+        pet = store.get_pet(self.conn, pet_id)
+        if pet.state != "awake":
+            return
+        store.set_pet_state(self.conn, pet_id, "asleep")
+        self._spawn(self._out_of_budget(pet, reason))
+
+    async def _out_of_budget(self, pet: Pet, reason: str) -> None:
+        sup = self._sups.get(pet.id)
+        if sup:
+            await sup.cancel_turn()
+        store.set_pet_state(self.conn, pet.id, "asleep")
+        self._notice(pet, "out_of_budget", f"Out of budget: {reason}. Feed it a new task to give it a fresh budget.")
+        if sup:
+            sup.notify("out_of_budget", f"{reason}. It's asleep until you give it a new task.")
 
     # ---- workspace ----
 

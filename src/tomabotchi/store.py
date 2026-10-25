@@ -81,12 +81,12 @@ def update_pet(conn, pet_id: str, **fields) -> None:
 
 def _task(row: sqlite3.Row) -> Task:
     return Task(id=row["id"], pet_id=row["pet_id"], prompt=row["prompt"], state=row["state"],
-                started_at=_dt(row["started_at"]), ended_at=_dt(row["ended_at"]))
+                started_at=_dt(row["started_at"]), ended_at=_dt(row["ended_at"]), kind=row["kind"])
 
 
-def start_task(conn, pet_id: str, prompt: str) -> Task:
-    cur = conn.execute("INSERT INTO tasks (pet_id, prompt, state, started_at) VALUES (?, ?, 'running', ?)",
-                       (pet_id, prompt, _ts(now())))
+def start_task(conn, pet_id: str, prompt: str, kind: str = "task") -> Task:
+    cur = conn.execute("INSERT INTO tasks (pet_id, prompt, kind, state, started_at) VALUES (?, ?, ?, 'running', ?)",
+                       (pet_id, prompt, kind, _ts(now())))
     return get_task(conn, cur.lastrowid)
 
 
@@ -104,7 +104,7 @@ def end_task(conn, task_id: int, state: str) -> None:
         conn.execute("UPDATE tasks SET state = ?, ended_at = ? WHERE id = ?", (state, _ts(now()), task_id))
         if state == "done":
             conn.execute("UPDATE pets SET tasks_done = tasks_done + 1 WHERE id = "
-                         "(SELECT pet_id FROM tasks WHERE id = ?)", (task_id,))
+                         "(SELECT pet_id FROM tasks WHERE id = ? AND kind = 'task')", (task_id,))
 
 
 def replace_plan(conn, task_id: int, steps: list[PlanStep]) -> None:

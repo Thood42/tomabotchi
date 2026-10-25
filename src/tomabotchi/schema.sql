@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id         INTEGER PRIMARY KEY,
     pet_id     TEXT NOT NULL REFERENCES pets(id),
     prompt     TEXT NOT NULL,
+    kind       TEXT NOT NULL DEFAULT 'task',
     state      TEXT NOT NULL,
     started_at TEXT NOT NULL,
     ended_at   TEXT
