@@ -10,8 +10,10 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import store, vitals
-from .models import Call, Pet, ToolRule
+from markupsafe import Markup
+
+from . import soul, store, vitals
+from .models import Call, Lesson, Pet, SoulRevision, ToolRule
 from .rules import rule_for_allow_always
 
 ENV = Environment(loader=FileSystemLoader(Path(__file__).with_name("templates")),
@@ -77,6 +79,7 @@ def always_rule(call: Call) -> dict | None:
 
 
 ENV.globals["rule_label"] = rule_label
+ENV.filters["md"] = lambda text: Markup(soul.md_to_html(text))    # sanitised by nh3
 
 
 def tool_rows(events) -> list[dict]:
@@ -135,7 +138,47 @@ def pet_context(conn, pet: Pet) -> dict:
     return {"pet": pet, "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
-            "working": working, "tokens": tokens, "home": home_context(pet), **rules_context(conn, pet, open_call)}
+            "working": working, "tokens": tokens, "home": home_context(pet), **rules_context(conn, pet, open_call),
+            **lessons_context(conn, pet)}
+
+
+# ---- soul ----
+
+LESSON_KINDS = {"scold": "You scolded", "praise": "You praised", "teach": "You taught", "reflect": "{name} reflected"}
+LESSON_ASKED = {"scold": "Drafted after you said no, because", "praise": "Drafted from your praise:",
+                "teach": "Drafted from what you taught:", "reflect": "Drafted after looking back on a task:"}
+
+
+def lessons_context(conn, pet: Pet) -> dict:
+    return {"proposed": store.proposed_lessons(conn, pet.id), "lesson_asked": LESSON_ASKED}
+
+
+def timeline(pet: Pet, revisions: list[SoulRevision], lessons: list[Lesson]) -> list[dict]:
+    """What shaped this soul, newest first: hatching, hand edits, and every lesson (with its fate)."""
+    items = []
+    for r in revisions:
+        if r.source == "hatched":
+            items.append({"cls": "", "kind": "Hatched", "at": r.created_at, "text": "Soul written from your answers."})
+        elif r.source == "edited":
+            items.append({"cls": "edited", "kind": "You edited", "at": r.created_at,
+                          "text": r.note or f"Rewrote the soul by hand (version {r.version})."})
+    for le in lessons:
+        cls = {"scold": "scolded", "praise": "praised", "teach": "taught", "reflect": "reflected"}[le.source]
+        fate = {"proposed": "Lesson waiting for your OK.", "discarded": "You discarded the lesson."}.get(le.state)
+        items.append({"cls": cls, "kind": LESSON_KINDS[le.source].format(name=pet.name), "at": le.created_at,
+                      "quote": le.note, "text": fate, "diff": le.text if le.state == "accepted" else None})
+    return sorted(items, key=lambda i: i["at"], reverse=True)
+
+
+def soul_context(conn, pet: Pet) -> dict:
+    revisions = store.soul_history(conn, pet.id)
+    latest = revisions[0]
+    return {"pet": pet, "soul": latest, "changes": len(revisions) - 1, "brain_file": soul_file_name(pet),
+            "timeline": timeline(pet, revisions, store.lessons(conn, pet.id)), **lessons_context(conn, pet)}
+
+
+def soul_file_name(pet: Pet) -> str:
+    return "CLAUDE.md" if pet.brain == "claude" else "SOUL.md"
 
 
 def rules_context(conn, pet: Pet, open_call: Call | None = None, saved: bool = False) -> dict:

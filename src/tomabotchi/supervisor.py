@@ -101,6 +101,7 @@ class PetSupervisor:
         self._last_publish = 0.0
         self._publish_later: asyncio.TimerHandle | None = None
         self._blocks = 0
+        self._soul_changed = False
         self._rules_file = str(brains.get(pet.brain).rules_path(cfg.pet_dir(pet.id) / "brain"))
 
     # ---- lifecycle ----
@@ -108,11 +109,19 @@ class PetSupervisor:
     async def start(self) -> None:
         await self.acp.connect()
         await self.acp.initialize()
+        await self._new_session()
+        store.update_pet(self.conn, self.pet.id, state="awake")
+        self._refresh()
+
+    async def _new_session(self) -> None:
         self.session_id = await self.acp.new_session()
         if self.session_mode:
             await self.acp.set_mode(self.session_id, self.session_mode)
-        store.update_pet(self.conn, self.pet.id, acp_session_id=self.session_id, state="awake")
-        self._refresh()
+        store.update_pet(self.conn, self.pet.id, acp_session_id=self.session_id)
+
+    def soul_changed(self) -> None:
+        """Brains read their soul file when a session starts, so the next task gets a fresh session."""
+        self._soul_changed = True
 
     async def stop(self) -> None:
         if self._turn:
@@ -122,6 +131,9 @@ class PetSupervisor:
     # ---- keeper actions ----
 
     async def feed(self, prompt_md: str) -> int:
+        if self._soul_changed and not (self._turn and not self._turn.done()):
+            self._soul_changed = False
+            await self._new_session()
         task = store.start_task(self.conn, self.pet.id, prompt_md)
         self._stream, self._thoughts_this_turn = None, 0
         self._turn = asyncio.create_task(self._run_turn(task.id, prompt_md))
@@ -271,7 +283,7 @@ def _permission_result(outcome: CallOutcome, options: list[dict]) -> dict:
     return {"outcome": {"outcome": "cancelled"}}
 
 
-PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_steps.html", "_thoughts.html", "_tools.html", "_vitals.html",
+PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_lesson.html", "_steps.html", "_thoughts.html", "_tools.html", "_vitals.html",
             "_home.html")
 
 

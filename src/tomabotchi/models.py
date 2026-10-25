@@ -133,6 +133,18 @@ class SoulRevision:
 
 
 @dataclass
+class Lesson:
+    id: int
+    pet_id: str
+    text: str
+    source: LessonSource
+    call_id: int | None
+    state: Literal["proposed", "accepted", "discarded"]
+    created_at: datetime
+    note: str | None = None          # what prompted it, in the keeper's words
+
+
+@dataclass
 class Hearts:
     hunger: int
     happy: int

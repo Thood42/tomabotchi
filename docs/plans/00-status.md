@@ -11,7 +11,7 @@
 - [x] Slice 3 — live view from real data: thoughts, tools, plan, hearts and scene, sick detection, Energy, Home stats
 - [x] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
 - [x] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
-- [ ] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
+- [x] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
 - [ ] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
 - [ ] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
 - [ ] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
@@ -119,3 +119,21 @@
     - Live: Quill (`e8b0f178`, Claude Code on the local model) was hatched from the server. About 8 min later the call card read "Write notes/hello.md (edit)" with the preview "Hello, world!" and "Always allow editing files in notes/". Thinking showed Claude quoting its CLAUDE.md. Allow once → `notes/hello.md` landed on the host.
     - Unit: 103 passed (`test_brains_claude.py` and `test_gateway.py`, with a stub Claude API).
   - **Found for slice 12:** restarting the server mid-turn reattaches with a *new* ACP session. The old turn keeps running in the adapter, and its call card still arrives and is answerable, but the task's prompt response goes to the old request id, so the task never closes. Slice 12 should reuse `acp_session_id` (`session/load` or resume) rather than opening a new one.
+- Slice 6 notes (2026-10-25):
+  - **Soul page** `/pets/{id}/soul`, with a Soul tab (`_tabs.html`, shared by Live, Soul and Workspace). It shows the rendered soul (`_soul_doc.html`, live as `soul-<id>`), the proposed lessons, an "Edit the soul" Markdown editor (`POST /pets/{id}/soul` → an `edited` revision with an optional note), Teach / Praise, and the "What shaped this soul" timeline (`_timeline.html`, live as `timeline-<id>`, built from hatched/edited revisions plus every lesson and its fate).
+  - **Markdown everywhere:** `_md_field.html` is a `md_field(...)` macro (a textarea plus Write/Preview). Preview posts to `POST /markdown/preview`, which renders with markdown-it-py (commonmark plus tables and strikethrough, raw HTML off) and sanitises with nh3 (an allowlist of tags, http/https/mailto links only). It is used for the hatch answers, the first task, the soul editor and the teach box. The deny reason stays a one-line input.
+  - **Lessons** (`lessons.py`):
+    - One model call on the pet's own model, straight to the upstream rather than through the gateway, so it isn't metered against a task. Ollama `/api/chat` uses the 64k alias with `think: false`, which is quick; the Claude API is used with the real key.
+    - `clean()` strips think tags, bullets and quotes down to one line of 40 words or fewer. If the model fails, the keeper's own words become the lesson.
+    - Drafting runs in the background (`Fleet.teach` / `_spawn`), and the proposal arrives over SSE as `_lesson.html` (one of the PARTIALS, so it shows on the Live page too).
+    - Deny with a reason → `scold`. Teach → `teach`. Praise with an empty box praises the last task by its prompt.
+  - **Accepting** (`POST /lessons/{id}` action=accept, optionally with reworded `text`) appends `- <lesson>. (learned 25 Oct)` under `## Lessons` (creating it before "Working with my keeper" if missing). It saves a `lesson` revision, rewrites SOUL.md or CLAUDE.md, and marks the supervisor `soul_changed()`. **The next `feed` opens a fresh ACP session** so the brain rereads its soul (both brains read it at session start). Discard just marks the lesson. A decided lesson returns 409.
+  - **Live swaps wait while you type:** `app.js` holds an SSE swap for any live element containing the focused input or textarea, and applies it on focusout. Without this, a proposed lesson's "Edit wording" box would be wiped by the next vitals publish.
+  - `lessons.note` column added, with a tiny `db.ADDED_COLUMNS` migration for databases from slices 1–5.
+  - **Proof (Pip, `171f5fa0`, Hermes on the local model):**
+    - Task "Write a three-line note about SQLite… Pick a sensible place for it" → the call asked to write `/workspace/sqlite-note.md`.
+    - Deny with "Keep new notes in drafts/ until I've reviewed them." → the local model drafted "Store all new notes in the drafts/ folder until my keeper reviews them." Accepted → SOUL.md v2 has it under Lessons.
+    - Same-shaped task about DuckDB, run in a fresh session → the call asked to write **`/workspace/drafts/memo-duckdb.md`**. Allowed → the file landed. Behaviour changed.
+    - Mochi (practice) showed a proposed lesson on its Live page. The timeline shows "You scolded" with the quote and the `+ lesson` diff.
+    - Unit: 113 passed (`test_soul.py`: 12).
+    - The egg's Train key now opens the soul page.

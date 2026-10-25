@@ -138,3 +138,59 @@
   .icons .ico svg { width: 19px; }
   .looks { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ---- markdown fields ---- */
+.md-head { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
+.md-tabs { display: flex; gap: 2px; border: 2px solid var(--ink); border-radius: 999px; padding: 2px; background: var(--paper); margin-bottom: 4px; }
+.md-tabs button { font: 700 13px/1 "Baloo 2"; border: 0; background: transparent; color: var(--ink); padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.md-tabs button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.md-tabs button:focus-visible { outline: 3px solid var(--grape); outline-offset: 1px; }
+.md-preview { border: 2.5px dashed var(--ink-soft); border-radius: 10px; padding: 10px 12px; background: var(--paper); }
+.prose > * + * { margin-top: 8px; }
+.prose ul, .prose ol { padding-left: 22px; margin-bottom: 0; }
+.prose code { background: #f3f0ff; padding: 0 4px; border-radius: 4px; }
+.prose pre { background: #f3f0ff; padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; }
+
+/* ---- soul ---- */
+.soul-layout { grid-template-columns: 1fr minmax(300px, 400px); }
+.doc { padding: 26px 30px; border-radius: 4px 14px 14px 14px; }
+.doc-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.doc-bar span { color: var(--ink-soft); font-weight: 700; font-size: 14px; }
+.head .mini-egg { --egg-w: 84px; margin: 14px 0 0; padding: 0; }
+.head .mini-egg .bezel { width: 70%; padding: 6%; border-width: 2px; border-radius: 10px; }
+.head .mini-egg::before { width: 12px; height: 12px; top: -11px; border-width: 2.5px; }
+.soul-text { max-width: 64ch; }
+.soul-text h1 { font-size: 30px; line-height: 1.1; }
+.soul-text h2 { margin-top: 22px; font-size: 19px; }
+.soul-text li + li { margin-top: 3px; }
+.soul-edit { margin-top: 22px; }
+.soul-edit > summary { list-style: none; display: inline-block; cursor: pointer; }
+.soul-edit > summary::-webkit-details-marker { display: none; }
+.soul-edit[open] > summary { margin-bottom: 12px; }
+.lessons:empty { display: none; }
+.lessons { display: grid; gap: 10px; }
+.proposed { border: 2.5px solid var(--ok); border-radius: 12px; background: #e9f6ee; padding: 12px 14px; margin-top: 10px; }
+.proposed p { font-size: 14.5px; }
+.proposed .add { font-weight: 700; margin: 6px 0 10px; }
+.proposed .add::before { content: "+ "; color: var(--ok); }
+.proposed .answers { margin-top: 8px; gap: 8px; }
+.proposed .btn { font-size: 14px; padding: 5px 14px; }
+.reword input { width: 100%; }
+.side { display: grid; gap: 26px; }
+.teach .answers { margin-top: 12px; }
+.teach .drafting { margin-top: 8px; display: none; }
+.teach form.htmx-request .drafting, .teach .drafting.shown { display: block; }
+.timeline { list-style: none; margin: 14px 0 0; padding: 0 0 0 18px; border-left: 3px solid var(--ink); display: grid; gap: 18px; }
+.timeline li { position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -27px; top: 6px; width: 13px; height: 13px; border: 2.5px solid var(--ink); border-radius: 50%; background: var(--c, var(--paper)); }
+.timeline .kind { font-weight: 800; }
+.timeline time { color: var(--ink-soft); font-size: 14px; margin-left: 6px; }
+.timeline p { font-size: 15px; line-height: 1.4; }
+.timeline .diff { margin-top: 4px; font-size: 14px; padding: 4px 10px; border-radius: 8px; background: #f3f0ff; }
+.timeline .praised { --c: var(--ok); }
+.timeline .scolded { --c: var(--alarm); }
+.timeline .edited { --c: var(--grape); }
+.timeline .taught { --c: var(--tangerine); }
+.timeline .reflected { --c: var(--lagoon); }
+@media (max-width: 960px) { .soul-layout { grid-template-columns: 1fr; } }
+a.ico { text-decoration: none; }

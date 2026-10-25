@@ -1,0 +1,9 @@
+<ol id="timeline-{{ pet.id }}" data-live class="timeline" reversed>
+  {% for item in timeline %}
+  <li class="{{ item.cls }}"><span class="kind">{{ item.kind }}</span><time datetime="{{ item.at.isoformat() }}">{{ item.at.day }} {{ item.at.strftime("%b") }}</time>
+    {% if item.quote %}<p>“{{ item.quote }}”</p>{% endif %}
+    {% if item.text %}<p>{{ item.text }}</p>{% endif %}
+    {% if item.diff %}<p class="diff">+ {{ item.diff }}</p>{% endif %}
+  </li>
+  {% endfor %}
+</ol>

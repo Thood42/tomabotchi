@@ -7,9 +7,22 @@
   const es = new EventSource("/events" + (params.size ? `?${params}` : ""));
   const listening = new Set();
 
+  const held = new Map();          // id -> html that arrived while the keeper was typing inside it
+
   function swap(id, html) {
     const old = document.getElementById(id);
     if (!old) return;
+    const typing = document.activeElement;
+    if (typing && old.contains(typing) && typing.matches("input, textarea, select")) {
+      if (!held.has(id)) old.addEventListener("focusout", () => setTimeout(() => {
+        if (old.contains(document.activeElement)) return;
+        const later = held.get(id);
+        held.delete(id);
+        if (later !== undefined) swap(id, later);
+      }), { once: true });
+      held.set(id, html);
+      return;
+    }
     const tpl = document.createElement("template");
     tpl.innerHTML = html.trim();
     const el = tpl.content.firstElementChild;
@@ -38,3 +51,37 @@
 
   listen();
 })();
+
+// Markdown fields: Write shows the textarea, Preview renders it on the server (sanitised).
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".md-tabs [data-md]");
+  if (!btn) return;
+  const field = btn.closest(".md-field");
+  const area = field.querySelector("textarea");
+  const view = field.querySelector(".md-preview");
+  const preview = btn.dataset.md === "preview";
+  field.querySelectorAll("[data-md]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  if (preview) {
+    const r = await fetch("/markdown/preview", { method: "POST", body: new URLSearchParams({ md: area.value }) });
+    view.innerHTML = await r.text();
+    view.style.minHeight = area.offsetHeight + "px";
+  }
+  area.hidden = preview;
+  view.hidden = !preview;
+  if (!preview) area.focus();
+});
+
+
+// A proposed lesson's "Edit wording" swaps the line for an input holding it.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-reword]");
+  if (!btn) return;
+  const form = btn.closest("form");
+  const box = form.querySelector(".reword");
+  box.hidden = false;
+  form.querySelector(".add").hidden = true;
+  btn.hidden = true;
+  const input = box.querySelector("input");
+  input.focus();
+  input.select();
+});

@@ -1,0 +1,15 @@
+{# A free-text field that takes Markdown, with Write and Preview tabs (app.js renders the preview). #}
+{% macro md_field(name, label, id, value="", placeholder="", rows=4, required=false, hint=none) %}
+<div class="field md-field">
+  <div class="md-head">
+    <label for="{{ id }}">{{ label }}</label>
+    <div class="md-tabs" role="group" aria-label="{{ label }}: write or preview">
+      <button type="button" data-md="write" aria-pressed="true">Write</button>
+      <button type="button" data-md="preview" aria-pressed="false">Preview</button>
+    </div>
+  </div>
+  {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
+  <textarea id="{{ id }}" name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}"{{ " required" if required }}>{{ value }}</textarea>
+  <div class="md-preview prose" hidden aria-live="polite"></div>
+</div>
+{% endmacro %}

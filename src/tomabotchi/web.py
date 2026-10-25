@@ -10,10 +10,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, gateway, store, views
+from . import config, db, gateway, soul, store, views
 from .bus import Bus
 from .fleet import Fleet
 from .models import HatchForm, ToolRule
@@ -101,6 +101,12 @@ def pet_page(request: Request, pet_id: str):
     return _page("pet.html", **views.pet_context(request.app.state.conn, pet))
 
 
+@app.get("/pets/{pet_id}/soul", response_class=HTMLResponse)
+def soul_page(request: Request, pet_id: str):
+    pet = _pet_or_404(request, pet_id)
+    return _page("soul.html", **views.soul_context(request.app.state.conn, pet))
+
+
 # ---- actions ----
 
 @app.post("/pets")
@@ -130,6 +136,54 @@ async def feed(request: Request, pet_id: str, prompt_md: str = Form(...)):
         raise HTTPException(409, "It's still waking up. Try again in a moment.")
     await fleet.get(pet_id).feed(prompt_md)
     return RedirectResponse(f"/pets/{pet_id}", status_code=303)
+
+
+@app.post("/pets/{pet_id}/soul")
+async def save_soul(request: Request, pet_id: str, content_md: str = Form(...), note: str = Form("")):
+    _pet_or_404(request, pet_id)
+    if not content_md.strip():
+        raise HTTPException(400, "A soul can't be empty. Write who the pet is before saving.")
+    await request.app.state.fleet.edit_soul(pet_id, content_md, note.strip() or None)
+    return RedirectResponse(f"/pets/{pet_id}/soul", status_code=303)
+
+
+@app.post("/pets/{pet_id}/lessons", status_code=202)
+async def teach(request: Request, pet_id: str, text_md: str = Form(""), source: str = Form("teach")):
+    """Teach or praise. Drafting is one model call, so it runs in the background and the proposed
+    lesson arrives over SSE."""
+    _pet_or_404(request, pet_id)
+    if source not in ("teach", "praise"):
+        raise HTTPException(400, "Teach or praise, nothing else.")
+    text = text_md.strip()
+    if not text and source == "praise":
+        last = store.current_task(request.app.state.conn, pet_id)
+        text = f"Good job on the last task ({last.prompt.strip()[:200]})." if last else "Good job."
+    if not text:
+        raise HTTPException(400, "Write what it should remember first.")
+    request.app.state.fleet.teach(pet_id, source, text)
+    return Response(status_code=202)
+
+
+@app.post("/lessons/{lesson_id}", status_code=204)
+async def decide_lesson(request: Request, lesson_id: int, action: str = Form(...), text: str = Form("")):
+    fleet = request.app.state.fleet
+    try:
+        if action == "accept":
+            await fleet.accept_lesson(lesson_id, text)
+        elif action == "discard":
+            await fleet.discard_lesson(lesson_id)
+        else:
+            raise HTTPException(400, "Add or discard the lesson.")
+    except LookupError:
+        raise HTTPException(404, "No such lesson.") from None
+    except ValueError as e:
+        raise HTTPException(409, f"{e}.") from None
+    return Response(status_code=204)
+
+
+@app.post("/markdown/preview", response_class=HTMLResponse)
+async def markdown_preview(md: str = Form("")):
+    return HTMLResponse(soul.md_to_html(md) or '<p class="muted">Nothing to preview yet.</p>')
 
 
 @app.put("/pets/{pet_id}/rules", response_class=HTMLResponse)

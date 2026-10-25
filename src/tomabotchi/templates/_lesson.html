@@ -1,0 +1,19 @@
+<div id="lesson-{{ pet.id }}" data-live class="lessons">
+{% for le in proposed %}
+  <div class="proposed" role="group" aria-label="Proposed lesson">
+    <p>{{ lesson_asked[le.source] }}{% if le.note %} “{{ le.note }}”{% endif %}</p>
+    <form hx-post="/lessons/{{ le.id }}" hx-swap="none">
+      <p class="add">{{ le.text }}</p>
+      <div class="reword" hidden>
+        <label class="sr" for="lesson-text-{{ le.id }}">Lesson wording</label>
+        <input id="lesson-text-{{ le.id }}" name="text" type="text" value="{{ le.text }}">
+      </div>
+      <div class="answers">
+        <button class="btn primary" name="action" value="accept">Add lesson</button>
+        <button class="btn" type="button" data-reword aria-controls="lesson-text-{{ le.id }}">Edit wording</button>
+        <button class="btn quiet" name="action" value="discard">Discard</button>
+      </div>
+    </form>
+  </div>
+{% endfor %}
+</div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_md_field.html" import md_field %}
 {% block title %}Hatch a pet{% endblock %}
 {% block content %}
 <div class="hatch-layout">
@@ -42,23 +43,13 @@
         <span class="num">3</span>
         <div class="sheet">
           <h2>Give it a soul</h2>
-          <div class="field">
-            <label for="purpose">What is it for?</label>
-            <textarea id="purpose" name="purpose_md">Writing short notes for my keeper, and saying what it did.</textarea>
-          </div>
-          <div class="field">
-            <label for="voice">How should it talk to you?</label>
-            <textarea id="voice" name="voice_md">Short sentences. Lead with what it did.</textarea>
-          </div>
+          <p class="hint">Markdown works in every box here: lists, **bold**, `code`.</p>
+          {{ md_field("purpose_md", "What is it for?", "purpose",
+                      value="Writing short notes for my keeper, and saying what it did.") }}
+          {{ md_field("voice_md", "How should it talk to you?", "voice", value="Short sentences. Lead with what it did.") }}
           <div class="row">
-            <div class="field">
-              <label for="ask">When must it ask you first?</label>
-              <textarea id="ask" name="ask_first_md">Before writing or deleting any file.</textarea>
-            </div>
-            <div class="field">
-              <label for="never">What must it never do?</label>
-              <textarea id="never" name="never_md">Run shell commands. Email or post anything.</textarea>
-            </div>
+            {{ md_field("ask_first_md", "When must it ask you first?", "ask", value="Before writing or deleting any file.") }}
+            {{ md_field("never_md", "What must it never do?", "never", value="Run shell commands. Email or post anything.") }}
           </div>
         </div>
       </div>
@@ -67,11 +58,7 @@
         <span class="num">4</span>
         <div class="sheet">
           <h2>Give it its first task</h2>
-          <div class="field">
-            <label for="task">Task</label>
-            <textarea id="task" name="first_task_md">Write a hello note in notes/.</textarea>
-          </div>
-                <option value="claude">Claude Code</option>
+          {{ md_field("first_task_md", "Task", "task", value="Write a hello note in notes/.") }}
           <div class="field">
             <label for="home">Home</label>
             <select id="home" name="home">
@@ -84,6 +71,7 @@
               <label for="brain">Brain</label>
               <select id="brain" name="brain">
                 <option value="hermes" selected>Hermes (default)</option>
+                <option value="claude">Claude Code</option>
                 <option value="fake">Practice brain (scripted, instant)</option>
               </select>
               <span class="hint">How it thinks and works. Hermes is a general helper with memory and skills. Claude Code is a careful coder, best on Claude Sonnet. The practice brain follows a fixed script and needs no container.</span>

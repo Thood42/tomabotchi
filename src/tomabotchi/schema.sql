@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS lessons (
     source     TEXT NOT NULL,
     call_id    INTEGER,
     state      TEXT NOT NULL,
+    note       TEXT,
     created_at TEXT NOT NULL
 );
 

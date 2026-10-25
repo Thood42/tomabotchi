@@ -8,7 +8,7 @@ import sqlite3
 from datetime import datetime, time, timedelta, timezone
 
 from .db import tx
-from .models import (Call, CallOutcome, Event, EventKind, NotificationSettings, Pet, PetState,
+from .models import (Call, CallOutcome, Event, EventKind, Lesson, NotificationSettings, Pet, PetState,
                      PlanStep, SoulRevision, Task, ToolRule, Usage)
 
 
@@ -240,13 +240,59 @@ def add_soul_revision(conn, pet_id: str, content: str, source: str, note: str | 
     return latest_soul(conn, pet_id)
 
 
+def _soul(r: sqlite3.Row) -> SoulRevision:
+    return SoulRevision(id=r["id"], pet_id=r["pet_id"], version=r["version"], content=r["content"],
+                        source=r["source"], note=r["note"], created_at=_dt(r["created_at"]))
+
+
 def latest_soul(conn, pet_id: str) -> SoulRevision:
     r = conn.execute("SELECT * FROM soul_revisions WHERE pet_id = ? ORDER BY version DESC LIMIT 1",
                      (pet_id,)).fetchone()
     if r is None:
         raise LookupError(f"pet {pet_id!r} has no soul yet")
-    return SoulRevision(id=r["id"], pet_id=r["pet_id"], version=r["version"], content=r["content"],
-                        source=r["source"], note=r["note"], created_at=_dt(r["created_at"]))
+    return _soul(r)
+
+
+def soul_history(conn, pet_id: str) -> list[SoulRevision]:
+    """Newest first."""
+    return [_soul(r) for r in conn.execute("SELECT * FROM soul_revisions WHERE pet_id = ? ORDER BY version DESC",
+                                           (pet_id,))]
+
+
+# ---- lessons ----
+
+def _lesson(r: sqlite3.Row) -> Lesson:
+    return Lesson(id=r["id"], pet_id=r["pet_id"], text=r["text"], source=r["source"], call_id=r["call_id"],
+                  state=r["state"], created_at=_dt(r["created_at"]), note=r["note"])
+
+
+def add_lesson(conn, lesson: Lesson) -> int:
+    cur = conn.execute("INSERT INTO lessons (pet_id, text, source, call_id, state, note, created_at) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)", (lesson.pet_id, lesson.text, lesson.source, lesson.call_id,
+                                                         lesson.state, lesson.note, _ts(lesson.created_at)))
+    return cur.lastrowid
+
+
+def get_lesson(conn, lesson_id: int) -> Lesson:
+    r = conn.execute("SELECT * FROM lessons WHERE id = ?", (lesson_id,)).fetchone()
+    if r is None:
+        raise LookupError(f"no lesson {lesson_id}")
+    return _lesson(r)
+
+
+def set_lesson_state(conn, lesson_id: int, state: str, text: str | None = None) -> Lesson:
+    conn.execute("UPDATE lessons SET state = ?, text = COALESCE(?, text) WHERE id = ?", (state, text, lesson_id))
+    return get_lesson(conn, lesson_id)
+
+
+def proposed_lessons(conn, pet_id: str) -> list[Lesson]:
+    return [_lesson(r) for r in conn.execute(
+        "SELECT * FROM lessons WHERE pet_id = ? AND state = 'proposed' ORDER BY id", (pet_id,))]
+
+
+def lessons(conn, pet_id: str) -> list[Lesson]:
+    """Newest first."""
+    return [_lesson(r) for r in conn.execute("SELECT * FROM lessons WHERE pet_id = ? ORDER BY id DESC", (pet_id,))]
 
 
 # ---- settings ----

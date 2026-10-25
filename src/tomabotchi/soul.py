@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from datetime import date
 
+import nh3
+from markdown_it import MarkdownIt
+
 from .models import HatchForm
 
 KEEPER_BLOCK = """## Working with my keeper
@@ -28,3 +31,34 @@ def render_initial(form: HatchForm, *, born: date) -> str:
         KEEPER_BLOCK + "\n",
     ]
     return "\n".join(p for p in parts if p)
+
+
+def add_lesson_line(soul_md: str, lesson: str, *, on: date) -> str:
+    """Append "- <lesson> (learned 25 Oct)" at the end of ## Lessons, creating the section if missing."""
+    line = f"- {lesson.strip().rstrip('.')}. (learned {on.day} {on:%b})"
+    lines = soul_md.rstrip("\n").split("\n")
+    try:
+        start = next(i for i, ln in enumerate(lines) if ln.strip().lower() == "## lessons")
+    except StopIteration:
+        keeper = next((i for i, ln in enumerate(lines) if ln.strip() == KEEPER_BLOCK.split("\n")[0]), len(lines))
+        block = ["## Lessons", line, ""]
+        return "\n".join(lines[:keeper] + ([""] if keeper and lines[keeper - 1].strip() else []) + block
+                         + lines[keeper:]).rstrip("\n") + "\n"
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#")), len(lines))
+    while end > start + 1 and not lines[end - 1].strip():
+        end -= 1
+    lines[end:end] = [line]
+    if end + 1 < len(lines) and lines[end + 1].strip():
+        lines.insert(end + 1, "")
+    return "\n".join(lines) + "\n"
+
+
+_MD = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table").enable("strikethrough")
+_TAGS = {"p", "br", "strong", "em", "code", "pre", "blockquote", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5",
+         "h6", "hr", "a", "table", "thead", "tbody", "tr", "th", "td", "del", "s"}
+
+
+def md_to_html(md: str) -> str:
+    """Keeper-written Markdown to HTML that is safe to put in the page."""
+    return nh3.clean(_MD.render(md or ""), tags=_TAGS, attributes={"a": {"href", "title"}},
+                     url_schemes={"http", "https", "mailto"}, link_rel="noopener noreferrer")

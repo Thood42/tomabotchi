@@ -16,12 +16,12 @@ from pathlib import Path
 
 from websockets.exceptions import InvalidHandshake, InvalidMessage
 
-from . import brains, soul, store, views
+from . import brains, lessons, soul, store, views
 from .bus import Bus, BusMessage
 from .config import Config
 from .docker_ops import DockerOps, container_name
 from .fake_agent import FakeAgent
-from .models import Call, CallOutcome, Event, HatchForm, Pet, ToolRule
+from .models import Call, CallOutcome, Event, HatchForm, Lesson, LessonSource, Pet, ToolRule
 from .rules import DEFAULT_RULES, with_rule
 from .supervisor import PetSupervisor, publish_pet
 
@@ -124,7 +124,59 @@ class Fleet:
         if new:
             current = [asdict(r) for r in store.tool_rules(self.conn, call.pet_id)]
             await self.set_rules(call.pet_id, [ToolRule(**r) for r in with_rule(current, new)])
-        return await self.get(call.pet_id).answer(call_id, outcome, reason)
+        answered = await self.get(call.pet_id).answer(call_id, outcome, reason)
+        if outcome == "reject_once" and reason:
+            self._spawn(self.draft_lesson(call.pet_id, "scold", reason, call_id=call_id))
+        return answered
+
+    # ---- soul and lessons ----
+
+    def teach(self, pet_id: str, source: LessonSource, text: str) -> None:
+        """Draft in the background: the lesson arrives over SSE when the model has worded it."""
+        self._spawn(self.draft_lesson(pet_id, source, text))
+
+    async def draft_lesson(self, pet_id: str, source: LessonSource, text: str, call_id: int | None = None) -> Lesson:
+        """Turn the keeper's words into a proposed lesson. Nothing changes until the keeper accepts it."""
+        pet = store.get_pet(self.conn, pet_id)
+        line = await lessons.draft(self.cfg, pet, store.latest_soul(self.conn, pet_id).content, source, text)
+        lesson_id = store.add_lesson(self.conn, Lesson(id=0, pet_id=pet_id, text=line, source=source, call_id=call_id,
+                                                       state="proposed", created_at=store.now(), note=text.strip()))
+        self._publish_soul(pet)
+        return store.get_lesson(self.conn, lesson_id)
+
+    async def accept_lesson(self, lesson_id: int, text: str | None = None) -> Lesson:
+        lesson = store.get_lesson(self.conn, lesson_id)
+        if lesson.state != "proposed":
+            raise ValueError("That lesson was already decided")
+        lesson = store.set_lesson_state(self.conn, lesson_id, "accepted", (text or "").strip() or None)
+        content = soul.add_lesson_line(store.latest_soul(self.conn, lesson.pet_id).content, lesson.text,
+                                       on=date.today())
+        self._save_soul(lesson.pet_id, content, "lesson", f"lesson:{lesson.id}")
+        return lesson
+
+    async def discard_lesson(self, lesson_id: int) -> Lesson:
+        lesson = store.set_lesson_state(self.conn, lesson_id, "discarded")
+        self._publish_soul(store.get_pet(self.conn, lesson.pet_id))
+        return lesson
+
+    async def edit_soul(self, pet_id: str, content: str, note: str | None = None) -> None:
+        self._save_soul(pet_id, content.replace("\r\n", "\n").rstrip() + "\n", "edited", note)
+
+    def _save_soul(self, pet_id: str, content: str, source: str, note: str | None) -> None:
+        """A new revision, written to the brain's soul file; the pet reads it at its next task."""
+        pet = store.get_pet(self.conn, pet_id)
+        store.add_soul_revision(self.conn, pet_id, content, source, note)
+        brains.write_soul(brains.get(pet.brain), self.brain_home(pet_id), content)
+        if pet_id in self._sups:
+            self._sups[pet_id].soul_changed()
+        self._publish_soul(pet)
+
+    def _publish_soul(self, pet: Pet) -> None:
+        publish_pet(self.conn, self.bus, pet)
+        html = views.render("_soul_doc.html", **views.soul_context(self.conn, pet))
+        self.bus.publish(BusMessage(event=f"soul-{pet.id}", data=html, pet_id=pet.id))
+        html = views.render("_timeline.html", **views.soul_context(self.conn, pet))
+        self.bus.publish(BusMessage(event=f"timeline-{pet.id}", data=html, pet_id=pet.id))
 
     async def set_rules(self, pet_id: str, rules: list[ToolRule]) -> None:
         """Rules live in the DB and in the file the pet's leash reads before every tool call."""
