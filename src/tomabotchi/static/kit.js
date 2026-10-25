@@ -206,6 +206,7 @@ function frames(scene, seed) {
 
 function renderScene(el) {
   const scene = el.dataset.scene, [a, b] = frames(scene, Number(el.dataset.seed || 1));
+  el.dataset.drawn = `${scene}/${el.dataset.seed}`;
   const [w, h] = scene === "eggmini" ? [16, 13] : [32, 20];
   const ghost = scene !== "eggmini";
   el.innerHTML = `<div class="f1">${grid(w, h, a, ghost)}</div><div class="f2">${grid(w, h, b, ghost)}</div>`;
@@ -215,7 +216,9 @@ function renderScene(el) {
 const within = (root, sel) => [...(root.matches?.(sel) ? [root] : []), ...root.querySelectorAll(sel)];
 
 function hydrate(root = document) {
-  within(root, "[data-scene]").forEach(renderScene);
+  within(root, "[data-scene]").forEach((el) => {
+    if (el.dataset.drawn !== `${el.dataset.scene}/${el.dataset.seed}` || !el.firstChild) renderScene(el);
+  });
   within(root, "[data-icon]").forEach((el) => {
     if (!el.querySelector(":scope > svg")) {
       el.insertAdjacentHTML("afterbegin", grid(9, 9, [{ map: MAPS.icons[el.dataset.icon] }], false));

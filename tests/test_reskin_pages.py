@@ -93,3 +93,29 @@ def test_answering_a_call_swaps_the_card_out_and_the_log_moves_on(client):
     call = store.pending_calls(conn, pet_id)[0]
     assert client.post(f"/calls/{call.id}", data={"option": "allow_once"}).status_code == 200
     wait_for(lambda: 'class="st wait"' not in client.get(f"/pets/{pet_id}/deck").text)
+
+
+def test_console_shows_stream_dock_and_rack(client):
+    first, second = hatch(client, "Pip"), hatch(client, "Fig")
+    wait_for(lambda: store.pending_calls(client.app.state.conn, first))
+    page = client.get(f"/pets/{first}").text
+    assert f'id="stream-{first}"' in page and 'class="dockwrap"' in page
+    for key in ('data-key="a"', 'data-key="A"', 'data-key="d"'):
+        assert key in page
+    assert f'id="module-{first}"' in page and f'id="module-{second}"' in page and 'id="rack" hx-preserve' in page
+    assert f'id="readout-{first}"' in page and f'id="controls-{first}"' in page
+
+
+def test_soul_and_workspace_wear_the_console_shell(client):
+    pet_id = hatch(client, "Pip")
+    soul = client.get(f"/pets/{pet_id}/soul").text
+    assert 'id="rack"' in soul and 'aria-current="page">Soul' in soul
+    assert 'id="rack"' in client.get(f"/pets/{pet_id}/workspace", follow_redirects=True).text   # practice pets bounce to Live
+
+
+def test_pages_render_without_the_old_toy_words(client):
+    pet_id = hatch(client, "Pip")
+    pages = [client.get(u).text for u in ("/", f"/pets/{pet_id}", f"/pets/{pet_id}/soul")]
+    for text in pages:
+        for word in ("Feed ", "Medicine", "Lights", "hearts", "Memory shelf", "Hungry"):
+            assert word not in text, word

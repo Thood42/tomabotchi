@@ -1,0 +1,108 @@
+/* One pet's console: the rack of pets, a stream with the approval dock below it, and an inspector. */
+.app { display: grid; grid-template-columns: 272px minmax(0, 1fr) 316px; gap: 1px; max-width: 1440px; margin: 0 auto; height: calc(100vh - 62px); min-height: 560px; background: var(--seam); }
+.app.noinsp { grid-template-columns: 272px minmax(0, 1fr); }
+.app > * { min-height: 0; background: var(--chassis); }
+
+.rail { overflow: auto; display: grid; align-content: start; gap: 6px; padding: 10px; counter-reset: mod; }
+.rail .add { margin-top: 8px; padding: 10px; border: 1px dashed var(--groove); border-radius: 3px; color: var(--dim); text-align: center; text-decoration: none; }
+.rail .add:hover { color: var(--text); border-color: var(--dim); }
+
+.main { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.main:has(.workspace) { grid-template-rows: auto auto minmax(0, 1fr); }
+.head { display: grid; gap: 10px; padding: 18px 26px 0; }
+.head .t { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.head .sub { color: var(--dim); }
+.head .steps { display: grid; grid-template-columns: auto minmax(120px, 280px); align-items: center; gap: 4px 16px; }
+.head .steps h2 { display: flex; align-items: baseline; gap: 12px; font-size: 14px; font-weight: 500; }
+.head .steps .dim { grid-column: 1 / -1; }
+.tabs { display: flex; gap: 2px; padding: 14px 26px 0; border-bottom: 1px solid var(--seam); }
+.tabs a, .tabs span { padding: 8px 14px; color: var(--dim); text-decoration: none; border-radius: 3px 3px 0 0; }
+.tabs span { opacity: .5; }
+.tabs a:hover { color: var(--text); }
+.tabs a[aria-current] { background: var(--face); color: var(--text); box-shadow: inset 0 2px 0 var(--signal); }
+
+.scroll { overflow: auto; padding: 18px 26px; display: grid; align-content: start; gap: 14px; }
+.scroll .stream { gap: 0; }
+.dockwrap { padding: 0 26px 16px; display: grid; gap: 12px; }
+.dockwrap .call { grid-template-columns: 1fr auto; gap: 8px 18px; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--signal), transparent 40%); background: var(--face); border-radius: 4px; }
+.dockwrap .call .q, .dockwrap .call > p.lbl, .dockwrap .call > pre { grid-column: 1; }
+.dockwrap .call .callform { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 8px 18px; align-items: start; }
+.dockwrap .call .callform > input { grid-column: 1; margin: 0; align-self: end; }
+.dockwrap .call .callform .keys { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: repeat(3, 84px); }
+.dockwrap .call .sending, .dockwrap .call .senderr { grid-column: 1; margin: 0; }
+.composer { display: flex; gap: 8px; align-items: end; padding: 8px; border-radius: 4px; background: var(--face); box-shadow: inset 0 -2px 0 var(--groove); }
+.composer textarea { flex: 1; min-height: 40px; resize: none; border: 0; background: none; padding: 4px 6px; outline: none; }
+
+.insp { overflow: auto; display: grid; align-content: start; gap: 22px; padding: 16px; }
+.insp section { display: grid; gap: 12px; }
+.insp h2 { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--dim); }
+.insp .rules h2 { margin: 0; }
+.ro { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
+.ro dt { color: var(--dim); }
+.ro dd { margin: 0; text-align: right; font: 500 12.5px/1.6 "Chivo Mono", monospace; }
+.tgs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tg { display: flex; align-items: center; justify-content: space-between; padding: 9px 11px; border: 0; border-radius: 3px; background: var(--face); box-shadow: inset 0 -2px 0 var(--seam); }
+.tg .s { position: relative; width: 28px; height: 15px; border-radius: 8px; background: var(--seam); }
+.tg .s::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%; background: var(--dim); transition: left .15s; }
+.tg[aria-pressed="true"] .s { background: var(--signal); }
+.tg[aria-pressed="true"] .s::after { left: 15px; background: #fff; }
+.plain { display: block; padding: 9px 11px; border: 0; border-radius: 3px; background: var(--face); text-align: left; text-decoration: none; box-shadow: inset 0 -2px 0 var(--seam); }
+.plain:disabled, .tg:disabled { opacity: .5; cursor: default; }
+.plain.bad { color: var(--red); }
+
+dialog.sheet { width: min(480px, 92vw); padding: 20px; border: 0; border-radius: 6px; background: var(--face); color: var(--text); box-shadow: 0 30px 80px var(--shadow); }
+dialog.sheet::backdrop { background: rgba(10, 12, 16, .6); }
+dialog.sheet form { display: grid; gap: 12px; }
+dialog.sheet input { padding: 7px 10px; border: 0; border-radius: 3px; background: var(--well); }
+
+/* workspace */
+.workspace .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.toolbar .note { margin-right: auto; display: flex; align-items: center; gap: 12px; }
+.frame { border-radius: 4px; background: var(--face); padding: 10px; box-shadow: inset 0 -2px 0 var(--groove); }
+.frame .lbl { display: flex; justify-content: space-between; padding: 0 4px 8px; }
+.vscode { display: block; width: 100%; height: min(70vh, 820px); border: 0; border-radius: 3px; background: #1e1e1e; }
+
+/* soul */
+.soul-cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 14px; align-items: start; }
+.soul .side { display: grid; gap: 14px; }
+.prose > * + * { margin-top: 8px; }
+.prose ul, .prose ol { padding-left: 22px; }
+.prose code, .prose pre { background: var(--raise); padding: 0 4px; border-radius: 3px; }
+.prose pre { padding: 9px 11px; white-space: pre-wrap; }
+.soul-edit { margin-top: 8px; }
+.soul-edit > summary { list-style: none; display: inline-block; cursor: pointer; }
+.soul-edit[open] > summary { margin-bottom: 12px; }
+.field { display: grid; gap: 6px; }
+.field textarea, .field input, .md-field textarea { width: 100%; padding: 8px 10px; border: 0; border-radius: 3px; background: var(--well); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .15); }
+.md-head { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
+.md-tabs { display: flex; gap: 2px; padding: 2px; border-radius: 3px; background: var(--raise); }
+.md-tabs button { border: 0; background: none; padding: 4px 10px; border-radius: 2px; font: 500 12px/1 "Chivo Mono", monospace; color: var(--dim); }
+.md-tabs button[aria-pressed="true"] { background: var(--well); color: var(--text); }
+.md-preview { padding: 10px 12px; border-radius: 3px; background: var(--well); }
+.hint { color: var(--dim); font-size: 13px; }
+.teach .drafting { display: none; }
+.teach form.htmx-request .drafting { display: block; }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--groove); display: grid; gap: 16px; }
+.timeline li { position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -24px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--dim)); }
+.timeline .kind { font-weight: 700; }
+.timeline time { margin-left: 6px; color: var(--faint); font-size: 12.5px; }
+.timeline .diff { margin-top: 4px; padding: 4px 8px; border-radius: 3px; background: var(--raise); }
+.timeline .praised { --c: var(--led); }
+.timeline .scolded { --c: var(--red); }
+.timeline .edited { --c: var(--violet); }
+.timeline .taught { --c: var(--signal); }
+.timeline .reflected { --c: var(--tool); }
+
+@media (max-width: 1150px) { .app { grid-template-columns: 240px minmax(0, 1fr); } .insp { display: none; } .soul-cols { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .app, .app.noinsp { grid-template-columns: 1fr; height: auto; }
+  .rail { display: none; }
+  .main { grid-template-rows: auto; }
+  .scroll { max-height: 60vh; }
+  .dockwrap .call .callform { grid-template-columns: 1fr; }
+  .dockwrap .call .callform .keys { grid-column: 1; grid-row: auto; grid-template-columns: repeat(3, 1fr); }
+  .insp { display: grid; }
+}
+@media (prefers-reduced-motion: reduce) { .tg .s::after { transition: none; } ::view-transition-group(*) { animation-duration: 0s; } }

@@ -6,7 +6,7 @@
     {% if r.kind == "tool" %}
     <div class="b tr"><b>{{ r.title }}</b>{% if r.detail %}<code>{{ r.detail }}</code>{% endif %}<span class="st {{ 'ok' if r.status == 'completed' else 'wait' if r.status == 'needs you' else 'bad' if r.status in ('failed', 'blocked') else '' }}">{{ states.get(r.status, r.status) }}</span></div>
     {% else %}
-    <div class="b">{{ r.text }}</div>
+    <div class="b{{ ' prose' if r.kind == 'said' }}">{% if r.kind == 'said' %}{{ r.text|trim|md }}{% else %}{{ r.text|trim }}{% endif %}</div>
     {% endif %}
   </li>
   {% else %}

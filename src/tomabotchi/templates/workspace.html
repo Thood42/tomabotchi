@@ -1,24 +1,15 @@
-{% extends "base.html" %}
-{% block title %}{{ pet.name }}'s workspace{% endblock %}
-{% block body_attrs %} data-pet="{{ pet.id }}"{% endblock %}
-{% block content %}
-  <section class="head">
-    <div>
-      <h1>{{ pet.name }}'s workspace</h1>
-      <p class="muted">Everything inside {{ pet.name }}'s home. Read, review and change it yourself.</p>
+{% extends "console.html" %}
+{% set tab = "workspace" %}
+{% block body %}
+  <div class="scroll workspace">
+    {% include "_editbar.html" %}
+    <div class="frame">
+      <div class="lbl"><span>VS Code, inside {{ pet.name }}'s home</span><span>{{ home.home_name }}</span></div>
+      <iframe class="vscode" src="/pets/{{ pet.id }}/code/?folder=/workspace" title="VS Code for {{ pet.name }}'s workspace"
+              allow="clipboard-read; clipboard-write"></iframe>
     </div>
-    {% set tab = "workspace" %}{% include "_tabs.html" %}
-  </section>
-
-  {% include "_editbar.html" %}
-
-  <div class="frame" style="--shell: var(--{{ pet.shell }})">
-    <div class="label"><span>VS Code, inside {{ pet.name }}'s home</span><span>{{ home.home_name }}</span></div>
-    <iframe class="vscode" src="/pets/{{ pet.id }}/code/?folder=/workspace" title="VS Code for {{ pet.name }}'s workspace"
-            allow="clipboard-read; clipboard-write"></iframe>
+    <p class="dim">If the editor doesn't load here, <a href="/pets/{{ pet.id }}/code/?folder=/workspace" target="_blank" rel="noopener" hx-boost="false">open it in a new tab</a>.
+      It's the same workspace, served by the machine that runs tomabotchi.
+      {% if direct_url %}From this machine you can also open it directly at <a href="{{ direct_url }}" target="_blank" rel="noopener" hx-boost="false">{{ direct_url }}</a>.{% endif %}</p>
   </div>
-
-  <p class="fallback">If the editor doesn't load here, <a href="/pets/{{ pet.id }}/code/?folder=/workspace" target="_blank" rel="noopener">open it in a new tab</a>.
-    It's the same workspace, served by the machine that runs tomabotchi.
-    {% if direct_url %}From this machine you can also open it directly at <a href="{{ direct_url }}" target="_blank" rel="noopener">{{ direct_url }}</a>.{% endif %}</p>
 {% endblock %}

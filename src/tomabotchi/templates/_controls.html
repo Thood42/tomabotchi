@@ -1,0 +1,13 @@
+{% set asleep = lights_off %}
+<section id="controls-{{ pet.id }}" data-live class="controls">
+  <h2>Controls</h2>
+  <div class="tgs">
+    <button class="tg" type="button" aria-pressed="{{ 'true' if asleep else 'false' }}" hx-post="/pets/{{ pet.id }}/lights" hx-vals='{"on": {{ 1 if asleep else 0 }}}' hx-swap="none"
+            {{ "disabled" if pet.state in ("hatching", "paused") }} title="{{ 'Wake it up' if asleep else 'Sleep: stop the container until you wake it' }}">{{ "Asleep" if asleep else "Sleep" }}<span class="s"></span></button>
+    <button class="plain" type="button" hx-post="/pets/{{ pet.id }}/medicine" hx-swap="none" {{ "" if (working or vitals.sick_reason) and not asleep else "disabled" }}
+            title="Stop this turn and nudge it to try another way">Unstick</button>
+    <button class="plain" type="button" hx-post="/pets/{{ pet.id }}/tidy" hx-swap="none" {{ "disabled" if working or asleep or pet.state != "awake" }}
+            title="Compact its conversation to free context">Tidy</button>
+  </div>
+  {% if pet.brain != "fake" %}<a class="plain" href="/pets/{{ pet.id }}/workspace">Open workspace in VS Code</a>{% endif %}
+</section>

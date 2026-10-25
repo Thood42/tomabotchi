@@ -1,67 +1,54 @@
-{% extends "base.html" %}
+{% extends "console.html" %}
 {% from "_md_field.html" import md_field %}
-{% block title %}{{ pet.name }}'s soul{% endblock %}
-{% block body_attrs %} data-pet="{{ pet.id }}"{% endblock %}
-{% block content %}
-  <section class="head">
-    <div class="egg mini-egg" style="--shell: var(--{{ pet.shell }})" aria-hidden="true">
-      <div class="bezel"><div class="lcd" data-scene="happy" data-seed="{{ pet.look_seed }}"></div></div>
-    </div>
-    <div>
-      <h1>{{ pet.name }}'s soul</h1>
-      <p class="muted">{% if pet.state == "retired" %}{{ pet.name }} rests on the <a href="/memory">memory shelf</a>.
-        {% else %}{{ pet.name }} reads this before every task.{% endif %}
-        {% if changes %}Changed {{ changes }} time{{ "s" if changes != 1 }} since it hatched.{% else %}Unchanged since it hatched.{% endif %}</p>
-    </div>
-    {% set tab = "soul" %}{% include "_tabs.html" %}
-  </section>
-
-  <div class="layout soul-layout">
-    <section class="sheet doc" aria-label="{{ brain_file }}">
-      <div class="doc-bar">
-        <span>{{ brain_file }}, version {{ soul.version }}</span>
+{% set tab = "soul" %}
+{% block body %}
+  <div class="scroll soul">
+    <p class="dim">{% if pet.state == "retired" %}{{ pet.name }} is in the <a href="/memory" hx-boost="false">archive</a>.
+      {% else %}{{ pet.name }} reads this before every task.{% endif %}
+      {% if changes %}Changed {{ changes }} time{{ "s" if changes != 1 }} since it hatched.{% else %}Unchanged since it hatched.{% endif %}</p>
+    <div class="soul-cols">
+      <section class="panel doc" aria-label="{{ brain_file }}">
+        <h2>{{ brain_file }} <span class="lbl">version {{ soul.version }}</span></h2>
+        {% include "_soul_doc.html" %}
+        {% if pet.state != "retired" %}
+        {% include "_lesson.html" %}
+        <details class="soul-edit"{{ " open" if editing }}>
+          <summary class="btn">Edit the soul</summary>
+          <form method="post" action="/pets/{{ pet.id }}/soul" hx-boost="false">
+            {{ md_field("content_md", brain_file, "soul-md-" ~ pet.id, value=soul.content, rows=18, required=true,
+                        hint=pet.name ~ " reads the new version at its next task.") }}
+            <div class="field">
+              <label for="soul-note-{{ pet.id }}">What changed (optional)</label>
+              <input id="soul-note-{{ pet.id }}" name="note" type="text" placeholder="e.g. Added that it should cite sources">
+            </div>
+            <div class="answers"><button class="btn primary">Save the soul</button></div>
+          </form>
+        </details>
+        {% else %}
+        <div class="answers"><a class="btn primary" href="/hatch?from={{ pet.id }}" hx-boost="false">Hatch a new pet from this soul</a></div>
+        {% endif %}
+      </section>
+      <div class="side">
+        {% if pet.state != "retired" %}
+        <section class="panel teach" aria-labelledby="teach-h">
+          <h2 id="teach-h">Teach {{ pet.name }}</h2>
+          <p class="dim">Say it in your own words. {{ pet.name }} drafts the change to its soul and you approve it.</p>
+          <form hx-post="/pets/{{ pet.id }}/lessons" hx-swap="none" hx-on::after-request="if (event.detail.successful) this.reset()">
+            {{ md_field("text_md", "What should " ~ pet.name ~ " remember?", "teach-" ~ pet.id, rows=3,
+                        placeholder="e.g. When two options are close, pick the one with fewer moving parts.") }}
+            <div class="answers">
+              <button class="btn primary" name="source" value="teach">Draft the change</button>
+              <button class="btn" name="source" value="praise">Praise last task</button>
+            </div>
+            <p class="dim drafting">Drafting takes a moment; the lesson appears beside the soul.</p>
+          </form>
+        </section>
+        {% endif %}
+        <section class="panel" aria-labelledby="shaped-h">
+          <h2 id="shaped-h">What shaped this soul</h2>
+          {% include "_timeline.html" %}
+        </section>
       </div>
-      {% include "_soul_doc.html" %}
-      {% if pet.state != "retired" %}
-      {% include "_lesson.html" %}
-      <details class="soul-edit"{{ " open" if editing }}>
-        <summary class="btn">Edit the soul</summary>
-        <form method="post" action="/pets/{{ pet.id }}/soul">
-          {{ md_field("content_md", brain_file, "soul-md-" ~ pet.id, value=soul.content, rows=18, required=true,
-                      hint=pet.name ~ " reads the new version at its next task.") }}
-          <div class="field">
-            <label for="soul-note-{{ pet.id }}">What changed (optional)</label>
-            <input id="soul-note-{{ pet.id }}" name="note" type="text" placeholder="e.g. Added that it should cite sources">
-          </div>
-          <div class="answers"><button class="btn primary">Save the soul</button></div>
-        </form>
-      </details>
-      {% else %}
-      <div class="answers"><a class="btn primary" href="/hatch?from={{ pet.id }}">Hatch a new pet from this soul</a></div>
-      {% endif %}
-    </section>
-
-    <div class="side">
-      {% if pet.state != "retired" %}
-      <section class="sheet teach" aria-labelledby="teach-h">
-        <h2 id="teach-h">Teach {{ pet.name }}</h2>
-        <p class="muted">Say it in your own words. {{ pet.name }} drafts the change to its soul and you approve it.</p>
-        <form hx-post="/pets/{{ pet.id }}/lessons" hx-swap="none" hx-on::after-request="if (event.detail.successful) this.reset()">
-          {{ md_field("text_md", "What should " ~ pet.name ~ " remember?", "teach-" ~ pet.id, rows=3,
-                      placeholder="e.g. When two options are close, pick the one with fewer moving parts.") }}
-          <div class="answers">
-            <button class="btn primary" name="source" value="teach">Draft the change</button>
-            <button class="btn" name="source" value="praise">Praise last task</button>
-          </div>
-          <p class="hint drafting">Drafting takes a moment; the lesson appears beside the soul.</p>
-        </form>
-      </section>
-
-      {% endif %}
-      <section class="sheet" aria-labelledby="shaped-h">
-        <h2 id="shaped-h">What shaped this soul</h2>
-        {% include "_timeline.html" %}
-      </section>
     </div>
   </div>
 {% endblock %}

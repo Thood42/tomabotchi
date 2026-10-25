@@ -1,19 +1,19 @@
-<section id="home-{{ pet.id }}" data-live class="sheet vitals" aria-label="Home">
-  <h2>Home</h2>
+<div id="home-{{ pet.id }}" data-live class="homebox" aria-label="Home">
   {% if pet.brain == "fake" %}
-    <p class="muted" style="margin-top: 6px">Practice pets live inside tomabotchi itself, so they have no home of their own.</p>
+    <p class="dim">Practice pets live inside tomabotchi itself, so they have no container of their own.</p>
   {% else %}
-    <p class="muted" style="margin-top: 6px">{{ home.home_name }}, with a {{ home.brain_label }} brain on {{ home.model_label }}. Its own sealed container.</p>
-    <dl style="margin-top: 12px">
+    <dl class="ro">
+      <dt>Home</dt><dd>{{ home.home_name }}</dd>
       {% if home.stats %}
         {% set mem_pct = (100 * home.stats.mem_bytes / home.stats.mem_limit) if home.stats.mem_limit else 0 %}
-        <dt>Memory</dt><dd><span class="bar" style="--v: {{ mem_pct|round(1) }}%"></span><small>{{ home.stats.mem_bytes|bytes }} of {{ home.stats.mem_limit|bytes }}</small></dd>
-        <dt>CPU</dt><dd><small>{{ home.stats.cpu_pct }}% of one core</small></dd>
+        <dt>Memory</dt><dd>{{ home.stats.mem_bytes|bytes }} / {{ home.stats.mem_limit|bytes }}</dd>
+        <dt>CPU</dt><dd>{{ home.stats.cpu_pct }}% of a core</dd>
       {% else %}
-        <dt>Memory</dt><dd><small>Checking...</small></dd>
+        <dt>Memory</dt><dd>Checking...</dd>
       {% endif %}
-      <dt>Workspace</dt><dd><small>{% if home.workspace %}{{ home.workspace[0] }} files, {{ home.workspace[1]|bytes }}{% else %}Checking...{% endif %}</small></dd>
-      <dt>Network</dt><dd><small>Web only, no access to your machine</small></dd>
+      <dt>Workspace</dt><dd>{% if home.workspace %}{{ home.workspace[0] }} files, {{ home.workspace[1]|bytes }}{% else %}Checking...{% endif %}</dd>
+      {% if tokens %}<dt>Tokens, this task</dt><dd>{{ "{:,}".format(tokens) }}</dd>{% endif %}
+      <dt>Network</dt><dd>web only</dd>
     </dl>
   {% endif %}
-</section>
+</div>

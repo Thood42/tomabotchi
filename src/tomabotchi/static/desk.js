@@ -1,13 +1,15 @@
 // The desk: places each pet's blocks on the shared timeline, zooms it, and focuses a pet's deck.
 // Server-rendered lanes carry epoch-millisecond times; this file turns them into positions.
+// The script loads once for the whole app, so the desk may come and go with boosted navigation.
 (() => {
-  const screen = document.getElementById("screen");
-  if (!screen) return;
   const ZOOMS = [5, 15, 60];
   const memo = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch { return null; } };
   const typing = () => document.activeElement?.matches?.("input, textarea, select, [contenteditable]");
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
   let zoom = ZOOMS.includes(Number(memo("tb-zoom"))) ? Number(memo("tb-zoom")) : 15;
-  let current = document.querySelector("#deck")?.dataset.pet || null;
+  let current = null;
+  let laneWidth = 0;
+  const screen = () => document.getElementById("screen");
 
   const hm = (ms) => new Date(ms).toTimeString().slice(0, 5);
   const win = () => zoom * 60000;
@@ -37,10 +39,11 @@
   }
 
   function relayout() {
+    if (!screen()) return;
     const now = Date.now();
     laneWidth = 0;
     ticks(now);
-    screen.querySelectorAll(".lane .reel").forEach((reel) => layout(reel, now));
+    screen().querySelectorAll(".lane .reel").forEach((reel) => layout(reel, now));
   }
 
   function setZoom(minutes) {
@@ -72,35 +75,45 @@
 
   const strips = () => [...document.querySelectorAll(".strips .mod")].filter((m) => !m.hidden);
 
+  // Each time the desk appears (first load, or arriving by a boosted link) it starts afresh.
+  window.onSettle = () => {
+    if (!screen()) { current = null; return; }
+    current = document.querySelector("#deck")?.dataset.pet || null;
+    setZoom(zoom);
+    mark();
+  };
+
   document.addEventListener("click", (e) => {
-    if (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.target.closest("button, input, textarea")) return;
+    const z = e.target.closest(".zoom button");
+    if (z) { setZoom(Number(z.dataset.w)); return; }
+    if (!screen() || e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.target.closest("button, input, textarea")) return;
     const hit = e.target.closest(".strips .mod, .lane");
     if (!hit) return;
     e.preventDefault();                      // a plain click focuses; a modified click still opens the pet
+    e.stopPropagation();
     focusPet(hit.dataset.pet);
-  });
-
-  document.querySelectorAll(".zoom button").forEach((b) => b.addEventListener("click", () => setZoom(Number(b.dataset.w))));
+  }, true);                                  // before htmx sees the boosted link
 
   document.addEventListener("keydown", (e) => {
-    if (typing() || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!screen() || typing() || e.ctrlKey || e.metaKey || e.altKey) return;
     const n = Number(e.key);
-    if (n >= 1 && n <= 9 && strips()[n - 1]) focusPet(strips()[n - 1].dataset.pet);
+    if (n >= 1 && n <= 9 && strips()[n - 1]) { e.stopImmediatePropagation(); focusPet(strips()[n - 1].dataset.pet); }
     const i = ZOOMS.indexOf(zoom);
     if (e.key === "[" && i > 0) setZoom(ZOOMS[i - 1]);
     if (e.key === "]" && i < ZOOMS.length - 1) setZoom(ZOOMS[i + 1]);
-  });
+  }, true);
 
-  const tip = document.getElementById("tip");
-  screen.addEventListener("mousemove", (e) => {
-    const b = e.target.closest("[data-tip]");
-    if (!b) { tip.style.display = "none"; return; }
-    tip.textContent = b.dataset.tip;
-    tip.style.display = "block";
-    tip.style.left = `${e.clientX + 14}px`;
-    tip.style.top = `${e.clientY + 14}px`;
+  const tip = () => document.getElementById("tip");
+  document.addEventListener("mousemove", (e) => {
+    const t = tip();
+    if (!t) return;
+    const b = e.target.closest?.("#screen [data-tip]");
+    if (!b) { t.style.display = "none"; return; }
+    t.textContent = b.dataset.tip;
+    t.style.display = "block";
+    t.style.left = `${e.clientX + 14}px`;
+    t.style.top = `${e.clientY + 14}px`;
   });
-  screen.addEventListener("mouseleave", () => { tip.style.display = "none"; });
 
   const prior = window.onSwap;
   window.onSwap = (el) => {
@@ -111,13 +124,12 @@
 
   // The "now" edge glides: each reel slides left by the time since it was laid out. One transform per reel
   // per frame, and nothing is laid out again until the next relayout.
-  const still = matchMedia("(prefers-reduced-motion: reduce)");
-  let laneWidth = 0;
   function glide() {
-    if (!still.matches) {
+    const s = screen();
+    if (s && !still.matches) {
       const now = Date.now();
-      if (!laneWidth) laneWidth = screen.querySelector(".ruler").clientWidth;
-      for (const reel of screen.querySelectorAll("[data-reel]")) {
+      if (!laneWidth) laneWidth = s.querySelector(".ruler").clientWidth;
+      for (const reel of s.querySelectorAll("[data-reel]")) {
         reel.style.transform = `translate3d(${-(now - Number(reel.dataset.origin)) / win() * laneWidth}px,0,0)`;
       }
     }
@@ -125,8 +137,6 @@
   }
   addEventListener("resize", () => { laneWidth = 0; });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) relayout(); });
-
-  setZoom(zoom);
   setInterval(relayout, 5000);
   requestAnimationFrame(glide);
 })();

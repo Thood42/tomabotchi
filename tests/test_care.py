@@ -33,7 +33,7 @@ def test_lights_off_stops_the_task_and_lights_on_picks_it_up(client):
     assert store.get_task(conn, first.id).state == "cancelled"
     assert store.get_pet(conn, pet_id).state == "asleep"
     page = client.get(f"/pets/{pet_id}").text
-    assert 'class="ico lit" data-icon="lights"' in page and "Lights off. Sleeping" in client.get("/").text
+    assert 'aria-pressed="true"' in page and ">Asleep<" in page and "Lights off. Sleeping" in client.get("/").text
     assert client.post(f"/pets/{pet_id}/tasks", data={"prompt_md": "hi"}).status_code == 409
 
     assert client.post(f"/pets/{pet_id}/lights", data={"on": 1}).status_code == 204

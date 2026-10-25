@@ -47,7 +47,7 @@ async def test_permission_request_opens_call_and_publishes(setup, conn, bus):
     [call] = store.pending_calls(conn, "p1")
     assert call.tool_call["toolCallId"] == "write-1"
     await until(lambda: "call-p1" in seen)
-    assert {"module-p1", "track-p1", "bigegg-p1"} <= set(seen)
+    assert {"module-p1", "track-p1", "stream-p1", "controls-p1"} <= set(seen)
     assert views.pet_context(conn, store.get_pet(conn, "p1"))["vitals"].scene == "alert"
     collector.cancel()
 

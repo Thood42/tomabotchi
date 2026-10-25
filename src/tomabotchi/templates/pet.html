@@ -1,63 +1,42 @@
-{% extends "base.html" %}
-{% block title %}{{ pet.name }} up close{% endblock %}
-{% block body_attrs %} data-pet="{{ pet.id }}"{% endblock %}
-{% block content %}
-  <section class="head">
-    <div>
-      <h1>{{ pet.name }}</h1>
-      <p class="muted">{{ "Practice pet" if pet.brain == "fake" else pet.brain|capitalize ~ " pet" }}. Day {{ day }}, {{ pet.tasks_done }} task{{ "" if pet.tasks_done == 1 else "s" }} done.</p>
-    </div>
-    {% set tab = "live" %}{% include "_tabs.html" %}
-  </section>
-
-  <div class="layout">
-    <div class="left">
-      {% include "_bigegg.html" %}
-      {% include "_readout.html" %}
-      {% include "_home.html" %}
-      {% if pet.state != "retired" %}
-      <div class="retire-row">
-        {% if pet.brain != "fake" %}<a class="btn" href="/pets/{{ pet.id }}/workspace">Open workspace</a>{% endif %}
-        <button class="btn quiet" type="button" onclick="document.getElementById('retire').showModal()">Retire {{ pet.name }}</button>
-      </div>
-      <dialog id="retire" class="sheet retire" aria-labelledby="retire-h">
-        <form method="post" action="/pets/{{ pet.id }}/retire">
-          <h2 id="retire-h">Retire {{ pet.name }}?</h2>
-          <p>{{ pet.name }} stops working and moves to the memory shelf. Its workspace is packed into a backup in the
-            archive folder, and its soul is kept. You can hatch a new pet from that soul any time.</p>
-          <div class="field">
-            <label for="retire-why">Why are you retiring it? (optional)</label>
-            <input id="retire-why" name="reason_md" type="text" placeholder="e.g. replaced by a pet with a browser home">
-          </div>
-          <div class="answers">
-            <button class="btn alarm">Retire {{ pet.name }}</button>
-            <button class="btn quiet" type="button" onclick="this.closest('dialog').close()">Keep {{ pet.name }}</button>
-          </div>
-        </form>
-      </dialog>
-      {% endif %}
-    </div>
-    <div class="right">
-      {% include "_trouble.html" %}
-      {% include "_call.html" %}
-      {% include "_lesson.html" %}
-      {% include "_steps.html" %}
-      <div class="pair">
-        {% include "_thoughts.html" %}
-        {% include "_tools.html" %}
-      </div>
-      {% include "_rules.html" %}
-      <section class="sheet feed" aria-labelledby="feed-h">
-        <h2 id="feed-h">Feed {{ pet.name }} a task</h2>
-        <form class="feed" method="post" action="/pets/{{ pet.id }}/tasks">
-          <label class="sr" for="feed-text">Task or message</label>
-          <textarea id="feed-text" name="prompt_md" required placeholder="e.g. Write a short note about pgvector">{{ "" }}</textarea>
-          <div class="answers">
-            <button class="btn primary" name="mode" value="task">Give it this task</button>
-            <button class="btn" name="mode" value="chat">Just chat</button>
-          </div>
-        </form>
-      </section>
-    </div>
+{% extends "console.html" %}
+{% set tab = "live" %}
+{% block taskline %}{% include "_steps.html" %}{% endblock %}
+{% block body %}
+  <div class="scroll" data-pin>
+    {% include "_trouble.html" %}
+    {% include "_lesson.html" %}
+    {% include "_stream.html" %}
   </div>
+  <div class="dockwrap">
+    {% include "_call.html" %}
+    <form class="composer" hx-post="/pets/{{ pet.id }}/tasks" hx-swap="none" hx-on::after-request="if (event.detail.successful) this.reset()">
+      <label class="sr" for="feed-text">Task or message for {{ pet.name }}</label>
+      <textarea id="feed-text" name="prompt_md" rows="2" required placeholder="Give {{ pet.name }} a task, or just talk to it"></textarea>
+      <button class="btn" name="mode" value="chat">Chat</button>
+      <button class="btn primary" name="mode" value="task">New task</button>
+    </form>
+  </div>
+{% endblock %}
+{% block inspector %}
+  <aside class="insp" aria-label="Details">
+    <section><h2>Readout</h2>{% include "_readout.html" %}</section>
+    <section>{% include "_rules.html" %}</section>
+    <section><h2>Container</h2>{% include "_home.html" %}</section>
+    {% include "_controls.html" %}
+    {% if pet.state != "retired" %}
+    <button class="plain bad" type="button" onclick="document.getElementById('retire').showModal()">Retire {{ pet.name }}</button>
+    <dialog id="retire" class="sheet" aria-labelledby="retire-h">
+      <form method="post" action="/pets/{{ pet.id }}/retire" hx-boost="false">
+        <h2 id="retire-h">Retire {{ pet.name }}?</h2>
+        <p>{{ pet.name }} stops working and moves to the archive. Its workspace is packed into a backup in the archive folder, and its soul is kept. You can hatch a new pet from that soul any time.</p>
+        <label for="retire-why">Why are you retiring it? (optional)</label>
+        <input id="retire-why" name="reason_md" type="text" placeholder="e.g. replaced by a pet with a browser home">
+        <div class="answers">
+          <button class="btn stop">Retire {{ pet.name }}</button>
+          <button class="btn quiet" type="button" onclick="this.closest('dialog').close()">Keep {{ pet.name }}</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+  </aside>
 {% endblock %}

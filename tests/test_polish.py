@@ -51,4 +51,4 @@ def test_replies_render_markdown_safely_and_counts_read_right(client):
     store.update_pet(conn, pet_id, tasks_done=1)
     page = client.get(f"/pets/{pet_id}").text
     assert "<strong>v22</strong>" in page and "<script>x()" not in page
-    assert "1 task done." in page
+    assert "1 task done" in page

@@ -3,13 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"globalViewTransitions": true}'>
 <title>{% block title %}tomabotchi{% endblock %}</title>
 <link rel="stylesheet" href="{{ asset('shell.css') }}">
-{% block styles %}{% endblock %}
+<link rel="stylesheet" href="{{ asset('desk.css') }}">
+<link rel="stylesheet" href="{{ asset('console.css') }}">
+{# Scripts live in the head so a boosted navigation, which swaps only the body, never loads or runs them twice. #}
 <script src="{{ asset('vendor/htmx.min.js') }}"></script>
 <script src="{{ asset('vendor/idiomorph-ext.min.js') }}"></script>
+<script src="{{ asset('vendor/htmx-preload.js') }}"></script>
+<script src="{{ asset('kit.js') }}" defer></script>
+<script src="{{ asset('app.js') }}" defer></script>
+<script src="{{ asset('desk.js') }}" defer></script>
 </head>
-<body{% block body_attrs %}{% endblock %}>
+<body hx-boost="true" hx-ext="preload">
 <div class="optin" role="region" aria-label="Notifications" hidden>
   <p><b>Let tomabotchi beep you?</b> When a pet calls, gets sick or runs out of budget while you're on another tab, your browser can tell you.</p>
   <div class="answers">
@@ -22,14 +29,11 @@
   {% block transport %}{% endblock %}
   <nav aria-label="Pages">
     {% include "_status.html" %}
-    <a href="/memory">Archive</a>
-    <a href="/settings">Settings</a>
-    <a class="btn primary" href="/hatch">Hatch a pet</a>
+    <a href="/memory" hx-boost="false">Archive</a>
+    <a href="/settings" hx-boost="false">Settings</a>
+    <a class="btn primary" href="/hatch" hx-boost="false">Hatch a pet</a>
   </nav>
 </header>
 {% block content %}{% endblock %}
-<script src="{{ asset('kit.js') }}"></script>
-<script src="{{ asset('app.js') }}"></script>
-{% block scripts %}{% endblock %}
 </body>
 </html>

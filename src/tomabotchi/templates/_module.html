@@ -1,5 +1,5 @@
 <div id="module-{{ pet.id }}" data-live class="mod" data-pet="{{ pet.id }}">
-  <a class="hit" href="/pets/{{ pet.id }}" title="{{ doing }}">
+  <a class="hit" href="/pets/{{ pet.id }}" preload="mouseover" title="{{ doing }}">
     <span class="scr lcdbox"><span class="lcd" data-scene="{{ vitals.scene }}" data-seed="{{ pet.look_seed }}"></span></span>
     <span class="r1"><span class="n">{{ pet.name }}</span><span class="led {{ led }}"></span><span class="lbl k"></span></span>
     <span class="d">{{ doing }}</span>

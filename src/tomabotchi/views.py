@@ -191,7 +191,7 @@ def pet_context(conn, pet: Pet) -> dict:
     steps = store.plan(conn, task.id) if task else []
     done = sum(s.status == "completed" for s in steps)
     stream = stream_rows([e for e in store.recent_events(conn, pet.id, {"thought", "message", "tool_call", "tool_update"}, 300)
-                          if task and e.task_id == task.id], open_call)
+                          if not task or e.task_id == task.id], open_call)
     track = track_context(conn, pet, updates, loop, working=working, now=now)
     return {"pet": pet, "track": track, "meters": module_meters(v), "led": led_state(pet, open_call, v, working), "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "stream": stream, "done_steps": done,
@@ -354,6 +354,11 @@ def desk_context(conn, focus: str | None) -> dict:
     week = store.call_waits(conn, datetime.now(timezone.utc) - timedelta(days=7))
     return {"pets": pets, "focus": chosen, "median_wait": vitals.median_wait(week),
             "retired_count": len(store.list_pets(conn, retired=True)), **status}
+
+
+def rack_context(conn) -> dict:
+    """Every pet, for the console's rack."""
+    return {"pets": [pet_context(conn, p) for p in store.list_pets(conn)]}
 
 
 def deck_context(conn, pet: Pet) -> dict:

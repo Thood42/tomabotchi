@@ -1,6 +1,5 @@
 {% extends "shell.html" %}
 {% block title %}Desk · tomabotchi{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ asset('desk.css') }}">{% endblock %}
 {% block transport %}
   {% if pets %}
   <div class="transport"><div class="zoom" role="group" aria-label="Time window">
@@ -40,8 +39,7 @@
   </div>
   {% if focus %}{{ partial("_deck.html", focus) }}{% endif %}
 {% endif %}
-{% if retired_count %}<p class="dim"><a href="/memory">{{ retired_count }} retired pet{{ "s" if retired_count != 1 }} in the archive.</a></p>{% endif %}
+{% if retired_count %}<p class="dim"><a href="/memory" hx-boost="false">{{ retired_count }} retired pet{{ "s" if retired_count != 1 }} in the archive.</a></p>{% endif %}
 </div>
 <div class="tip" id="tip"></div>
 {% endblock %}
-{% block scripts %}<script src="{{ asset('desk.js') }}"></script>{% endblock %}

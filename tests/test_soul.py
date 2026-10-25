@@ -123,7 +123,7 @@ def test_teach_and_praise_draft_lessons_and_fill_the_timeline(client, model):
     client.post(f"/lessons/{praise.id}", data={"action": "discard"})
     client.post(f"/pets/{pet_id}/soul", data={"content_md": SOUL, "note": "Trimmed it down"})
     page = client.get(f"/pets/{pet_id}/soul").text
-    assert "Biscuit's soul" in page and "SOUL.md, version 2" in page and "Changed 1 time since" in page
+    assert "SOUL.md" in page and "version 2" in page and "Changed 1 time since" in page
     timeline = page[page.index("What shaped this soul"):]
     assert timeline.index("You edited") < timeline.index("You praised") < timeline.index("Hatched")
     assert "Trimmed it down" in timeline and "You discarded the lesson." in timeline

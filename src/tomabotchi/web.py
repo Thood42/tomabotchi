@@ -183,7 +183,8 @@ def pet_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     if pet.state == "retired":
         return RedirectResponse(f"/pets/{pet_id}/soul", status_code=303)    # all that's left is its soul
-    return _page(request, "pet.html", **views.pet_context(request.app.state.conn, pet))
+    conn = request.app.state.conn
+    return _page(request, "pet.html", **views.pet_context(conn, pet), **views.rack_context(conn))
 
 
 @app.get("/pets/{pet_id}/workspace", response_class=HTMLResponse)
@@ -191,14 +192,17 @@ async def workspace_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     if pet.brain == "fake":
         return RedirectResponse(f"/pets/{pet_id}", status_code=303)       # practice pets have no home
-    return _page(request, "workspace.html", **views.pet_context(request.app.state.conn, pet),
+    conn = request.app.state.conn
+    return _page(request, "workspace.html", **views.pet_context(conn, pet), **views.rack_context(conn),
                  direct_url=await request.app.state.fleet.direct_code_url(pet_id))
 
 
 @app.get("/pets/{pet_id}/soul", response_class=HTMLResponse)
 def soul_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
-    return _page(request, "soul.html", **views.soul_context(request.app.state.conn, pet))
+    conn = request.app.state.conn
+    return _page(request, "soul.html", **{**views.pet_context(conn, pet), **views.soul_context(conn, pet),
+                                          **views.rack_context(conn)})
 
 
 # ---- actions ----

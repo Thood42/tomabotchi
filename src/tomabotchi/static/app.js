@@ -2,9 +2,7 @@
 // browser notifications (when the keeper has already allowed them; the opt-in arrives in slice 10).
 (() => {
   const live = () => [...document.querySelectorAll("[data-live]")].map((el) => el.id);
-  const params = new URLSearchParams();
-  if (document.body.dataset.pet) params.set("pet", document.body.dataset.pet);
-  const es = new EventSource("/events" + (params.size ? `?${params}` : ""));
+  const es = new EventSource("/events");           // every pet: the rack on a pet's page shows them all live
   // Updates sent while the stream was down aren't replayed, so coming back means showing the page afresh.
   let dropped = false;
   es.addEventListener("error", () => { dropped = true; });
@@ -28,6 +26,8 @@
   function swap(id, html) {
     const old = document.getElementById(id);
     if (!old) return;
+    const pin = old.closest("[data-pin]");
+    const pinned = pin && pinned_(pin);
     const tpl = document.createElement("template");
     tpl.innerHTML = html.trim();
     const el = tpl.content.firstElementChild;
@@ -42,8 +42,43 @@
     hydrate(now);
     if (window.htmx) htmx.process(now);
     listen();                       // a swapped partial may bring new live ids
+    if (pinned) pin.scrollTop = pin.scrollHeight;
+    if (now.matches?.(".mod")) markRack();
     window.onSwap?.(now);
   }
+
+  // A stream stays pinned to the newest line unless the keeper has scrolled up to read.
+  function pinned_(el) { return el.scrollHeight - el.scrollTop - el.clientHeight < 48; }
+
+  function markRack() {
+    const here = document.querySelector("[data-page-pet]")?.dataset.pagePet;
+    document.querySelectorAll(".rail .mod").forEach((m) => m.toggleAttribute("aria-current", m.dataset.pet === here));
+  }
+
+  // After a boosted navigation: draw what's new, subscribe to its ids, and mark the pet in view.
+  const settle = () => {
+    hydrate(document.body);
+    listen();
+    markRack();
+    document.querySelectorAll("[data-pin]").forEach((el) => { el.scrollTop = el.scrollHeight; });
+    window.onSettle?.();
+  };
+  document.addEventListener("htmx:afterSettle", settle);
+  window.addEventListener("DOMContentLoaded", settle);
+
+  // On a pet's page, the number keys choose a pet in the rack (the desk handles them itself).
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || !/^[1-9]$/.test(e.key)) return;
+    if (document.activeElement?.matches?.("input, textarea, select, [contenteditable]")) return;
+    document.querySelectorAll(".rail .mod .hit")[Number(e.key) - 1]?.click();
+  });
+
+  // The composer sends on Enter, and Shift Enter adds a line.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.shiftKey || e.isComposing || !e.target.matches?.(".composer textarea")) return;
+    e.preventDefault();
+    e.target.form.requestSubmit(e.target.form.querySelector('[value="task"]'));
+  });
 
   function listen() {
     for (const id of live()) {
