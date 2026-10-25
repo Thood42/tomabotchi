@@ -1,0 +1,13 @@
+<section class="intro" id="shelf-head" data-live>
+  <div>
+    <h1>Your pets</h1>
+    <p class="muted">{{ summary }}</p>
+    {% for c in calling %}
+      <p style="margin-top: 12px"><a class="calls-pill" href="/pets/{{ c.pet.id }}"><span data-icon="calls"></span>{{ c.pet.name }} is calling you</a></p>
+    {% endfor %}
+  </div>
+  <div class="wait">
+    <strong>{{ human_wait(median_wait) }}</strong>
+    <span>typical wait for your answer this week</span>
+  </div>
+</section>

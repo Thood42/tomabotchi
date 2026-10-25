@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biscuit's workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  .head { display: flex; align-items: end; gap: 20px; flex-wrap: wrap; margin: 6px 0 22px; }
+  .head p { font-size: 18px; }
+  .tabs { margin-left: auto; display: flex; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 4px; }
+  .tabs a { padding: 4px 16px; border-radius: 999px; font-weight: 700; text-decoration: none; }
+  .tabs a[aria-current] { background: var(--ink); color: var(--paper); }
+
+  .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .toolbar .note { margin-right: auto; display: flex; align-items: center; gap: 10px; }
+  .toolbar .note .lcd { width: 64px; padding: 3px; }
+  .working { font-weight: 700; }
+
+  /* the editor sits inside the pet's shell colour, like a bigger bezel */
+  .frame { --shell: var(--grape); background: var(--shell); border: 3px solid var(--ink); border-radius: 26px; padding: 14px; box-shadow: 6px 7px 0 var(--ink); }
+  .frame .label { display: flex; justify-content: space-between; color: #fff; font-weight: 700; padding: 0 8px 10px; font-size: 15px; }
+
+  /* mock of the embedded editor, in its own dark theme */
+  .vsc { --bg: #1f1f1f; --side: #181818; --line: #2b2b2b; --text: #cccccc; --dim: #858585;
+    display: grid; grid-template-columns: 46px 230px 1fr; grid-template-rows: 1fr 150px 24px; height: 600px;
+    background: var(--bg); color: var(--text); border-radius: 12px; overflow: hidden; border: 2.5px solid var(--ink);
+    font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .vsc .act { grid-row: 1 / 3; background: var(--side); border-right: 1px solid var(--line); display: grid; align-content: start; justify-items: center; gap: 18px; padding-top: 12px; }
+  .vsc .act i { width: 22px; height: 22px; border: 2px solid var(--dim); border-radius: 4px; }
+  .vsc .act i:first-child { border-color: #fff; }
+  .vsc .side { grid-row: 1 / 3; background: var(--side); border-right: 1px solid var(--line); padding: 8px 0; overflow: hidden; }
+  .vsc .side h4 { margin: 0 0 6px; padding: 0 14px; font-size: 11px; font-weight: 600; color: var(--dim); letter-spacing: .04em; }
+  .vsc .tree { list-style: none; margin: 0; padding: 0; }
+  .vsc .tree li { padding: 1px 14px 1px calc(14px + var(--d, 0) * 14px); display: flex; justify-content: space-between; white-space: nowrap; }
+  .vsc .tree li.sel { background: #37373d; }
+  .vsc .tree .u { color: #73c991; }
+  .vsc .tree .m { color: #e2c08d; }
+  .vsc .main { display: grid; grid-template-rows: 35px 1fr; min-width: 0; }
+  .vsc .tabsbar { display: flex; background: var(--side); border-bottom: 1px solid var(--line); }
+  .vsc .tabsbar span { padding: 7px 14px; border-right: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .vsc .tabsbar span.on { background: var(--bg); color: #fff; border-top: 2px solid #0078d4; }
+  .vsc pre { margin: 0; padding: 10px 0; overflow: hidden; font: 13px/1.6 ui-monospace, Menlo, Consolas, monospace; counter-reset: ln; }
+  .vsc pre span { display: block; min-height: 1.6em; padding-left: 60px; position: relative; white-space: pre; }
+  .vsc pre span::before { counter-increment: ln; content: counter(ln); position: absolute; left: 0; width: 42px; text-align: right; color: #6e7681; }
+  .vsc pre .h { color: #569cd6; font-weight: 700; }
+  .vsc pre .b { color: #ce9178; }
+  .vsc pre .cur { background: #2a2d2e; }
+  .vsc .term { grid-column: 3; border-top: 1px solid var(--line); padding: 6px 14px; font: 12.5px/1.55 ui-monospace, Menlo, Consolas, monospace; overflow: hidden; }
+  .vsc .term .tt { font: 600 11px system-ui; color: var(--dim); margin-bottom: 4px; letter-spacing: .04em; }
+  .vsc .term .p { color: #73c991; }
+  .vsc .status { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; background: var(--side); border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .vsc .status .remote { background: #0078d4; color: #fff; padding: 0 10px; height: 100%; display: flex; align-items: center; }
+
+  .fallback { margin-top: 18px; color: var(--ink-soft); }
+
+  @media (max-width: 900px) {
+    .frame { padding: 8px; border-radius: 18px; }
+    .vsc { grid-template-columns: 40px minmax(0, 1fr); }
+    .vsc .side { display: none; }
+    .vsc .main, .vsc .term { grid-column: 2; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav>
+    <a class="crumb" href="habitat.html">All pets</a>
+    <a class="btn primary" href="hatch.html">Hatch a pet</a>
+  </nav>
+</header>
+
+<main>
+  <section class="head">
+    <div>
+      <h1>Biscuit's workspace</h1>
+      <p class="muted">Everything inside Biscuit's home. Read, review and change it yourself.</p>
+    </div>
+    <nav class="tabs" aria-label="Biscuit">
+      <a href="pet.html">Live</a>
+      <a href="workspace.html" aria-current="page">Workspace</a>
+      <a href="soul.html">Soul</a>
+    </nav>
+  </section>
+
+  <div class="toolbar">
+    <p class="note"><span class="lcd" data-scene="alert" data-seed="15"></span>
+      <span><span class="working">Biscuit is waiting on you.</span> It sees your changes as soon as you save.</span></p>
+    <button class="btn">Pause Biscuit while I edit</button>
+    <a class="btn" href="#">Open in a new tab</a>
+  </div>
+
+  <div class="frame">
+    <div class="label"><span>VS Code, inside Biscuit's home</span><span>Python (default)</span></div>
+    <div class="vsc" role="img" aria-label="Embedded VS Code showing notes/vector-db-compare.md">
+      <div class="act"><i></i><i></i><i></i><i></i></div>
+      <div class="side">
+        <h4>EXPLORER: WORKSPACE</h4>
+        <ul class="tree">
+          <li>▾ notes</li>
+          <li style="--d:1">hub-requirements.md</li>
+          <li style="--d:1" class="sel"><span>vector-db-compare.md</span><span class="u">U</span></li>
+          <li>▾ sources</li>
+          <li style="--d:1">qdrant-benchmarks.html</li>
+          <li style="--d:1">pgvector-readme.md</li>
+          <li style="--d:1">lancedb-docs.md</li>
+          <li><span>scratch.py</span><span class="m">M</span></li>
+          <li>requirements.txt</li>
+          <li>SOUL.md</li>
+        </ul>
+      </div>
+      <div class="main">
+        <div class="tabsbar"><span class="on">vector-db-compare.md</span><span>scratch.py</span></div>
+<pre><span class="h"># Vector database for the hub</span><span></span><span>Recommendation: <b class="b">pgvector</b>.</span><span></span><span>It runs inside the Postgres that Langfuse already uses, and at ~40k</span><span>vectors the speed gap with Qdrant doesn't matter yet. Revisit at 5M.</span><span></span><span class="h">## Compared</span><span>- pgvector: no new service, SQL filters, HNSW index</span><span class="cur">- Qdrant: fastest past 10M vectors, but another container to run</span><span>- LanceDB: embedded and local-first, young ecosystem</span><span></span><span class="h">## Sources</span><span>1. qdrant.tech/benchmarks</span><span>2. github.com/pgvector/pgvector</span></pre>
+      </div>
+      <div class="term">
+        <div class="tt">TERMINAL</div>
+        <div><span class="p">biscuit@home:~/workspace$</span> python scratch.py --vectors 40000</div>
+        <div>pgvector  p95 query  4.1 ms</div>
+        <div>qdrant    p95 query  2.7 ms</div>
+        <div><span class="p">biscuit@home:~/workspace$</span> ▌</div>
+      </div>
+      <div class="status"><span class="remote">tomabotchi: biscuit</span><span>main*</span><span>Ln 10, Col 52</span><span>Markdown</span></div>
+    </div>
+  </div>
+
+  <p class="fallback">If the editor doesn't load here, <a href="#">open it in a new tab</a>. It's the same workspace, served by the machine that runs tomabotchi.</p>
+</main>
+<script src="kit.js"></script>
+</body>
+</html>

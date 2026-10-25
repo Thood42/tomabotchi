@@ -1,0 +1,23 @@
+# tomabotchi: pocket pets for AI agents (source in ../tomabotchi, config in ../tomabotchi.toml).
+# Started with the rest of the stack by ../bin/stack, which exports AI_ROOT.
+services:
+  tomabotchi:
+    build: ../tomabotchi
+    image: tomabotchi-server:0.1.0
+    restart: unless-stopped
+    # Default docker bridge, like Open WebUI: the host firewall (ufw) lets it reach Ollama on :11434.
+    network_mode: bridge
+    ports:
+      - 127.0.0.1:8770:8770          # localhost only
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      AI_ROOT: ${AI_ROOT}
+      TOMABOTCHI_DATA_DIR: ${AI_ROOT}/platform/data/tomabotchi
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      # Mounted at the same absolute paths as on the host, so the bind mounts tomabotchi
+      # hands to Docker for each pet resolve on the host (from slice 2).
+      - ${AI_ROOT}/platform:${AI_ROOT}/platform:ro
+      - ${AI_ROOT}/platform/data/tomabotchi:${AI_ROOT}/platform/data/tomabotchi

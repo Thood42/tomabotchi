@@ -1,0 +1,13 @@
+<section id="thoughts-{{ pet.id }}" data-live class="sheet" aria-label="Thinking">
+  <h2>Thinking</h2>
+  {% if thoughts %}
+    <ol class="thoughts">
+      {% for t in thoughts %}
+        <li class="{{ 'said' if t.kind == 'message' else '' }}{{ ' live' if loop.last and working else '' }}">
+          <time>{{ t.ts|hm }}{{ ", now" if loop.last and working else "" }}{{ ", said" if t.kind == 'message' else "" }}</time>{{ t.payload.text }}</li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="empty-note">Nothing on its mind yet.</p>
+  {% endif %}
+</section>

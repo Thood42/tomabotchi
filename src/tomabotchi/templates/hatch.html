@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Hatch a pet{% endblock %}
+{% block content %}
+<div class="hatch-layout">
+  <div>
+    <section class="intro" style="display: block; margin-bottom: 0">
+      <h1>Hatch a pet</h1>
+      <p class="muted">Your answers become its SOUL.md. You can change any of it later, and it keeps learning from how you treat it.</p>
+    </section>
+
+    <form method="post" action="/pets">
+      <input type="hidden" name="look_seed" id="look_seed" value="{{ seed }}">
+      <div class="step">
+        <span class="num">1</span>
+        <div class="sheet">
+          <h2>Name it</h2>
+          <div class="field">
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" required maxlength="24" value="Biscuit">
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="num">2</span>
+        <div class="sheet">
+          <h2>Pick a shell and a look</h2>
+          <div class="swatches" role="radiogroup" aria-label="Shell colour">
+            {% for s in shells %}
+              <label><input type="radio" name="shell" value="{{ s }}"{% if loop.first %} checked{% endif %}><span class="chip" style="--c: var(--{{ s }})"></span>{{ s|capitalize }}</label>
+            {% endfor %}
+          </div>
+          <div class="looks-head">
+            <span class="muted">Every pet is one of a kind. Pick one of these, or shuffle for six more.</span>
+            <button type="button" class="btn" id="shuffle"><span data-icon="dice"></span>Shuffle</button>
+          </div>
+          <div class="looks" id="looks" aria-label="Looks"></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="num">3</span>
+        <div class="sheet">
+          <h2>Give it a soul</h2>
+          <div class="field">
+            <label for="purpose">What is it for?</label>
+            <textarea id="purpose" name="purpose_md">Writing short notes for my keeper, and saying what it did.</textarea>
+          </div>
+          <div class="field">
+            <label for="voice">How should it talk to you?</label>
+            <textarea id="voice" name="voice_md">Short sentences. Lead with what it did.</textarea>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="ask">When must it ask you first?</label>
+              <textarea id="ask" name="ask_first_md">Before writing or deleting any file.</textarea>
+            </div>
+            <div class="field">
+              <label for="never">What must it never do?</label>
+              <textarea id="never" name="never_md">Run shell commands. Email or post anything.</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="num">4</span>
+        <div class="sheet">
+          <h2>Give it its first task</h2>
+          <div class="field">
+            <label for="task">Task</label>
+            <textarea id="task" name="first_task_md">Write a hello note in notes/.</textarea>
+          </div>
+          <div class="field">
+            <label for="home">Home</label>
+            <select id="home" name="home">
+              {% for h in homes %}<option value="{{ h.slug }}"{% if h.default %} selected{% endif %}>{{ h.name }}{{ " (default)" if h.default else "" }}</option>{% endfor %}
+            </select>
+            <span class="hint">Each pet lives in its own sealed container. Practice pets don't need one yet, so this is saved but not used until slice 2.</span>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="brain">Brain</label>
+              <select id="brain" name="brain">
+                <option value="fake" selected>Practice brain (scripted)</option>
+                <option value="hermes" disabled>Hermes (arrives in slice 2)</option>
+                <option value="claude" disabled>Claude Code (arrives in slice 5)</option>
+              </select>
+              <span class="hint">The practice brain follows a fixed script: it plans, looks around, then asks to write a file.</span>
+            </div>
+            <div class="field">
+              <label for="model">Model</label>
+              <select id="model" name="model">
+                {% for m in models %}<option value="{{ m.key }}">{{ m.label }}</option>{% endfor %}
+              </select>
+              <span class="hint">Either brain can use either model.</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="budget">Budget</label>
+            <select id="budget" name="budget">
+              <option value="100k-2h">100k tokens or 2 hours</option>
+              <option value="25k-30m">25k tokens or 30 minutes</option>
+              <option value="none">No limit</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="go">
+        <button class="btn primary" id="hatch-btn">Hatch Biscuit</button>
+        <span class="muted">Or clear the task and feed it later.</span>
+      </div>
+    </form>
+  </div>
+
+  <aside class="preview" aria-label="Preview">
+    <div class="egg" id="preview-egg" style="--shell: var(--{{ shells[0] }})">
+      <div class="bezel"><div class="lcd" id="preview-lcd" data-scene="happy" data-seed="{{ seed }}"></div></div>
+      <div class="keys"><i></i><i></i><i></i></div>
+    </div>
+    <p class="look-desc" id="look-desc" aria-live="polite"></p>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  (() => {
+    const looks = document.getElementById("looks"), lcd = document.getElementById("preview-lcd");
+    const desc = document.getElementById("look-desc"), seedInput = document.getElementById("look_seed");
+    function choose(seed) {
+      seedInput.value = seed;
+      lcd.dataset.seed = seed; renderScene(lcd);
+      desc.textContent = describe(Number(seed));
+      looks.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.seed == seed));
+    }
+    function roll(first) {
+      const seeds = [first ?? Math.floor(Math.random() * 99999) + 1];
+      while (seeds.length < 6) seeds.push(Math.floor(Math.random() * 99999) + 1);
+      looks.innerHTML = seeds.map((s) =>
+        `<button type="button" data-seed="${s}" aria-label="Look ${s}"><div class="lcd" data-scene="happy" data-seed="${s}"></div></button>`).join("");
+      hydrate(looks);
+      looks.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => choose(b.dataset.seed)));
+      choose(seeds[0]);
+    }
+    document.getElementById("shuffle").addEventListener("click", () => roll());
+    document.querySelectorAll('input[name="shell"]').forEach((r) => r.addEventListener("change", () =>
+      document.getElementById("preview-egg").style.setProperty("--shell", `var(--${r.value})`)));
+    const name = document.getElementById("name"), btn = document.getElementById("hatch-btn");
+    name.addEventListener("input", () => { btn.textContent = `Hatch ${name.value.trim() || "it"}`; });
+    roll(Number(seedInput.value));
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+# tomabotchi: pocket pets for AI agents. Read by platform/tomabotchi (config.py).
+# Homes are the base images a pet can live in. tomabotchi layers its runtime on top,
+# so each one must be glibc-based (Debian/Ubuntu). Edit here and restart to change the list.
+
+[server]
+port = 8770
+approval_timeout = "8h"        # how long a call waits for you before the pet is told "no answer"
+direct_code_ports = false      # also publish each pet's VS Code on 127.0.0.1:<port>
+
+[network]
+pet_subnet_pool = "172.30.0.0/16"   # each pet gets its own /28 from here
+
+[[homes]]
+slug = "python"
+name = "Python"
+image = "python:3.12-slim"
+description = "Basic Python, nothing extra"
+default = true
+
+[[homes]]
+slug = "python-data"
+name = "Python with data tools"
+image = "tomabotchi/python-data:1"
+description = "pandas, numpy, matplotlib"
+
+[[homes]]
+slug = "node"
+name = "Node.js"
+image = "node:22-slim"
+description = "Node 22 and npm"
+
+[[homes]]
+slug = "browser"
+name = "Web browser"
+image = "mcr.microsoft.com/playwright/python:v1.48.0"
+description = "Python and a headless browser"
+
+[[models]]
+key = "local-qwen"
+label = "Local: qwen3.6:35b (free, private)"
+provider = "ollama"
+model = "qwen3.6:35b"
+
+[[models]]
+key = "claude-sonnet"
+label = "Claude Sonnet (faster, costs money)"
+provider = "anthropic"
+model = "claude-sonnet-5-5"

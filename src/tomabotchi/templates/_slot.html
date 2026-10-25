@@ -1,0 +1,18 @@
+<li id="slot-{{ pet.id }}" data-live>
+  <a class="slot" href="/pets/{{ pet.id }}">
+    <div class="egg{% if call %} calling{% endif %}" style="--shell: var(--{{ pet.shell }})">
+      <div class="bezel"><div class="lcd" data-scene="{{ vitals.scene }}" data-seed="{{ pet.look_seed }}"></div></div>
+      <div class="keys"><i></i><i></i><i></i></div>
+    </div>
+    <div class="plate{% if call %} call{% elif vitals.sick_reason %} sick{% endif %}">
+      <div class="who"><h2>{{ pet.name }}</h2><span class="age">{{ vitals.stage|capitalize }}, day {{ day }}</span></div>
+      <p class="doing">{{ doing }}</p>
+      {% if steps %}
+        <div class="steps" aria-label="Step {{ step_now }} of {{ steps|length }}">
+          {%- for s in steps %}<i class="{{ 'done' if s.status == 'completed' else 'now' if s.status == 'in_progress' else '' }}"></i>{% endfor -%}
+        </div>
+        <p class="stepnote">{{ task.prompt|truncate(44, True, '...') }}, step {{ step_now }} of {{ steps|length }}</p>
+      {% endif %}
+    </div>
+  </a>
+</li>

@@ -1,0 +1,18 @@
+<div id="bigegg-{{ pet.id }}" data-live class="egg big{% if call %} calling{% endif %}" style="--shell: var(--{{ pet.shell }})">
+  <div class="bezel">
+    <div class="icons upper">
+      <button class="ico" data-icon="task" title="Feed it a task (below)">Task</button>
+      <button class="ico" data-icon="lights" disabled title="Arrives in slice 8">Lights</button>
+      <button class="ico" data-icon="chat" disabled title="Arrives in slice 8">Chat</button>
+      <button class="ico" data-icon="medicine" disabled title="Arrives in slice 8">Medicine</button>
+    </div>
+    <div class="lcd" data-scene="{{ vitals.scene }}" data-seed="{{ pet.look_seed }}"></div>
+    <div class="icons lower">
+      <button class="ico" data-icon="tidy" disabled title="Arrives in slice 8">Tidy</button>
+      <button class="ico" data-icon="vitals">Vitals</button>
+      <button class="ico" data-icon="train" disabled title="Arrives in slice 6">Train</button>
+      <button class="ico{% if call %} lit{% endif %}" data-icon="calls">Calls</button>
+    </div>
+  </div>
+  <div class="keys labelled"><span>A</span><span>B</span><span>C</span></div>
+</div>

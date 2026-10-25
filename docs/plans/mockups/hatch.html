@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hatch a pet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  .layout { display: grid; grid-template-columns: 1fr minmax(300px, 400px); gap: 44px; align-items: start; margin-top: 8px; }
+  .intro p { margin-top: 8px; font-size: 19px; max-width: 52ch; }
+  form { display: grid; gap: 26px; margin-top: 30px; }
+  .step { display: grid; grid-template-columns: 44px 1fr; gap: 16px; }
+  .step .num { width: 44px; height: 44px; display: grid; place-items: center; border: 2.5px solid var(--ink); border-radius: 50%; background: var(--paper); font-weight: 800; font-size: 20px; box-shadow: 2px 2px 0 var(--ink); }
+  .step .sheet { display: grid; gap: 16px; }
+  .swatches { display: flex; gap: 14px; flex-wrap: wrap; }
+  .swatches label { display: grid; justify-items: center; gap: 4px; cursor: pointer; font-size: 14px; font-weight: 700; }
+  .swatches input { position: absolute; opacity: 0; }
+  .swatches .chip { width: 46px; height: 56px; border: 2.5px solid var(--ink); border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%; background: var(--c); }
+  .swatches input:checked + .chip { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--ink); }
+  .swatches input:focus-visible + .chip { outline: 3px solid var(--alarm); outline-offset: 6px; }
+  .looks-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .looks-head .btn [data-icon] svg { width: 18px; display: block; }
+  .looks-head .btn [data-icon] svg .on { fill: currentColor; }
+  .looks { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .looks button { padding: 0; border: 2.5px solid var(--ink); border-radius: 10px; background: var(--lcd); cursor: pointer; overflow: hidden; }
+  .looks button .lcd { border-radius: 0; box-shadow: none; padding: 4px; }
+  .looks button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--paper), 0 0 0 6px var(--ink); }
+  .look-desc { font-size: 15px; color: var(--ink-soft); max-width: 30ch; text-align: center; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .go { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-left: 60px; }
+  .go .btn { font-size: 19px; padding: 10px 26px; }
+
+  .preview { position: sticky; top: 16px; display: grid; gap: 28px; justify-items: center; }
+  .preview .egg { --egg-w: 230px; }
+  .manual { width: 100%; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 4px 14px 14px 14px; box-shadow: 5px 5px 0 var(--ink); padding: 18px 20px; font-size: 14.5px; line-height: 1.45; }
+  .manual .file { font-weight: 700; color: var(--ink-soft); font-size: 13px; margin-bottom: 8px; }
+  .manual h3 { margin: 12px 0 2px; font-size: 15px; }
+  .manual h3:first-of-type { margin-top: 0; }
+  .manual ul { margin: 2px 0 0; padding-left: 18px; }
+  .manual .big { font-size: 22px; font-weight: 800; }
+
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .preview { position: static; order: -1; }
+    .row { grid-template-columns: 1fr; }
+    .go { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav><a class="crumb" href="habitat.html">All pets</a></nav>
+</header>
+
+<main>
+  <div class="layout">
+    <div>
+      <section class="intro">
+        <h1>Hatch a pet</h1>
+        <p class="muted">Your answers become its SOUL.md. You can change any of it later, and it keeps learning from how you treat it.</p>
+      </section>
+
+      <form onsubmit="return false">
+        <div class="step">
+          <span class="num">1</span>
+          <div class="sheet">
+            <h2>Name it</h2>
+            <div class="field">
+              <label for="name">Name</label>
+              <input id="name" type="text" value="Biscuit">
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="num">2</span>
+          <div class="sheet">
+            <h2>Pick a shell and a look</h2>
+            <div class="swatches" role="radiogroup" aria-label="Shell colour">
+              <label><input type="radio" name="shell" value="grape" checked><span class="chip" style="--c: var(--grape)"></span>Grape</label>
+              <label><input type="radio" name="shell" value="lagoon"><span class="chip" style="--c: var(--lagoon)"></span>Lagoon</label>
+              <label><input type="radio" name="shell" value="tangerine"><span class="chip" style="--c: var(--tangerine)"></span>Tangerine</label>
+              <label><input type="radio" name="shell" value="bubblegum"><span class="chip" style="--c: var(--bubblegum)"></span>Bubblegum</label>
+            </div>
+            <div class="looks-head">
+              <span class="muted">Every pet is one of a kind. Pick one of these, or shuffle for six more.</span>
+              <button type="button" class="btn" id="shuffle"><span data-icon="dice"></span>Shuffle</button>
+            </div>
+            <div class="looks" id="looks" aria-label="Looks"></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="num">3</span>
+          <div class="sheet">
+            <h2>Give it a soul</h2>
+            <div class="field">
+              <label for="for">What is Biscuit for?</label>
+              <textarea id="for">Researching tools and libraries for my local AI setup, and recommending one with sources.</textarea>
+            </div>
+            <div class="field">
+              <label for="talk">How should it talk to you?</label>
+              <textarea id="talk">Short sentences. Lead with the recommendation. Cite every claim.</textarea>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="ask">When must it ask you first?</label>
+                <textarea id="ask">Before writing or deleting any file. Before spending more than 20k tokens on one question.</textarea>
+              </div>
+              <div class="field">
+                <label for="never">What must it never do?</label>
+                <textarea id="never">Run shell commands. Email or post anything.</textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="num">4</span>
+          <div class="sheet">
+            <h2>Give it its first task</h2>
+            <div class="field">
+              <label for="task">Task</label>
+              <textarea id="task">Compare vector databases for the hub and recommend one.</textarea>
+            </div>
+            <div class="field">
+              <label for="home">Home</label>
+              <select id="home">
+                <option>Python (default)</option>
+                <option>Python with data tools</option>
+                <option>Node.js</option>
+                <option>Web browser</option>
+              </select>
+              <span class="hint">Biscuit lives in its own sealed container and can only touch what's inside it. You choose which homes appear in this list in tomabotchi's settings.</span>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label for="brain">Brain</label>
+                <select id="brain"><option>Hermes (default)</option><option>Claude Code</option></select>
+                <span class="hint">How Biscuit thinks and works. Hermes is a general helper with memory and skills. Claude Code is strongest at code.</span>
+              </div>
+              <div class="field">
+                <label for="model">Model</label>
+                <select id="model"><option>Local: qwen3.6:35b (free, private)</option><option>Claude Sonnet (faster, costs money)</option></select>
+                <span class="hint">Either brain can use either model.</span>
+              </div>
+            </div>
+            <div class="field">
+              <label for="budget">Budget</label>
+              <select id="budget"><option>100k tokens or 2 hours</option><option>25k tokens or 30 minutes</option><option>No limit</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="go">
+          <button class="btn primary">Hatch Biscuit</button>
+          <span class="muted">Or hatch it without a task and feed it later.</span>
+        </div>
+      </form>
+    </div>
+
+    <aside class="preview" aria-label="Preview">
+      <div class="egg" id="preview-egg" style="--shell: var(--grape)">
+        <div class="bezel"><div class="lcd" id="preview-lcd" data-scene="happy" data-seed="15"></div></div>
+        <div class="keys"><i></i><i></i><i></i></div>
+      </div>
+      <p class="look-desc" id="look-desc" aria-live="polite"></p>
+      <article class="manual">
+        <p class="file">SOUL.md preview</p>
+        <p class="big">Biscuit</p>
+        <h3>Who I am</h3>
+        <p>I research tools and libraries for my keeper's local AI setup, and I recommend one with sources.</p>
+        <h3>How I talk</h3>
+        <p>Short sentences. I lead with the recommendation and cite every claim.</p>
+        <h3>Ask first</h3>
+        <ul><li>Before writing or deleting any file</li><li>Before spending more than 20k tokens on one question</li></ul>
+        <h3>Never</h3>
+        <ul><li>Run shell commands</li><li>Email or post anything</li></ul>
+        <h3>Lessons</h3>
+        <p class="muted">None yet. Praise and scolding land here.</p>
+      </article>
+    </aside>
+  </div>
+</main>
+<script src="kit.js"></script>
+<script>
+  // mockup-only: shuffle looks, pick one, recolour the shell
+  const looks = document.getElementById("looks"), lcd = document.getElementById("preview-lcd");
+  const desc = document.getElementById("look-desc");
+  function choose(seed) {
+    lcd.dataset.seed = seed; renderScene(lcd);
+    desc.textContent = describe(seed);
+    looks.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.seed == seed));
+  }
+  function roll(first) {
+    const seeds = [first ?? Math.floor(Math.random() * 99999)];
+    while (seeds.length < 6) seeds.push(Math.floor(Math.random() * 99999));
+    looks.innerHTML = seeds.map((s) =>
+      `<button type="button" data-seed="${s}" aria-label="Look ${s}"><div class="lcd" data-scene="happy" data-seed="${s}"></div></button>`).join("");
+    looks.querySelectorAll("[data-scene]").forEach(renderScene);
+    looks.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => choose(b.dataset.seed)));
+    choose(seeds[0]);
+  }
+  document.getElementById("shuffle").addEventListener("click", () => roll());
+  document.querySelectorAll('input[name="shell"]').forEach((r) => r.addEventListener("change", () =>
+    document.getElementById("preview-egg").style.setProperty("--shell", `var(--${r.value})`)));
+  roll(15);
+</script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tomabotchi habitat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin: 12px 0 36px; }
+  .intro p { max-width: 52ch; margin-top: 8px; font-size: 19px; }
+  .wait { text-align: right; }
+  .wait strong { display: block; font-size: 40px; font-weight: 800; line-height: 1; }
+  .wait span { color: var(--ink-soft); font-size: 15px; }
+
+  .shelf { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 48px 24px; }
+  .shelf .egg { --egg-w: 200px; }
+  .slot { display: grid; justify-items: center; gap: 22px; text-decoration: none; }
+  .slot:hover .egg { translate: 0 -4px; }
+  .plate { width: 100%; max-width: 250px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 12px; padding: 12px 14px 14px; display: grid; gap: 8px; }
+  .plate .who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .plate .age { font-size: 14px; color: var(--ink-soft); }
+  .plate .doing { font-size: 15px; line-height: 1.35; min-height: 2.7em; }
+  .plate .stepnote { font-size: 13px; color: var(--ink-soft); }
+  .plate.call { border-color: var(--alarm); box-shadow: 0 0 0 3px var(--alarm); }
+  .plate.call .doing { color: var(--alarm); font-weight: 700; }
+  .plate.sick .doing { font-weight: 700; }
+  .empty .egg { background: transparent; box-shadow: none; border-style: dashed; }
+  .empty .egg::before { border-style: dashed; }
+  .empty .plate { background: transparent; border-style: dashed; text-align: center; }
+
+  .shelf-edge { height: 14px; margin-top: 56px; border: 2.5px solid var(--ink); border-radius: 4px; background: var(--paper); box-shadow: 5px 5px 0 var(--ink); }
+  .retired { margin-top: 18px; color: var(--ink-soft); }
+  .beep { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 18px; margin: 4px 0 28px; box-shadow: 3px 3px 0 var(--ink); }
+  .beep p { flex: 1; min-width: 240px; }
+  .beep [data-icon] svg { width: 26px; display: block; }
+  .beep [data-icon] svg .on { fill: var(--alarm); }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav>
+    <a class="crumb" href="memory.html">Memory shelf</a>
+    <a class="crumb" href="settings.html">Settings</a>
+    <a class="calls-pill" href="pet.html"><span data-icon="calls"></span>Biscuit is calling you</a>
+    <a class="btn primary" href="hatch.html">Hatch a pet</a>
+  </nav>
+</header>
+
+<main>
+  <aside class="sheet beep" aria-label="Notifications">
+    <span data-icon="calls"></span>
+    <p><b>Want a beep when a pet calls you?</b> Your browser will ask first, and you can turn beeps off in settings.</p>
+    <button class="btn primary">Turn on notifications</button>
+    <button class="btn quiet" onclick="this.closest('aside').remove()">Not now</button>
+  </aside>
+  <section class="intro">
+    <div>
+      <h1>Your pets</h1>
+      <p class="muted">Two are working, Biscuit is waiting for your answer, and Pickle is stuck and needs medicine.</p>
+    </div>
+    <div class="wait">
+      <strong>1m 52s</strong>
+      <span>typical wait for your answer this week</span>
+    </div>
+  </section>
+
+  <ul class="shelf">
+    <li>
+      <a class="slot" href="pet.html">
+        <div class="egg calling" style="--shell: var(--grape)">
+          <div class="bezel"><div class="lcd" data-scene="alert" data-seed="15"></div></div>
+          <div class="keys"><i></i><i></i><i></i></div>
+        </div>
+        <div class="plate call">
+          <div class="who"><h2>Biscuit</h2><span class="age">Teen, day 6</span></div>
+          <p class="doing">Wants your OK to write a file</p>
+          <div class="steps" aria-label="Step 3 of 5"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+          <p class="stepnote">Comparing vector databases, step 3 of 5</p>
+        </div>
+      </a>
+    </li>
+
+    <li>
+      <a class="slot" href="pet.html">
+        <div class="egg" style="--shell: var(--lagoon)">
+          <div class="bezel"><div class="lcd" data-scene="work" data-seed="31"></div></div>
+          <div class="keys"><i></i><i></i><i></i></div>
+        </div>
+        <div class="plate">
+          <div class="who"><h2>Ziggy</h2><span class="age">Adult, day 21</span></div>
+          <p class="doing">Thinking: "The flaky test only fails when two runs start in the same second."</p>
+          <div class="steps" aria-label="Step 2 of 4"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+          <p class="stepnote">Fixing the flaky containment test, step 2 of 4</p>
+        </div>
+      </a>
+    </li>
+
+    <li>
+      <a class="slot" href="pet.html">
+        <div class="egg" style="--shell: var(--bubblegum)">
+          <div class="bezel"><div class="lcd" data-scene="sick" data-seed="6"></div></div>
+          <div class="keys"><i></i><i></i><i></i></div>
+        </div>
+        <div class="plate sick">
+          <div class="who"><h2>Pickle</h2><span class="age">Kid, day 3</span></div>
+          <p class="doing">Sick: the same search has failed 6 times in a row</p>
+          <div class="steps" aria-label="Step 1 of 3"><i class="now"></i><i></i><i></i></div>
+          <p class="stepnote">Summarising this week's papers, step 1 of 3</p>
+        </div>
+      </a>
+    </li>
+
+    <li>
+      <a class="slot" href="pet.html">
+        <div class="egg" style="--shell: var(--tangerine)">
+          <div class="bezel"><div class="lcd" data-scene="sleep" data-seed="1"></div></div>
+          <div class="keys"><i></i><i></i><i></i></div>
+        </div>
+        <div class="plate">
+          <div class="who"><h2>Moth</h2><span class="age">Adult, day 34</span></div>
+          <p class="doing">Asleep until 7:00, then back to the job search</p>
+          <div class="steps" aria-label="Step 4 of 6"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+          <p class="stepnote">Shortlisting GM roles, step 4 of 6</p>
+        </div>
+      </a>
+    </li>
+
+    <li class="empty">
+      <a class="slot" href="hatch.html">
+        <div class="egg">
+          <div class="bezel"><div class="lcd" data-scene="egg"></div></div>
+          <div class="keys"><i></i><i></i><i></i></div>
+        </div>
+        <div class="plate"><h2>Hatch a pet</h2><p class="muted">Give it a name, a soul and a first task.</p></div>
+      </a>
+    </li>
+  </ul>
+
+  <div class="shelf-edge" aria-hidden="true"></div>
+  <p class="retired"><a href="memory.html">2 retired pets on the memory shelf.</a> Their workspaces are backed up and their souls are kept.</p>
+</main>
+<script src="kit.js"></script>
+</body>
+</html>

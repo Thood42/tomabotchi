@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Tomabotchi shelf{% endblock %}
+{% block nav %}{% endblock %}
+{% block content %}
+  {% include "_shelf_head.html" %}
+
+  <ul class="shelf">
+    {% for ctx in pets %}{% with pet=ctx.pet, call=ctx.call, vitals=ctx.vitals, doing=ctx.doing, steps=ctx.steps,
+                                 task=ctx.task, day=ctx.day, step_now=ctx.step_now %}
+      {% include "_slot.html" %}
+    {% endwith %}{% endfor %}
+    <li class="empty">
+      <a class="slot" href="/hatch">
+        <div class="egg">
+          <div class="bezel"><div class="lcd" data-scene="egg"></div></div>
+          <div class="keys"><i></i><i></i><i></i></div>
+        </div>
+        <div class="plate"><h2>Hatch a pet</h2><p class="muted">Give it a name, a soul and a first task.</p></div>
+      </a>
+    </li>
+  </ul>
+
+  <div class="shelf-edge" aria-hidden="true"></div>
+  {% if retired_count %}<p class="retired">{{ retired_count }} retired pets on the memory shelf.</p>{% endif %}
+{% endblock %}

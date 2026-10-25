@@ -1,0 +1,33 @@
+[project]
+name = "tomabotchi"
+version = "0.1.0"
+description = "Pocket pets for AI agents: each agent in its own container, looked after from a toy-shelf dashboard"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "websockets>=13",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[project.scripts]
+tomabotchi = "tomabotchi.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tomabotchi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = ["docker: needs a running Docker daemon and builds images (opt-in: -m docker)"]
+addopts = "-m 'not docker'"

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tomabotchi settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  .intro { margin: 12px 0 30px; }
+  .cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: start; }
+  .sheet > p.muted { margin-top: 6px; }
+  .rows { list-style: none; margin: 16px 0 0; padding: 0; display: grid; }
+  .rows li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 2px dotted var(--shelf-dot); }
+  .rows li:first-child { border-top: 0; }
+  .rows small { display: block; color: var(--ink-soft); font-size: 14px; }
+  .rows.off { opacity: .45; }
+
+  /* toy slide switch */
+  .switch { position: relative; flex: none; width: 58px; height: 32px; }
+  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border: 2.5px solid var(--ink); border-radius: 999px; background: var(--paper); }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 21px; height: 21px; border-radius: 50%; background: var(--ink); transition: translate .15s steps(3); }
+  .switch input:checked + span { background: var(--grape); }
+  .switch input:checked + span::after { translate: 26px 0; background: var(--paper); }
+  .switch input:focus-visible + span { outline: 3px solid var(--alarm); outline-offset: 3px; }
+
+  .status { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--ok); margin-top: 10px; }
+  .status::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .quiet-hours { display: flex; gap: 8px; align-items: center; }
+  .quiet-hours select { width: auto; padding: 4px 8px; }
+  .test { margin-top: 14px; }
+
+  .homes { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+  .homes li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; }
+  .homes small { color: var(--ink-soft); font-size: 14px; }
+  .homes code { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-soft); }
+  .tag { align-self: start; font-size: 13px; font-weight: 700; padding: 0 10px; border-radius: 999px; background: var(--lcd); }
+  .cfg { margin-top: 14px; font-size: 14.5px; color: var(--ink-soft); }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav>
+    <a class="crumb" href="habitat.html">All pets</a>
+    <a class="crumb" href="memory.html">Memory shelf</a>
+  </nav>
+</header>
+
+<main>
+  <section class="intro"><h1>Settings</h1></section>
+
+  <div class="cols">
+    <section class="sheet" aria-labelledby="n-h">
+      <h2 id="n-h">Notifications</h2>
+      <p class="muted">Your browser beeps for you when you're on another tab or window, like the toy did.</p>
+      <ul class="rows">
+        <li><span>Browser notifications<small>Allowed in this browser. Turn off to silence everything.</small></span>
+          <label class="switch"><input type="checkbox" checked aria-label="Browser notifications"><span></span></label></li>
+      </ul>
+      <ul class="rows">
+        <li><span>A pet is calling you<small>It needs your OK for a tool, or has a question</small></span>
+          <label class="switch"><input type="checkbox" checked aria-label="A pet is calling you"><span></span></label></li>
+        <li><span>A pet got sick<small>Stuck in a loop or failing over and over</small></span>
+          <label class="switch"><input type="checkbox" checked aria-label="A pet got sick"><span></span></label></li>
+        <li><span>A pet finished its task</span>
+          <label class="switch"><input type="checkbox" aria-label="A pet finished its task"><span></span></label></li>
+        <li><span>A pet ran out of budget<small>It fell asleep partway through</small></span>
+          <label class="switch"><input type="checkbox" checked aria-label="A pet ran out of budget"><span></span></label></li>
+        <li><span>Quiet hours<small>No beeps between these times. Calls still wait for you.</small></span>
+          <span class="quiet-hours">
+            <select aria-label="Quiet from"><option>22:00</option></select>to<select aria-label="Quiet until"><option>07:00</option></select>
+            <label class="switch"><input type="checkbox" checked aria-label="Quiet hours"><span></span></label>
+          </span></li>
+      </ul>
+      <button class="btn test">Send a test beep</button>
+    </section>
+
+    <section class="sheet" aria-labelledby="h-h">
+      <h2 id="h-h">Homes</h2>
+      <p class="muted">The homes you can pick when hatching a pet. Each pet gets its own sealed copy.</p>
+      <ul class="homes">
+        <li><b>Python</b><span class="tag">Default</span><small>Basic Python, nothing extra</small><code>python:3.12-slim</code></li>
+        <li><b>Python with data tools</b><span></span><small>pandas, numpy, matplotlib</small><code>tomabotchi/python-data:1</code></li>
+        <li><b>Node.js</b><span></span><small>Node 22 and npm</small><code>node:22-slim</code></li>
+        <li><b>Web browser</b><span></span><small>Python and a headless browser</small><code>mcr.microsoft.com/playwright/python:v1.48.0</code></li>
+      </ul>
+      <p class="cfg">This list is set in tomabotchi's config file on the host machine. Edit it there and restart to add or remove homes.</p>
+    </section>
+  </div>
+</main>
+<script src="kit.js"></script>
+<script>
+  // mockup-only: master switch greys out the individual ones
+  const [master, list] = document.querySelectorAll(".rows");
+  master.querySelector("input").addEventListener("change", (e) => list.classList.toggle("off", !e.target.checked));
+</script>
+</body>
+</html>

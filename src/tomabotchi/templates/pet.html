@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ pet.name }} up close{% endblock %}
+{% block body_attrs %} data-pet="{{ pet.id }}"{% endblock %}
+{% block content %}
+  <section class="head">
+    <div>
+      <h1>{{ pet.name }}</h1>
+      <p class="muted">{{ "Practice pet" if pet.brain == "fake" else pet.brain|capitalize ~ " pet" }}. {{ vitals.stage|capitalize }}, day {{ day }}, {{ pet.tasks_done }} tasks done.</p>
+    </div>
+    <nav class="tabs" aria-label="{{ pet.name }}">
+      <a href="/pets/{{ pet.id }}" aria-current="page">Live</a>
+      <span title="Arrives in slice 7">Workspace</span>
+      <span title="Arrives in slice 6">Soul</span>
+    </nav>
+  </section>
+
+  <div class="layout">
+    <div class="left">
+      {% include "_bigegg.html" %}
+      {% include "_vitals.html" %}
+    </div>
+    <div class="right">
+      {% include "_call.html" %}
+      {% include "_steps.html" %}
+      <div class="pair">
+        {% include "_thoughts.html" %}
+        {% include "_tools.html" %}
+      </div>
+      <section class="sheet feed" aria-labelledby="feed-h">
+        <h2 id="feed-h">Feed {{ pet.name }} a task</h2>
+        <form class="feed" method="post" action="/pets/{{ pet.id }}/tasks">
+          <textarea name="prompt_md" required placeholder="e.g. Write a short note about pgvector">{{ "" }}</textarea>
+          <div class="answers"><button class="btn primary">Give it this task</button></div>
+        </form>
+      </section>
+    </div>
+  </div>
+{% endblock %}

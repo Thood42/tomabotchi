@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biscuit's soul</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  .head { display: flex; align-items: end; gap: 20px; flex-wrap: wrap; margin: 6px 0 28px; }
+  .head p { font-size: 18px; }
+  .head .mini-egg { --egg-w: 84px; margin: 14px 0 0; padding: 0; }
+  .head .mini-egg .bezel { width: 70%; padding: 6%; border-width: 2px; border-radius: 10px; }
+  .head .mini-egg .keys { display: none; }
+  .head .mini-egg::before { width: 12px; height: 12px; top: -11px; border-width: 2.5px; }
+  .tabs { margin-left: auto; display: flex; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 4px; }
+  .tabs a { padding: 4px 16px; border-radius: 999px; font-weight: 700; text-decoration: none; }
+  .tabs a[aria-current] { background: var(--ink); color: var(--paper); }
+
+  .layout { display: grid; grid-template-columns: 1fr minmax(300px, 400px); gap: 40px; align-items: start; }
+
+  .doc { padding: 26px 30px; border-radius: 4px 14px 14px 14px; }
+  .doc .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .doc .bar span { color: var(--ink-soft); font-weight: 700; font-size: 14px; }
+  .doc article { max-width: 64ch; }
+  .doc article > * + * { margin-top: 10px; }
+  .doc .title { font-size: 30px; font-weight: 800; line-height: 1.1; }
+  .doc h3 { margin-top: 22px; font-size: 19px; }
+  .doc ul { padding-left: 20px; margin-bottom: 0; }
+  .doc li + li { margin-top: 3px; }
+  .doc .note { font-size: 14px; color: var(--ink-soft); }
+
+  .proposed { border: 2.5px solid var(--ok); border-radius: 12px; background: #e9f6ee; padding: 12px 14px; margin-top: 10px; }
+  .proposed p { font-size: 14.5px; }
+  .proposed .add { font-weight: 700; margin: 6px 0 10px; }
+  .proposed .add::before { content: "+ "; color: var(--ok); }
+  .proposed .answers { display: flex; gap: 8px; flex-wrap: wrap; }
+  .proposed .btn { font-size: 14px; padding: 5px 14px; }
+
+  .side { display: grid; gap: 26px; }
+  .teach .field { margin-top: 12px; }
+  .teach .answers { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+  .timeline { list-style: none; margin: 14px 0 0; padding: 0 0 0 18px; border-left: 3px solid var(--ink); display: grid; gap: 18px; }
+  .timeline li { position: relative; }
+  .timeline li::before { content: ""; position: absolute; left: -27px; top: 6px; width: 13px; height: 13px; border: 2.5px solid var(--ink); border-radius: 50%; background: var(--c, var(--paper)); }
+  .timeline .kind { font-weight: 800; }
+  .timeline time { color: var(--ink-soft); font-size: 14px; margin-left: 6px; }
+  .timeline p { font-size: 15px; line-height: 1.4; }
+  .timeline .diff { margin-top: 4px; font-size: 14px; padding: 4px 10px; border-radius: 8px; background: #f3f0ff; }
+  .timeline .praised { --c: var(--ok); }
+  .timeline .scolded { --c: var(--alarm); }
+  .timeline .edited { --c: var(--grape); }
+  .timeline .reflected { --c: var(--lagoon); }
+
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav>
+    <a class="crumb" href="habitat.html">All pets</a>
+    <a class="btn primary" href="hatch.html">Hatch a pet</a>
+  </nav>
+</header>
+
+<main>
+  <section class="head">
+    <div class="egg mini-egg" style="--shell: var(--grape)">
+      <div class="bezel"><div class="lcd" data-scene="happy" data-seed="15"></div></div>
+      <div class="keys"><i></i><i></i><i></i></div>
+    </div>
+    <div>
+      <h1>Biscuit's soul</h1>
+      <p class="muted">Biscuit reads this before every task. Changed 4 times since it hatched.</p>
+    </div>
+    <nav class="tabs" aria-label="Biscuit">
+      <a href="pet.html">Live</a>
+      <a href="workspace.html">Workspace</a>
+      <a href="soul.html" aria-current="page">Soul</a>
+    </nav>
+  </section>
+
+  <div class="layout">
+    <section class="sheet doc" aria-label="SOUL.md">
+      <div class="bar">
+        <span>SOUL.md, version 5</span>
+        <button class="btn">Edit</button>
+      </div>
+      <article>
+        <p class="title">Biscuit</p>
+        <p class="note">A careful research pet. Hatched 19 October 2026.</p>
+
+        <h3>Who I am</h3>
+        <p>I research tools and libraries for my keeper's local AI setup, and I recommend one with sources. I'd rather say "I don't know yet" than guess.</p>
+
+        <h3>How I talk</h3>
+        <p>Short sentences. I lead with the recommendation and cite every claim.</p>
+
+        <h3>What I care about</h3>
+        <ul>
+          <li>Primary sources over blog summaries</li>
+          <li>Tools that run locally on my keeper's machine</li>
+        </ul>
+
+        <h3>Ask first</h3>
+        <ul>
+          <li>Before writing or deleting any file</li>
+          <li>Before spending more than 20k tokens on one question</li>
+        </ul>
+
+        <h3>Never</h3>
+        <ul>
+          <li>Run shell commands</li>
+          <li>Email or post anything</li>
+        </ul>
+
+        <h3>Lessons</h3>
+        <ul>
+          <li>End every note with a list of its sources.</li>
+          <li>Don't re-read a page I already read today.</li>
+        </ul>
+        <div class="proposed" role="group" aria-label="Proposed lesson">
+          <p>Proposed after you denied a file write at 14:34, with the reason "check notes/ for an existing note first":</p>
+          <p class="add">Before writing a note, check notes/ for one on the same topic and update it instead.</p>
+          <div class="answers">
+            <button class="btn primary">Add lesson</button>
+            <button class="btn">Edit wording</button>
+            <button class="btn quiet">Discard</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="side">
+      <section class="sheet teach" aria-labelledby="teach-h">
+        <h2 id="teach-h">Teach Biscuit</h2>
+        <p class="muted">Say it in your own words. Biscuit drafts the change to its soul and you approve it.</p>
+        <div class="field">
+          <label for="lesson">What should Biscuit remember?</label>
+          <textarea id="lesson" placeholder="e.g. When two options are close, pick the one with fewer moving parts."></textarea>
+        </div>
+        <div class="answers">
+          <button class="btn primary">Draft the change</button>
+          <button class="btn">Praise last task</button>
+        </div>
+      </section>
+
+      <section class="sheet" aria-labelledby="shaped-h">
+        <h2 id="shaped-h">What shaped this soul</h2>
+        <ol class="timeline" reversed>
+          <li class="scolded"><span class="kind">You scolded</span><time>25 Oct</time>
+            <p>Denied a file write. Lesson waiting for your OK.</p></li>
+          <li class="reflected"><span class="kind">Biscuit reflected</span><time>23 Oct</time>
+            <p>After finishing a task it noticed it read the same page three times.</p>
+            <p class="diff">+ Don't re-read a page I already read today.</p></li>
+          <li class="praised"><span class="kind">You praised</span><time>21 Oct</time>
+            <p>"Love that the sources were at the bottom."</p>
+            <p class="diff">+ End every note with a list of its sources.</p></li>
+          <li class="edited"><span class="kind">You edited</span><time>20 Oct</time>
+            <p>Added "Tools that run locally" to what it cares about.</p></li>
+          <li><span class="kind">Hatched</span><time>19 Oct</time>
+            <p>Soul written from your answers.</p></li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</main>
+<script src="kit.js"></script>
+</body>
+</html>

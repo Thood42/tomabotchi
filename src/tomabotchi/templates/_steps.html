@@ -1,0 +1,22 @@
+<section id="steps-{{ pet.id }}" data-live class="sheet" aria-label="Task">
+  {% if task %}
+    <h2>{{ task.prompt }}</h2>
+    {% if steps %}
+      <div class="steps" style="margin-top: 14px" aria-label="Step {{ step_now }} of {{ steps|length }}">
+        {%- for s in steps %}<i class="{{ 'done' if s.status == 'completed' else 'now' if s.status == 'in_progress' else '' }}"></i>{% endfor -%}
+      </div>
+      <ol class="task-steps">
+        {% for s in steps %}
+          <li><span class="n">{{ loop.index }}</span><span class="{{ s.status }}">{{ s.content }}</span>
+            <span class="t muted">{% if s.status == 'in_progress' and call %}waiting on you{% endif %}</span></li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty-note">{{ "Working out a plan..." if working else "No steps were recorded." }}</p>
+    {% endif %}
+    {% if not working %}<p class="empty-note">Finished: {{ task.state }}.</p>{% endif %}
+  {% else %}
+    <h2>No task yet</h2>
+    <p class="empty-note">{{ pet.name }} is hungry. Feed it a task below.</p>
+  {% endif %}
+</section>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory shelf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  /* dusk version of the shelf: same toy, lights turned down */
+  body { --shelf: #c9c4e6; --shelf-dot: #b9b3dc; }
+  .intro { margin: 12px 0 36px; }
+  .intro p { max-width: 58ch; margin-top: 8px; font-size: 19px; }
+  .rested { list-style: none; margin: 0; padding: 0; display: grid; gap: 30px; }
+  .rested > li { display: grid; grid-template-columns: 170px 1fr; gap: 32px; align-items: center; }
+  .rested .egg { --egg-w: 160px; filter: saturate(0.35) brightness(0.95); }
+  .rested .egg .lcd { background: #9aa58a; }
+  .card { display: grid; gap: 10px; }
+  .card .who { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .card .who span { color: var(--ink-soft); }
+  .facts { display: grid; grid-template-columns: auto 1fr; gap: 2px 18px; margin: 0; font-size: 15.5px; }
+  .facts dt { font-weight: 700; }
+  .facts dd { margin: 0; }
+  .facts code { font-size: 13px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  .shelf-edge { height: 14px; margin-top: 40px; border: 2.5px solid var(--ink); border-radius: 4px; background: var(--paper); box-shadow: 5px 5px 0 var(--ink); }
+  .where { margin-top: 18px; color: var(--ink-soft); }
+  @media (max-width: 700px) { .rested > li { grid-template-columns: 1fr; justify-items: center; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav>
+    <a class="crumb" href="habitat.html">All pets</a>
+    <a class="crumb" href="settings.html">Settings</a>
+  </nav>
+</header>
+
+<main>
+  <section class="intro">
+    <h1>Memory shelf</h1>
+    <p class="muted">Retired pets rest here. Nobody dies in tomabotchi. When you retire a pet, its workspace is packed into a backup and its soul is kept, so you can download either or hatch a new pet from that soul.</p>
+  </section>
+
+  <ul class="rested">
+    <li>
+      <div class="egg" style="--shell: var(--lagoon)">
+        <div class="bezel"><div class="lcd" data-scene="sleep" data-seed="37"></div></div>
+        <div class="keys"><i></i><i></i><i></i></div>
+      </div>
+      <section class="sheet card">
+        <div class="who"><h2>Noodle</h2><span>Adult. Lived 34 days, finished 52 tasks.</span></div>
+        <dl class="facts">
+          <dt>Retired</dt><dd>12 October 2026. "Replaced by Ziggy for test fixing."</dd>
+          <dt>Home</dt><dd>Node.js</dd>
+          <dt>Backup</dt><dd><code>noodle-2026-10-12.zip</code>, 48 MB</dd>
+        </dl>
+        <div class="actions">
+          <button class="btn">Download backup</button>
+          <a class="btn" href="soul.html">Read its soul</a>
+          <a class="btn primary" href="hatch.html">Hatch a new pet from this soul</a>
+        </div>
+      </section>
+    </li>
+    <li>
+      <div class="egg" style="--shell: var(--tangerine)">
+        <div class="bezel"><div class="lcd" data-scene="sleep" data-seed="22"></div></div>
+        <div class="keys"><i></i><i></i><i></i></div>
+      </div>
+      <section class="sheet card">
+        <div class="who"><h2>Pip</h2><span>Kid. Lived 4 days, finished 3 tasks.</span></div>
+        <dl class="facts">
+          <dt>Retired</dt><dd>2 October 2026. "Kept getting stuck on paywalled sites."</dd>
+          <dt>Home</dt><dd>Web browser</dd>
+          <dt>Backup</dt><dd><code>pip-2026-10-02.zip</code>, 112 MB</dd>
+        </dl>
+        <div class="actions">
+          <button class="btn">Download backup</button>
+          <a class="btn" href="soul.html">Read its soul</a>
+          <a class="btn primary" href="hatch.html">Hatch a new pet from this soul</a>
+        </div>
+      </section>
+    </li>
+  </ul>
+
+  <div class="shelf-edge" aria-hidden="true"></div>
+  <p class="where">Backups are kept in the archive folder on the machine that runs tomabotchi, next to everything else it stores.</p>
+</main>
+<script src="kit.js"></script>
+</body>
+</html>

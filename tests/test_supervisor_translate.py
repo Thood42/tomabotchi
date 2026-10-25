@@ -1,0 +1,58 @@
+from datetime import datetime, timezone
+
+from tomabotchi.supervisor import _permission_result, translate
+
+NOW = datetime(2026, 10, 25, tzinfo=timezone.utc)
+
+
+def tr(update, index=None):
+    return translate(update, pet_id="p1", task_id=1, tool_index={} if index is None else index, now=NOW)
+
+
+def test_thought_chunk_to_thought_event():
+    [ev] = tr({"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": "Hmm."}})
+    assert (ev.kind, ev.payload) == ("thought", {"text": "Hmm."})
+
+
+def test_empty_chunk_is_dropped():
+    assert tr({"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": ""}}) == []
+
+
+def test_tool_call_then_update_completed():
+    index = {}
+    [call] = tr({"sessionUpdate": "tool_call", "toolCallId": "t1", "title": "Write notes/a.md", "kind": "edit",
+                 "status": "pending", "locations": [{"path": "/workspace/notes/a.md"}],
+                 "rawInput": {"path": "notes/a.md"}}, index)
+    assert call.kind == "tool_call"
+    assert call.payload["paths"] == ["/workspace/notes/a.md"]
+    [upd] = tr({"sessionUpdate": "tool_call_update", "toolCallId": "t1", "status": "completed"}, index)
+    assert upd.kind == "tool_update"
+    assert upd.payload == {"id": "t1", "status": "completed", "tool": "Write notes/a.md",
+                           "title": "Write notes/a.md", "args": {"path": "notes/a.md"}}
+
+
+def test_plan_update_keeps_entries():
+    entries = [{"content": "a", "priority": "high", "status": "completed"}]
+    [ev] = tr({"sessionUpdate": "plan", "entries": entries})
+    assert (ev.kind, ev.payload) == ("plan", {"entries": entries})
+
+
+def test_unknown_update_kind_becomes_notice():
+    [ev] = tr({"sessionUpdate": "available_commands_update", "availableCommands": []})
+    assert ev.kind == "notice"
+    assert ev.payload["type"] == "available_commands_update"
+
+
+OPTIONS = [{"optionId": "a1", "kind": "allow_once"}, {"optionId": "r1", "kind": "reject_once"}]
+
+
+def test_permission_result_picks_option_by_kind():
+    assert _permission_result("reject_once", OPTIONS) == {"outcome": {"outcome": "selected", "optionId": "r1"}}
+
+
+def test_allow_always_falls_back_to_allow_once_when_not_offered():
+    assert _permission_result("allow_always", OPTIONS) == {"outcome": {"outcome": "selected", "optionId": "a1"}}
+
+
+def test_timeout_cancels():
+    assert _permission_result("timeout", OPTIONS) == {"outcome": {"outcome": "cancelled"}}

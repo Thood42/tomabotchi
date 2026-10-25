@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biscuit up close</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="kit.css">
+<style>
+  .head { display: flex; align-items: end; gap: 20px; flex-wrap: wrap; margin: 6px 0 28px; }
+  .head p { font-size: 18px; }
+  .tabs { margin-left: auto; display: flex; gap: 6px; background: var(--paper); border: 2.5px solid var(--ink); border-radius: 999px; padding: 4px; }
+  .tabs a { padding: 4px 16px; border-radius: 999px; font-weight: 700; text-decoration: none; }
+  .tabs a[aria-current] { background: var(--ink); color: var(--paper); }
+
+  .layout { display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 40px; align-items: start; }
+  .left { display: grid; gap: 34px; justify-items: center; }
+  .layout > * { min-width: 0; }
+  .egg.big { --egg-w: 400px; aspect-ratio: 0.7; gap: 4%; justify-content: flex-end; padding: 0 0 12%; }
+  .egg.big .bezel { width: 76%; padding: 3% 4% 4%; }
+  .icons { display: flex; justify-content: space-between; }
+  .icons .ico { min-width: 0; }
+  @media (max-width: 480px) {
+    .icons .ico { font-size: 10.5px; padding: 4px 1px; }
+    .icons .ico svg { width: 19px; }
+  }
+  .icons.upper { margin-bottom: 4px; }
+  .icons.lower { margin-top: 4px; }
+  .keys.labelled > * { display: grid; place-items: center; font: 800 13px/1 "Baloo 2"; color: var(--ink); cursor: pointer; padding: 0; }
+
+  .vitals { width: 100%; }
+  .vitals dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; margin: 0; align-items: center; }
+  .vitals dt { font-weight: 700; }
+  .vitals dd { margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vitals dd small { color: var(--ink-soft); font-size: 14px; }
+  .bar { height: 12px; width: 120px; border: 2px solid var(--ink); border-radius: 3px; background: linear-gradient(90deg, var(--ink) var(--v), transparent var(--v)); }
+
+  .right { display: grid; gap: 26px; }
+  .call { border-color: var(--alarm); box-shadow: 5px 5px 0 var(--alarm); }
+  .call .title { display: flex; gap: 12px; align-items: center; color: var(--alarm); }
+  .call .title [data-icon] svg { width: 30px; }
+  .call .title [data-icon] svg .on { fill: var(--alarm); }
+  .call .why { margin-top: 6px; }
+  .req { margin: 14px 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+  .req dt { font-weight: 700; }
+  .req dd { margin: 0; }
+  .call pre { margin: 0 0 16px; padding: 12px 14px; background: #f3f0ff; border: 2px solid var(--ink); border-radius: 10px; white-space: pre-wrap; max-height: 150px; overflow: auto; }
+  .answers { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .call .field { margin-top: 4px; }
+
+  .task-steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 6px; }
+  .task-steps li { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: baseline; }
+  .task-steps .n { font-weight: 800; }
+  .task-steps .done { color: var(--ink-soft); text-decoration: line-through; text-decoration-thickness: 2px; }
+  .task-steps .now { font-weight: 700; }
+  .task-steps .t { font-size: 14px; color: var(--ink-soft); }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  .thoughts { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+  .thoughts li { position: relative; background: #f3f0ff; border: 2px solid var(--ink); border-radius: 18px; padding: 8px 14px; font-size: 15.5px; line-height: 1.4; }
+  .thoughts li::after { content: ""; position: absolute; left: 18px; bottom: -9px; width: 8px; height: 8px; border: 2px solid var(--ink); border-radius: 50%; background: #f3f0ff; }
+  .thoughts time { display: block; font-size: 13px; color: var(--ink-soft); }
+  .thoughts li.live { background: var(--lcd); }
+  .thoughts li.live::after { background: var(--lcd); }
+
+  .tools { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 2px; }
+  .tools li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 0; border-bottom: 2px dotted var(--shelf-dot); }
+  .tools b { font-weight: 700; }
+  .tools code { grid-column: 1; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12.5px; }
+  .tools .res { font-size: 14px; color: var(--ok); font-weight: 700; }
+  .tools .res.wait { color: var(--alarm); }
+  .rules { margin-top: 14px; font-size: 14.5px; display: grid; gap: 2px; }
+
+  .numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 18px; margin-top: 14px; }
+  .numbers div strong { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; }
+  .numbers div span { font-size: 14px; color: var(--ink-soft); }
+
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .left { position: static; }
+    .pair { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="habitat.html"><span class="lcd mini" data-scene="eggmini"></span>tomabotchi</a>
+  <nav>
+    <a class="crumb" href="habitat.html">All pets</a>
+    <a class="btn primary" href="hatch.html">Hatch a pet</a>
+  </nav>
+</header>
+
+<main>
+  <section class="head">
+    <div>
+      <h1>Biscuit</h1>
+      <p class="muted">Research pet. Teen, day 6, 14 tasks done.</p>
+    </div>
+    <nav class="tabs" aria-label="Biscuit">
+      <a href="pet.html" aria-current="page">Live</a>
+      <a href="workspace.html">Workspace</a>
+      <a href="soul.html">Soul</a>
+    </nav>
+  </section>
+
+  <div class="layout">
+    <div class="left">
+      <div class="egg big calling" style="--shell: var(--grape)">
+        <div class="bezel">
+          <div class="icons upper">
+            <button class="ico" data-icon="task">Task</button>
+            <button class="ico" data-icon="lights">Lights</button>
+            <button class="ico" data-icon="chat">Chat</button>
+            <button class="ico" data-icon="medicine">Medicine</button>
+          </div>
+          <div class="lcd" data-scene="alert" data-seed="15"></div>
+          <div class="icons lower">
+            <button class="ico" data-icon="tidy">Tidy</button>
+            <button class="ico" data-icon="vitals">Vitals</button>
+            <button class="ico" data-icon="train">Train</button>
+            <button class="ico lit" data-icon="calls">Calls</button>
+          </div>
+        </div>
+        <div class="keys labelled">
+          <button aria-label="A: next icon">A</button>
+          <button aria-label="B: use icon">B</button>
+          <button aria-label="C: back">C</button>
+        </div>
+      </div>
+
+      <section class="sheet vitals" aria-labelledby="vitals-h">
+        <h2 id="vitals-h">Vitals</h2>
+        <dl>
+          <dt>Hunger</dt><dd><span class="hearts" data-hearts="4/4"></span><small>Has a task</small></dd>
+          <dt>Happy</dt><dd><span class="hearts" data-hearts="3/4"></span><small>9 of 10 steps went well</small></dd>
+          <dt>Energy</dt><dd><span class="hearts" data-hearts="2/4"></span><small>41% of budget left</small></dd>
+          <dt>Health</dt><dd><span class="hearts" data-hearts="4/4"></span><small>No errors or loops</small></dd>
+          <dt>Mess</dt><dd><small>Tidy. Memory is 38% full</small></dd>
+          <dt>Discipline</dt><dd><span class="bar" style="--v: 90%"></span><small>Asked first 9 of 10 times</small></dd>
+        </dl>
+      </section>
+
+      <section class="sheet vitals" aria-labelledby="home-h">
+        <h2 id="home-h">Home</h2>
+        <p class="muted" style="margin-top: 6px">Python (default), with a Hermes brain on qwen3.6:35b. Its own sealed container, running for 41 min.</p>
+        <dl style="margin-top: 12px">
+          <dt>Memory</dt><dd><span class="bar" style="--v: 15%"></span><small>310 MB of 2 GB</small></dd>
+          <dt>CPU</dt><dd><span class="bar" style="--v: 12%"></span><small>12% of 1 core</small></dd>
+          <dt>Workspace</dt><dd><small>14 files, 3.2 MB</small></dd>
+          <dt>Network</dt><dd><small>Web only, no access to your machine</small></dd>
+        </dl>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px">
+          <a class="btn" href="workspace.html">Open workspace</a>
+          <button class="btn quiet" onclick="document.getElementById('retire').showModal()">Retire Biscuit</button>
+        </div>
+      </section>
+    </div>
+
+    <dialog id="retire" class="sheet" aria-labelledby="retire-h" style="max-width: 460px; color: var(--ink)">
+      <h2 id="retire-h">Retire Biscuit?</h2>
+      <p style="margin-top: 10px">Biscuit stops working and moves to the memory shelf. Its workspace is packed into a backup in the archive folder, and its soul is kept. You can hatch a new pet from that soul any time.</p>
+      <div class="field" style="margin-top: 14px">
+        <label for="retire-why">Why are you retiring it? (optional)</label>
+        <input id="retire-why" type="text" placeholder="e.g. replaced by a pet with a browser home">
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 18px">
+        <button class="btn alarm">Retire Biscuit</button>
+        <button class="btn quiet" onclick="this.closest('dialog').close()">Keep Biscuit</button>
+      </div>
+    </dialog>
+
+    <div class="right">
+      <section class="sheet call" aria-labelledby="call-h">
+        <div class="title"><span data-icon="calls"></span><h2 id="call-h">Biscuit is calling you</h2></div>
+        <p class="why">It wants to create a new file. Its soul says to ask before writing any file. Waiting 0:48.</p>
+        <dl class="req">
+          <dt>Tool</dt><dd>Write a file</dd>
+          <dt>File</dt><dd><code>notes/vector-db-compare.md</code> (new, 2.1 KB)</dd>
+        </dl>
+        <pre># Vector database for the hub
+Recommendation: pgvector.
+
+It runs inside the Postgres that Langfuse already uses, and at ~40k
+vectors the speed gap with Qdrant doesn't matter yet. Revisit at 5M.
+...</pre>
+        <div class="field">
+          <label for="why">Tell Biscuit why (optional)</label>
+          <input id="why" type="text" placeholder="e.g. check notes/ for an existing note on this first">
+          <span class="hint">If you deny with a reason, it's offered to Biscuit's soul as a new lesson.</span>
+        </div>
+        <div class="answers">
+          <button class="btn primary">Allow once</button>
+          <button class="btn">Always allow in notes/</button>
+          <button class="btn alarm">Deny</button>
+        </div>
+      </section>
+
+      <section class="sheet" aria-labelledby="task-h">
+        <h2 id="task-h">Compare vector databases for the hub and recommend one</h2>
+        <div class="steps" style="margin-top: 14px" aria-label="Step 3 of 5"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+        <ol class="task-steps">
+          <li><span class="n">1</span><span class="done">Read the hub's requirements</span><span class="t">2 min</span></li>
+          <li><span class="n">2</span><span class="done">Research pgvector, Qdrant and LanceDB</span><span class="t">31 min</span></li>
+          <li><span class="n">3</span><span class="now">Write the comparison note</span><span class="t">waiting on you</span></li>
+          <li><span class="n">4</span><span>Check every claim has a source</span><span class="t"></span></li>
+          <li><span class="n">5</span><span>Report back with one recommendation</span><span class="t"></span></li>
+        </ol>
+      </section>
+
+      <div class="pair">
+        <section class="sheet" aria-labelledby="think-h">
+          <h2 id="think-h">Thinking</h2>
+          <ol class="thoughts">
+            <li><time>14:02</time>You want a recommendation, not a survey. I'll lead with one pick and justify it.</li>
+            <li><time>14:21</time>pgvector keeps everything in the Postgres that Langfuse already runs. Qdrant is faster past 10M vectors, but we're at about 40k.</li>
+            <li class="live"><time>14:33, now</time>I have enough to write the note. Writing a file needs permission, so I'm asking.</li>
+          </ol>
+        </section>
+
+        <section class="sheet" aria-labelledby="tools-h">
+          <h2 id="tools-h">Tools used</h2>
+          <ul class="tools">
+            <li><b>Web search</b><span class="res">done 1.4s</span><code>pgvector vs qdrant benchmarks 2026</code></li>
+            <li><b>Read page</b><span class="res">done 2.2s</span><code>qdrant.tech/benchmarks</code></li>
+            <li><b>Read page</b><span class="res">done 0.9s</span><code>github.com/pgvector/pgvector</code></li>
+            <li><b>Read file</b><span class="res">done</span><code>notes/hub-requirements.md</code></li>
+            <li><b>Write file</b><span class="res wait">needs you</span><code>notes/vector-db-compare.md</code></li>
+          </ul>
+          <div class="rules">
+            <span><b>Free to use:</b> web search, read page, read file</span>
+            <span><b>Asks first:</b> write file</span>
+            <span><b>Never:</b> run shell commands, send email</span>
+          </div>
+        </section>
+      </div>
+
+      <section class="sheet" aria-labelledby="num-h">
+        <h2 id="num-h">This task so far</h2>
+        <div class="numbers">
+          <div><strong>58.9k</strong><span>of 100k tokens</span></div>
+          <div><strong>$0.00</strong><span>runs on your local model</span></div>
+          <div><strong>41 min</strong><span>running</span></div>
+          <div><strong>11</strong><span>tool calls, none failed</span></div>
+          <div><strong>2</strong><span>calls to you, 1m 10s typical wait</span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+<script src="kit.js"></script>
+</body>
+</html>

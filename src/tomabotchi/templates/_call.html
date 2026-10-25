@@ -1,0 +1,25 @@
+{% if call %}
+{% set tc = call.tool_call %}
+<section id="call-{{ pet.id }}" data-live class="sheet call-card" aria-labelledby="call-h-{{ pet.id }}">
+  <div class="title"><span data-icon="calls"></span><h2 id="call-h-{{ pet.id }}">{{ pet.name }} is calling you</h2></div>
+  <p class="why">It wants to {{ (tc.title or "use a tool")[:1]|lower }}{{ (tc.title or "use a tool")[1:] }}. Its rules say to ask you first.</p>
+  <dl class="req">
+    <dt>Tool</dt><dd>{{ tc.title or "A tool" }} <span class="muted">({{ tc.kind or "other" }})</span></dd>
+    {% for loc in tc.locations or [] %}<dt>File</dt><dd><code>{{ loc.path }}</code></dd>{% endfor %}
+  </dl>
+  {% if tc.rawInput and tc.rawInput.content %}<pre>{{ tc.rawInput.content }}</pre>{% endif %}
+  <form hx-post="/calls/{{ call.id }}" hx-target="#call-{{ pet.id }}" hx-swap="outerHTML">
+    <div class="field">
+      <label for="why-{{ call.id }}">Tell {{ pet.name }} why (optional)</label>
+      <input id="why-{{ call.id }}" name="reason" type="text" placeholder="e.g. check notes/ for an existing note first">
+    </div>
+    <div class="answers">
+      <button class="btn primary" name="option" value="allow_once">Allow once</button>
+      <button class="btn" name="option" value="allow_always">Always allow</button>
+      <button class="btn alarm" name="option" value="reject_once">Deny</button>
+    </div>
+  </form>
+</section>
+{% else %}
+<div id="call-{{ pet.id }}" data-live hidden></div>
+{% endif %}
