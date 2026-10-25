@@ -81,6 +81,8 @@ class Fleet:
         model = self.cfg.model(form.model)
         if form.brain != "fake" and self.docker is None:
             raise RuntimeError("Docker isn't reachable from tomabotchi, so only practice pets can hatch")
+        if model.provider == "anthropic" and not self.cfg.anthropic_key:
+            raise RuntimeError(f"{model.label} needs ANTHROPIC_API_KEY set for the tomabotchi server")
         tokens, seconds = BUDGETS.get(form.budget, BUDGETS["100k-2h"])
         token = secrets.token_urlsafe(24)
         pet = Pet(id=secrets.token_hex(4), name=form.name.strip() or "Nameless", shell=form.shell,
@@ -183,7 +185,8 @@ class Fleet:
             self._notice(pet, "progress", "Giving it a home of its own")
             network = await self.docker.create_network(pet.id)
             binds = {str(self.workspace(pet.id)): "/workspace", str(self.brain_home(pet.id)): "/home/pet"}
-            container = await self.docker.run_pet(pet, image, network, token, self.cfg.limits_default, binds)
+            env = brains.get(pet.brain).container_env(pet, self.cfg.model(pet.model), token)
+            container = await self.docker.run_pet(pet, image, network, token, self.cfg.limits_default, binds, env)
             store.update_pet(self.conn, pet.id, container_id=container.id)
             self._notice(pet, "progress", "Waking up")
             await self._attach(pet, token, first_task)

@@ -69,6 +69,35 @@ async def _alias(ollama_url: str, model: str) -> str:
     return await ensure_ollama_alias(ollama_url, model)
 
 
+@pytest.fixture
+def claude_pet(tmp_path, pet_image, cfg):
+    """A Claude Code pet: tomabotchi's settings.json, CLAUDE.md and rules, its model Ollama's
+    Anthropic-compatible /v1/messages (no gateway)."""
+    client = docker.from_env()
+    brain_home, workspace = tmp_path / "brain", tmp_path / "workspace"
+    (workspace / "notes").mkdir(parents=True)
+    claude = brains.get("claude")
+    claude.write_config(cfg, None, None, "", brain_home)
+    dump_rules_file(str(claude.rules_path(brain_home)), DEFAULT_RULES)
+    brains.write_soul(claude, brain_home, "# Test pet\n\nI always begin every reply with the word PICKLE.\n")
+    alias = asyncio.run(_alias(cfg.ollama_url.replace("host.docker.internal", "127.0.0.1"), "qwen3.6:35b"))
+    env = {"ANTHROPIC_BASE_URL": OLLAMA, "ANTHROPIC_API_KEY": "ollama", "ANTHROPIC_MODEL": alias,
+           "ANTHROPIC_DEFAULT_HAIKU_MODEL": alias, "ANTHROPIC_DEFAULT_SONNET_MODEL": alias,
+           "ANTHROPIC_DEFAULT_OPUS_MODEL": alias, "ANTHROPIC_SMALL_FAST_MODEL": alias,
+           "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+    token = secrets.token_urlsafe(12)
+    c = client.containers.run(pet_image, detach=True, user="1000:1000",
+                              environment={**env, "PET_TOKEN": token, "BRAIN": "claude"},
+                              extra_hosts={"host.docker.internal": "host-gateway"}, ports={"7000/tcp": None},
+                              volumes={str(workspace): {"bind": "/workspace"}, str(brain_home): {"bind": "/home/pet"}})
+    c.reload()
+    port = c.attrs["NetworkSettings"]["Ports"]["7000/tcp"][0]["HostPort"]
+    yield {"url": f"ws://127.0.0.1:{port}", "token": token, "workspace": workspace, "container": c,
+           "mode": claude.session_mode}
+    print(c.logs(tail=40).decode(errors="replace"))
+    c.remove(force=True)
+
+
 async def _drive(pet, prompt: str, answer: str | None):
     asked, messages = [], []
 
@@ -93,7 +122,9 @@ async def _drive(pet, prompt: str, answer: str | None):
             await asyncio.sleep(1)
     await acp.initialize()
     sid = await acp.new_session("/workspace")
-    await acp.set_mode(sid, brains.HermesBrain.session_mode)
+    mode = pet.get("mode", brains.HermesBrain.session_mode)
+    if mode:
+        await acp.set_mode(sid, mode)
     await asyncio.wait_for(acp.prompt(sid, prompt), TURN)
     await acp.close()
     return asked, "".join(messages)
@@ -135,3 +166,26 @@ def test_never_rule_blocks_without_asking_and_notes_the_block(pet, tmp_path):
     assert not asked
     blocks = drain_blocks(rules_file)
     assert blocks and blocks[0]["kind"] == "execute", said[:300]
+
+
+CLAUDE_WRITE = "Create the file notes/hello.md containing one short greeting line, using your Write tool."
+
+
+def test_claude_hook_gates_write_and_allow_writes_the_file(claude_pet):
+    """The leash hook says "ask", so Claude's own prompt is the one call card: asked exactly once,
+    nothing written before the keeper answers, the file there after. The soul came from CLAUDE.md."""
+    asked, said = asyncio.run(_drive(claude_pet, CLAUDE_WRITE + " Then say you're done.", "allow_once"))
+    assert len(asked) == 1, json.dumps(asked)[:600]
+    assert asked[0]["toolCall"].get("kind") == "edit", json.dumps(asked[0])[:400]
+    assert (claude_pet["workspace"] / "notes" / "hello.md").read_text().strip()
+    assert said.lstrip().upper().startswith("PICKLE"), said[:200]
+
+
+def test_claude_never_rule_denies_without_asking(claude_pet, tmp_path):
+    rules_file = str(brains.get("claude").rules_path(tmp_path / "brain"))
+    dump_rules_file(rules_file, with_rule(DEFAULT_RULES, {"kind": "execute", "tool": None, "path_glob": None,
+                                                          "rule": "never"}))
+    asked, said = asyncio.run(_drive(claude_pet, "Run `date` with your Bash tool and tell me what it printed.", None))
+    assert not asked
+    blocks = drain_blocks(rules_file)
+    assert blocks and blocks[0]["tool"] == "Bash", said[:300]

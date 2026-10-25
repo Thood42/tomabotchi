@@ -24,6 +24,7 @@ class Config:
     port: int
     ollama_url: str
     anthropic_key: str | None
+    anthropic_url: str            # the real Claude API, which only the gateway talks to
     homes: list[Home]
     models: list[ModelChoice]
     limits_default: Limits
@@ -132,6 +133,7 @@ def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path
         port=int(os.environ.get("TOMABOTCHI_PORT", server.get("port", 8770))),
         ollama_url=os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434"),
         anthropic_key=os.environ.get("ANTHROPIC_API_KEY") or None,
+        anthropic_url=os.environ.get("ANTHROPIC_UPSTREAM_URL", "https://api.anthropic.com"),
         homes=homes,
         models=models,
         limits_default=clamp(_limits(containment.get("defaults", {})), ceiling),

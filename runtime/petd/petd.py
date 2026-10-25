@@ -23,6 +23,8 @@ log = logging.getLogger("petd")
 
 AGENT_ARGV = {
     "hermes": ["/opt/hermes/.venv/bin/python", "-m", "acp_adapter"],
+    "claude": ["/opt/tomabotchi/code-server/lib/node",
+               "/opt/tomabotchi/claude/node_modules/@agentclientprotocol/claude-agent-acp/dist/index.js"],
 }
 CODE_SERVER = ["/opt/tomabotchi/code-server/bin/code-server", "--auth", "none", "--bind-addr", "0.0.0.0:8080",
                "--disable-telemetry", "--disable-update-check", "--disable-workspace-trust", "/workspace"]

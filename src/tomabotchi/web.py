@@ -92,7 +92,7 @@ def shelf(request: Request):
 def hatch_page(request: Request):
     cfg = request.app.state.cfg
     return _page("hatch.html", homes=cfg.homes, models=cfg.models, shells=views.SHELLS,
-                 seed=random.randrange(1, 99999))
+                 seed=random.randrange(1, 99999), anthropic_ready=bool(cfg.anthropic_key))
 
 
 @app.get("/pets/{pet_id}", response_class=HTMLResponse)

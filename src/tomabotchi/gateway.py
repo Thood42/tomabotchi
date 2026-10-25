@@ -2,7 +2,8 @@
 
 Pets authenticate with their token. The gateway forwards to Ollama, meters tokens per pet and task
 (the Energy hearts), enforces the budget, and keeps real API keys out of pet containers.
-Slice 2 carries the OpenAI-compatible route; the Anthropic route arrives with the Claude brain.
+Two routes: OpenAI-compatible (Hermes on Ollama) and Anthropic Messages (Claude Code on either
+model, and Hermes on Claude), which goes to the Claude API or to Ollama's own /v1/messages.
 """
 from __future__ import annotations
 
@@ -74,6 +75,58 @@ def meter_openai_stream(chunks: Iterable[bytes]) -> Metered:
     return Metered(prompt, completion, "".join(reasoning) or None)
 
 
+def _sse_events(chunks: Iterable[bytes]):
+    buf = b""
+    for chunk in chunks:
+        buf += chunk
+        while b"\n" in buf:
+            line, buf = buf.split(b"\n", 1)
+            line = line.strip()
+            if line.startswith(b"data:"):
+                try:
+                    yield json.loads(line[5:].strip())
+                except ValueError:
+                    continue
+
+
+def _anthropic_input(usage: dict) -> int:
+    return (usage.get("input_tokens") or 0) + (usage.get("cache_creation_input_tokens") or 0) + \
+        (usage.get("cache_read_input_tokens") or 0)
+
+
+def meter_anthropic_stream(chunks: Iterable[bytes]) -> Metered:
+    """Read an Anthropic Messages SSE stream: input tokens from message_start, output tokens from
+    the last message_delta, and thinking text from thinking deltas."""
+    prompt = completion = 0
+    thinking: list[str] = []
+    for ev in _sse_events(chunks):
+        t = ev.get("type")
+        if t == "message_start":
+            usage = (ev.get("message") or {}).get("usage") or {}
+            prompt, completion = _anthropic_input(usage), usage.get("output_tokens") or completion
+        elif t == "message_delta":
+            usage = ev.get("usage") or {}
+            completion = usage.get("output_tokens", completion)
+            if usage.get("input_tokens"):
+                prompt = _anthropic_input(usage)
+        elif t == "content_block_delta" and (ev.get("delta") or {}).get("type") == "thinking_delta":
+            thinking.append(ev["delta"].get("thinking", ""))
+    return Metered(prompt, completion, "".join(thinking) or None)
+
+
+def meter_anthropic_json(data: dict) -> Metered:
+    usage = data.get("usage") or {}
+    thinking = "".join(b.get("thinking", "") for b in data.get("content") or [] if b.get("type") == "thinking")
+    return Metered(_anthropic_input(usage), usage.get("output_tokens") or 0, thinking or None)
+
+
+def meter_openai_json(data: dict) -> Metered:
+    u = data.get("usage") or {}
+    msg = ((data.get("choices") or [{}])[0].get("message") or {})
+    return Metered(u.get("prompt_tokens", 0), u.get("completion_tokens", 0),
+                   msg.get("reasoning_content") or msg.get("reasoning"))
+
+
 def _pet_for_token(request: Request, token: str) -> Pet:
     conn = request.app.state.conn
     pet = store.pet_by_token_hash(conn, hashlib.sha256(token.encode()).hexdigest())
@@ -113,13 +166,9 @@ async def models(request: Request, token: str):
                                         "context_length": brains.OLLAMA_CONTEXT}]}
 
 
-@router.post("/{token}/v1/chat/completions")
-async def openai_chat(request: Request, token: str):
-    pet = _pet_for_token(request, token)
-    cfg, conn = request.app.state.cfg, request.app.state.conn
-    choice = cfg.model(pet.model)
-    if choice.provider != "ollama":
-        raise HTTPException(400, f"{choice.label} is served on the Anthropic route")
+def _gate(request: Request, pet: Pet) -> tuple[int | None, JSONResponse | None]:
+    """The task a model call counts against, or a 429 when the pet is out of budget."""
+    conn = request.app.state.conn
     task = store.current_task(conn, pet.id)
     task_id = task.id if task and task.state in ("running", "waiting") else None
     used = store.task_tokens(conn, task_id) if task_id else 0
@@ -130,27 +179,23 @@ async def openai_chat(request: Request, token: str):
         on_budget = getattr(request.app.state, "on_budget", None)
         if on_budget:
             on_budget(pet.id, str(e))
-        return JSONResponse({"error": {"message": f"{e}. Ask your keeper for more.", "type": "budget_exceeded"}},
-                            status_code=429)
-    body = await request.json()
-    body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
-    url = f"{cfg.ollama_url}/v1/chat/completions"
-    client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10))
+        return task_id, JSONResponse({"type": "error", "error": {"message": f"{e}. Ask your keeper for more.",
+                                                                 "type": "budget_exceeded"}}, status_code=429)
+    return task_id, None
 
+
+async def _relay(request: Request, pet: Pet, task_id: int | None, model: str, url: str, body: dict,
+                 headers: dict[str, str], meter_stream, meter_json) -> Response:
+    """Forward one model call, stream the answer back, and meter it once it's done."""
+    client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10))
     if not body.get("stream"):
-        r = await client.post(url, json=body)
+        r = await client.post(url, json=body, headers=headers)
         await client.aclose()
         if r.status_code == 200:
-            data = r.json()
-            u = data.get("usage") or {}
-            msg = ((data.get("choices") or [{}])[0].get("message") or {})
-            _record(request, pet, task_id, choice.model, Metered(u.get("prompt_tokens", 0),
-                    u.get("completion_tokens", 0), msg.get("reasoning_content") or msg.get("reasoning")))
+            _record(request, pet, task_id, model, meter_json(r.json()))
         return Response(r.content, status_code=r.status_code, media_type="application/json")
 
-    body.setdefault("stream_options", {})["include_usage"] = True
-    req = client.build_request("POST", url, json=body)
-    upstream = await client.send(req, stream=True)
+    upstream = await client.send(client.build_request("POST", url, json=body, headers=headers), stream=True)
 
     async def relay():
         seen: list[bytes] = []
@@ -162,7 +207,71 @@ async def openai_chat(request: Request, token: str):
             await upstream.aclose()
             await client.aclose()
             if upstream.status_code == 200:
-                _record(request, pet, task_id, choice.model, meter_openai_stream(seen))
+                _record(request, pet, task_id, model, meter_stream(seen))
 
     return StreamingResponse(relay(), status_code=upstream.status_code,
                              media_type=upstream.headers.get("content-type", "text/event-stream"))
+
+
+@router.post("/{token}/v1/chat/completions")
+async def openai_chat(request: Request, token: str):
+    pet = _pet_for_token(request, token)
+    cfg = request.app.state.cfg
+    choice = cfg.model(pet.model)
+    if choice.provider != "ollama":
+        raise HTTPException(400, f"{choice.label} is served on the Anthropic route")
+    task_id, refused = _gate(request, pet)
+    if refused:
+        return refused
+    body = await request.json()
+    body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
+    if body.get("stream"):
+        body.setdefault("stream_options", {})["include_usage"] = True
+    return await _relay(request, pet, task_id, choice.model, f"{cfg.ollama_url}/v1/chat/completions", body, {},
+                        meter_openai_stream, meter_openai_json)
+
+
+_PASS_HEADERS = ("anthropic-version", "anthropic-beta")
+
+
+@router.post("/{token}/anthropic/v1/messages")
+async def anthropic_messages(request: Request, token: str):
+    """Claude's API shape. To the Claude API with the real key, or to Ollama's /v1/messages. Either
+    way every model a brain names is the pet's own: Claude Code asks for "opus" by default and for
+    small "haiku" calls, but the keeper chose the model (and its price) at hatch."""
+    pet = _pet_for_token(request, token)
+    cfg = request.app.state.cfg
+    choice = cfg.model(pet.model)
+    task_id, refused = _gate(request, pet)
+    if refused:
+        return refused
+    body = await request.json()
+    if choice.provider == "ollama":
+        body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
+        url, headers = f"{cfg.ollama_url}/v1/messages", {}
+    else:
+        if not cfg.anthropic_key:
+            return JSONResponse({"type": "error", "error": {"type": "authentication_error", "message":
+                                 "tomabotchi has no ANTHROPIC_API_KEY, so Claude models are off"}}, status_code=503)
+        body["model"] = choice.model
+        url = f"{cfg.anthropic_url}/v1/messages"
+        headers = {"x-api-key": cfg.anthropic_key, "anthropic-version": "2023-06-01",
+                   **{h: request.headers[h] for h in _PASS_HEADERS if h in request.headers}}
+    return await _relay(request, pet, task_id, body.get("model") or choice.model, url, body, headers,
+                        meter_anthropic_stream, meter_anthropic_json)
+
+
+@router.post("/{token}/anthropic/v1/messages/count_tokens")
+async def anthropic_count_tokens(request: Request, token: str):
+    """Ollama has no token counter, so local pets get an estimate (about 4 characters a token)."""
+    pet = _pet_for_token(request, token)
+    cfg = request.app.state.cfg
+    choice = cfg.model(pet.model)
+    body = await request.json()
+    if choice.provider == "ollama" or not cfg.anthropic_key:
+        return {"input_tokens": len(json.dumps(body)) // 4}
+    headers = {"x-api-key": cfg.anthropic_key, "anthropic-version": "2023-06-01",
+               **{h: request.headers[h] for h in _PASS_HEADERS if h in request.headers}}
+    async with httpx.AsyncClient(timeout=60) as c:
+        r = await c.post(f"{cfg.anthropic_url}/v1/messages/count_tokens", json=body, headers=headers)
+    return Response(r.content, status_code=r.status_code, media_type="application/json")

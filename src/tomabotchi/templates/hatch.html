@@ -71,6 +71,7 @@
             <label for="task">Task</label>
             <textarea id="task" name="first_task_md">Write a hello note in notes/.</textarea>
           </div>
+                <option value="claude">Claude Code</option>
           <div class="field">
             <label for="home">Home</label>
             <select id="home" name="home">
@@ -84,16 +85,16 @@
               <select id="brain" name="brain">
                 <option value="hermes" selected>Hermes (default)</option>
                 <option value="fake">Practice brain (scripted, instant)</option>
-                <option value="claude" disabled>Claude Code (arrives in slice 5)</option>
               </select>
-              <span class="hint">How it thinks and works. Hermes is a general helper with memory and skills. The practice brain follows a fixed script and needs no container.</span>
+              <span class="hint">How it thinks and works. Hermes is a general helper with memory and skills. Claude Code is a careful coder, best on Claude Sonnet. The practice brain follows a fixed script and needs no container.</span>
             </div>
             <div class="field">
               <label for="model">Model</label>
               <select id="model" name="model">
-                {% for m in models %}<option value="{{ m.key }}">{{ m.label }}</option>{% endfor %}
+                {% for m in models %}{% set off = m.provider == "anthropic" and not anthropic_ready %}
+                  <option value="{{ m.key }}"{{ " disabled" if off }}>{{ m.label }}{{ " (needs ANTHROPIC_API_KEY)" if off }}</option>{% endfor %}
               </select>
-              <span class="hint">Either brain can use either model.</span>
+              <span class="hint">Either brain can use either model. Pets reach models only through tomabotchi, so API keys never enter a pet's home.</span>
             </div>
           </div>
           <div class="field">

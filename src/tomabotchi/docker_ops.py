@@ -145,7 +145,7 @@ class DockerOps:
     # ---- containers ----
 
     async def run_pet(self, pet: Pet, image: str, network: str, token: str, limits: Limits,
-                      binds: dict[str, str]) -> PetContainer:
+                      binds: dict[str, str], env: dict[str, str] | None = None) -> PetContainer:
         def run():
             try:
                 self.client.containers.get(container_name(pet.id)).remove(force=True)
@@ -154,7 +154,7 @@ class DockerOps:
             c = self.client.containers.run(
                 image, detach=True, name=container_name(pet.id), hostname=f"pet-{pet.id}",
                 user="1000:1000", network=network,
-                environment={"PET_TOKEN": token, "BRAIN": pet.brain},
+                environment={**(env or {}), "PET_TOKEN": token, "BRAIN": pet.brain},
                 volumes={src: {"bind": dst, "mode": "rw"} for src, dst in binds.items()},
                 mem_limit=limits.memory, memswap_limit=limits.memory, nano_cpus=int(limits.cpus * 1e9),
                 pids_limit=limits.pids, cap_drop=["ALL"], security_opt=["no-new-privileges"],

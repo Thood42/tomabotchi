@@ -1,0 +1,4 @@
+#!/bin/sh
+# Claude Code's PreToolUse hook: tomabotchi's tool rules, on Hermes's bundled Python.
+# /opt/hermes is on the path for Hermes's dangerous-command detector.
+PYTHONPATH=/opt/tomabotchi/leash:/opt/hermes exec /opt/hermes/.venv/bin/python -m tomabotchi_leash.claude_hook

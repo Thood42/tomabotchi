@@ -3,10 +3,12 @@
 # each pet image is `FROM <home>` + `COPY --from=` this image (see pet.Dockerfile.tmpl).
 #
 #   /opt/hermes       Hermes Agent with its own standalone Python 3.14 (from the pinned upstream image)
-#   /opt/tomabotchi   petd, the leash plugin, code-server, smoke test
+#   /opt/tomabotchi   petd, the leash plugin and Claude hook, code-server, smoke test
+#   /opt/tomabotchi/claude   Claude Code's ACP adapter (with the Claude Code binary), run on code-server's Node
 
 ARG HERMES_IMAGE=nousresearch/hermes-agent@sha256:9c5561579f3ffdf333401797094ac3a743738d6c25d40f4331c7bf77b694238d
 ARG CODE_SERVER_VERSION=4.140.0
+ARG CLAUDE_ACP_VERSION=0.89.1
 
 FROM ${HERMES_IMAGE} AS hermes
 # Drop what pets don't use: the bundled browser and ffmpeg (~800 MB). The browser home brings its own.
@@ -16,6 +18,13 @@ RUN rm -rf /opt/hermes/tools/chromium-* /opt/hermes/tools/ffmpeg-* /opt/hermes/t
 RUN py="$(ls -d /opt/hermes/tools/python-*-linux-x64)/bin" \
  && ln -sf "$py/python3" /opt/hermes/.venv/bin/python \
  && sed -i "s#^home = .*#home = $py#" /opt/hermes/.venv/pyvenv.cfg
+
+FROM hermes AS claude
+ARG CLAUDE_ACP_VERSION
+# Hermes's npm installs it; it runs on code-server's Node (24.x; the adapter needs >= 22), because
+# Hermes's Node wants libatomic, which slim homes lack.
+RUN mkdir -p /opt/tomabotchi/claude && cd /opt/tomabotchi/claude \
+ && npm install --no-fund --no-audit --omit=dev "@agentclientprotocol/claude-agent-acp@${CLAUDE_ACP_VERSION}"
 
 FROM debian:trixie-slim AS fetch
 ARG CODE_SERVER_VERSION
@@ -27,6 +36,7 @@ RUN mkdir -p /opt/tomabotchi/code-server \
 FROM scratch
 COPY --from=hermes /opt/hermes /opt/hermes
 COPY --from=fetch /opt/tomabotchi/code-server /opt/tomabotchi/code-server
+COPY --from=claude /opt/tomabotchi/claude /opt/tomabotchi/claude
 COPY runtime/petd /opt/tomabotchi/petd
 COPY runtime/leash/tomabotchi_leash /opt/tomabotchi/leash/tomabotchi_leash
 COPY src/tomabotchi/rules.py /opt/tomabotchi/leash/tomabotchi_leash/rules.py

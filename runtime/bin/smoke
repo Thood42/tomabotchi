@@ -9,5 +9,10 @@ fi
   || { echo "tomabotchi: Hermes can't start in this home (missing system libraries?)" >&2; exit 1; }
 /opt/tomabotchi/code-server/bin/code-server --version >/dev/null \
   || { echo "tomabotchi: code-server can't start in this home" >&2; exit 1; }
+/opt/tomabotchi/code-server/lib/node --version >/dev/null \
+  && HOME=/tmp /opt/tomabotchi/claude/node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude --version >/dev/null \
+  || { echo "tomabotchi: Claude Code can't start in this home" >&2; exit 1; }
 /opt/hermes/.venv/bin/python -c "import sys; sys.path.insert(0, '/opt/tomabotchi/leash'); import tomabotchi_leash"
+echo '{"tool_name": "Read", "tool_input": {"file_path": "/workspace/x"}}' | HOME=/tmp /opt/tomabotchi/bin/leash-claude | grep -q permissionDecision \
+  || { echo "tomabotchi: the Claude leash hook can't run in this home" >&2; exit 1; }
 echo "tomabotchi: runtime OK"

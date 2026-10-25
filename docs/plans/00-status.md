@@ -10,7 +10,7 @@
 - [x] Slice 2 — real Hermes pet (done 2026-10-25): runtime and Python-home images, petd, OpenAI gateway route, leash gates write_file, pet-subnet guard
 - [x] Slice 3 — live view from real data: thoughts, tools, plan, hearts and scene, sick detection, Energy, Home stats
 - [x] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
-- [ ] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
+- [x] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
 - [ ] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
 - [ ] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
 - [ ] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
@@ -96,3 +96,26 @@
     - With "running commands" set to Never in the editor, "run `date`" made 0 calls, and Biscuit replied quoting "My keeper's rules never allow terminal here…".
     - `pytest -m docker -k "never or runtime"`: 2 passed, on a fresh runtime. Unit: 75 passed.
   - **No `ANTHROPIC_API_KEY` is set on this host** (the server container has none). Slice 5 proves Claude-on-Sonnet against a stub upstream in tests, plus Claude on the local model live. The Sonnet choice on the hatch screen says it needs the key.
+- Slice 5 notes (2026-10-25):
+  - **Claude Code runs in the same runtime image.**
+    - The adapter `@agentclientprotocol/claude-agent-acp@0.89.1`, which brings the Claude Code 2.1.293 binary, is installed by Hermes's npm into `/opt/tomabotchi/claude` (~310 MB).
+    - It runs on **code-server's bundled Node 24**, not Hermes's Node 26, because Hermes's Node needs `libatomic.so.1`, which `python:3.12-slim` lacks.
+    - The smoke test runs `claude --version` in every home.
+  - **The leash is a `PreToolUse` command hook** (`/opt/tomabotchi/bin/leash-claude` → `tomabotchi_leash.claude_hook`), matcher `*`, timeout 60 s.
+    - free → `allow`; never → `deny` with the block message (recorded through `rules.record_block`, as for Hermes); ask → `ask`.
+    - A dangerous Bash command → `ask` whatever the rules say. Unreadable rules → everything asks.
+    - "ask" hands over to Claude's own prompt, which arrives as ACP `session/request_permission`. That prompt is the call card, so the hook never blocks for long.
+    - `settings.json` keeps `defaultMode: default` and `disableBypassPermissionsMode: disable`.
+  - **The soul is `~/.claude/CLAUDE.md`** (user memory), with a one-line preamble. The rules are `~/.claude/tomabotchi_rules.json`.
+  - **Env, not files, points Claude at the gateway:**
+    - `ANTHROPIC_BASE_URL=http://tomabotchi:8770/llm/<token>/anthropic` and `ANTHROPIC_API_KEY=<pet token>`. The gateway swaps in the real key.
+    - **Every model role** (`ANTHROPIC_MODEL`, `DEFAULT_{HAIKU,SONNET,OPUS}_MODEL`, `SMALL_FAST_MODEL`) is the pet's model. The gateway also pins `body.model` to the pet's choice, because the adapter asks for "opus" by default and the keeper chose the model and its price.
+    - On Ollama, the gateway's `/anthropic/v1/messages` goes to Ollama's `/v1/messages` with the 64k alias. `count_tokens` is estimated locally (len/4).
+  - **Hatch:** Claude Code is selectable. Anthropic models are disabled with "(needs ANTHROPIC_API_KEY)" when the server has no key, and hatching one without a key is refused.
+  - **Permission requests from Claude** carry kind, `rawInput` (Write's `content` shows as the preview) and `locations`, but no tool name. "Always allow" therefore adds a kind-level rule under the folder, for example "Always allow editing files in notes/".
+  - **Speed on this host:** Claude Code's system prompt is about 16.7k tokens, and consecutive requests don't share Ollama's prompt cache, so each model call re-prefills for about 3.5 min. A one-file task takes about 8 min on CPU. Fine on Sonnet; slow locally.
+  - **Proof:**
+    - `pytest -m docker -k claude`: 2 passed in 8.5 min. The hook gates Write with exactly one permission request (kind edit), nothing is written before Allow, and the reply starts with PICKLE (CLAUDE.md loaded). A "never" execute rule denies Bash without asking and records the block.
+    - Live: Quill (`e8b0f178`, Claude Code on the local model) was hatched from the server. About 8 min later the call card read "Write notes/hello.md (edit)" with the preview "Hello, world!" and "Always allow editing files in notes/". Thinking showed Claude quoting its CLAUDE.md. Allow once → `notes/hello.md` landed on the host.
+    - Unit: 103 passed (`test_brains_claude.py` and `test_gateway.py`, with a stub Claude API).
+  - **Found for slice 12:** restarting the server mid-turn reattaches with a *new* ACP session. The old turn keeps running in the adapter, and its call card still arrives and is answerable, but the task's prompt response goes to the old request id, so the task never closes. Slice 12 should reuse `acp_session_id` (`session/load` or resume) rather than opening a new one.

@@ -13,6 +13,8 @@ from .models import BrainName, ModelChoice, Pet
 
 GATEWAY = "http://tomabotchi:8770/llm"
 LEASH_IN_CONTAINER = "/opt/tomabotchi/leash/tomabotchi_leash"
+CLAUDE_HOOK = "/opt/tomabotchi/bin/leash-claude"
+CLAUDE_HOOK_TIMEOUT = 60             # seconds; the hook answers at once ("ask" hands over to Claude's prompt)
 OLLAMA_CONTEXT = 65536               # Hermes refuses models under 64k
 
 
@@ -34,6 +36,7 @@ class Brain(Protocol):
     def rules_path(self, brain_home: Path) -> Path: ...
     def render_soul_file(self, soul_md: str) -> str: ...
     def write_config(self, cfg: Config, pet: Pet, model: ModelChoice, token: str, brain_home: Path) -> list[Path]: ...
+    def container_env(self, pet: Pet, model: ModelChoice, token: str) -> dict[str, str]: ...
 
 
 class HermesBrain:
@@ -77,6 +80,50 @@ class HermesBrain:
         os.symlink(LEASH_IN_CONTAINER, link)   # dangling on the host, valid inside the pet
         return [cfg_path, link]
 
+    def container_env(self, pet: Pet, model: ModelChoice, token: str) -> dict[str, str]:
+        return {}                              # everything is in config.yaml
+
+
+class ClaudeBrain:
+    """Claude Code through its ACP adapter. Claude stays in its default permission mode (never
+    bypassPermissions); a PreToolUse hook applies the pet's rules, so only the leash ever asks."""
+    name: BrainName = "claude"
+    label = "Claude Code"
+    session_mode = None                # "default", from settings.json
+
+    def soul_path(self, brain_home: Path) -> Path:
+        return brain_home / ".claude" / "CLAUDE.md"        # user memory: loaded into every session
+
+    def rules_path(self, brain_home: Path) -> Path:
+        return brain_home / ".claude" / "tomabotchi_rules.json"
+
+    def render_soul_file(self, soul_md: str) -> str:
+        return ("<!-- Written by tomabotchi from the keeper's words. Edit the soul in tomabotchi instead. -->\n"
+                "This is my soul: who I am and how I work. Follow it in every task.\n\n" + soul_md)
+
+    def settings(self) -> dict:
+        return {
+            "permissions": {"defaultMode": "default", "disableBypassPermissionsMode": "disable"},
+            "hooks": {"PreToolUse": [{"matcher": "*", "hooks": [
+                {"type": "command", "command": CLAUDE_HOOK, "timeout": CLAUDE_HOOK_TIMEOUT}]}]},
+        }
+
+    def write_config(self, cfg: Config, pet: Pet, model: ModelChoice, token: str, brain_home: Path) -> list[Path]:
+        home = brain_home / ".claude"
+        home.mkdir(parents=True, exist_ok=True)
+        path = home / "settings.json"
+        path.write_text(json.dumps(self.settings(), indent=2) + "\n")
+        return [path]
+
+    def container_env(self, pet: Pet, model: ModelChoice, token: str) -> dict[str, str]:
+        """Claude reaches models only through the gateway, with the pet's token as its key; the
+        gateway swaps in the real key. Every model role is the pet's one model (the gateway pins it too)."""
+        return {"ANTHROPIC_BASE_URL": f"{GATEWAY}/{token}/anthropic", "ANTHROPIC_API_KEY": token,
+                "ANTHROPIC_MODEL": model.model, "ANTHROPIC_DEFAULT_HAIKU_MODEL": model.model,
+                "ANTHROPIC_DEFAULT_SONNET_MODEL": model.model, "ANTHROPIC_DEFAULT_OPUS_MODEL": model.model,
+                "ANTHROPIC_SMALL_FAST_MODEL": model.model, "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+                "DISABLE_AUTOUPDATER": "1"}
+
 
 class FakeBrain:
     """The scripted practice brain from slice 1: no container, no files."""
@@ -96,8 +143,11 @@ class FakeBrain:
     def write_config(self, cfg, pet, model, token, brain_home) -> list[Path]:
         return []
 
+    def container_env(self, pet, model, token) -> dict[str, str]:
+        return {}
 
-BRAINS: dict[str, Brain] = {"hermes": HermesBrain(), "fake": FakeBrain()}
+
+BRAINS: dict[str, Brain] = {"hermes": HermesBrain(), "claude": ClaudeBrain(), "fake": FakeBrain()}
 
 
 def get(name: str) -> Brain:
