@@ -132,6 +132,10 @@ def pet_context(conn, pet: Pet) -> dict:
         doing = "Finished its task. Hungry for another."
     else:
         doing = "Hungry for a task"
+    trouble = next((e for e in reversed(store.recent_events(conn, pet.id, {"notice"}, 30))
+                    if e.payload.get("type") in TROUBLE), None)
+    if trouble and (last_answer := store.last_usage_at(conn, pet.id)) and last_answer > trouble.ts:
+        trouble = None               # the model has answered since: whatever it was is over
     switches = [e.payload.get("type") for e in store.recent_events(conn, pet.id, {"notice"}, 30)
                 if e.payload.get("type") in ("lights_off", "lights_on")]
     lights_off = pet.state == "asleep" and bool(switches) and switches[-1] == "lights_off"
@@ -140,8 +144,12 @@ def pet_context(conn, pet: Pet) -> dict:
     return {"pet": pet, "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
-            "working": working, "tokens": tokens, "lights_off": lights_off, "home": home_context(pet), **rules_context(conn, pet, open_call),
+            "working": working, "tokens": tokens, "lights_off": lights_off,
+            "trouble": trouble.payload.get("text") if trouble else None, "home": home_context(pet), **rules_context(conn, pet, open_call),
             **lessons_context(conn, pet)}
+
+
+TROUBLE = {"model_down", "docker_down", "home_missing", "hatch_failed", "retire_failed"}
 
 
 # ---- soul ----

@@ -234,3 +234,47 @@ def test_pause_stops_the_agent_but_not_its_vscode(pet):
     assert pet["container"].exec_run(["sh", "-c", CODE_UP]).output.strip() == b"200"     # VS Code still serves
     asyncio.run(go("resume"))
     assert agent_state() in ("S", "R")
+
+
+def test_petd_buffers_across_server_restart(pet):
+    """The server goes away mid-turn: petd keeps the agent working, buffers what it says, and replays
+    it to the next client, including the answer to the prompt the old client sent."""
+    import websockets
+
+    async def go():
+        hdr = {"Authorization": f"Bearer {pet['token']}"}
+        for _ in range(60):
+            try:
+                ws = await websockets.connect(pet["url"], additional_headers=hdr, max_size=None)
+                break
+            except Exception:  # noqa: BLE001 - petd not listening yet
+                await asyncio.sleep(1)
+
+        async def call(i, method, params):
+            await ws.send(json.dumps({"jsonrpc": "2.0", "id": i, "method": method, "params": params}))
+            while True:
+                m = json.loads(await ws.recv())
+                if m.get("id") == i:
+                    return m["result"]
+        await call(1, "initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+        sid = (await call(2, "session/new", {"cwd": "/workspace", "mcpServers": []}))["sessionId"]
+        await ws.send(json.dumps({"jsonrpc": "2.0", "id": 777, "method": "session/prompt", "params": {
+            "sessionId": sid, "prompt": [{"type": "text", "text": "Reply with one short sentence about tea."}]}}))
+        await ws.close()                                       # the server "restarts" here
+        await asyncio.sleep(240)                               # the agent keeps thinking meanwhile
+        ws = await websockets.connect(pet["url"], additional_headers=hdr, max_size=None)
+        got = []
+        while True:
+            m = json.loads(await asyncio.wait_for(ws.recv(), TURN))
+            got.append(m)
+            if m.get("id") == 777:
+                break
+        await ws.close()
+        return got
+
+    got = asyncio.run(go())
+    assert got[-1]["result"]["stopReason"] == "end_turn"
+    assert any(m.get("method") == "session/update" for m in got[:-1])
+    replayed = pet["container"].logs().decode()
+    assert "replaying 0 buffered messages" in replayed and any(
+        f"replaying {n} buffered" in replayed for n in range(1, 5001))  # the second client got a backlog

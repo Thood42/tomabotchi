@@ -1,0 +1,8 @@
+{% if trouble %}
+<section id="trouble-{{ pet.id }}" data-live class="sheet trouble" role="alert">
+  <h2>Something's wrong</h2>
+  <p>{{ trouble }}</p>
+</section>
+{% else %}
+<div id="trouble-{{ pet.id }}" data-live hidden></div>
+{% endif %}

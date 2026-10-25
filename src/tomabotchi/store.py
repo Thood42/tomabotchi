@@ -224,6 +224,11 @@ def add_usage(conn, u: Usage) -> None:
                  (u.pet_id, u.task_id, _ts(u.ts), u.model, u.prompt_tokens, u.completion_tokens))
 
 
+def last_usage_at(conn, pet_id: str) -> datetime | None:
+    row = conn.execute("SELECT MAX(ts) FROM usage WHERE pet_id = ?", (pet_id,)).fetchone()
+    return _dt(row[0]) if row and row[0] else None
+
+
 def task_tokens(conn, task_id: int) -> int:
     return conn.execute("SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) FROM usage WHERE task_id = ?",
                         (task_id,)).fetchone()[0]

@@ -10,6 +10,7 @@ import asyncio
 import itertools
 import json
 import logging
+import secrets
 from typing import Any, Awaitable, Callable
 
 from websockets.asyncio.client import ClientConnection, connect
@@ -38,9 +39,12 @@ class AcpConnection:
         self.on_permission = on_permission
         self._ws: ClientConnection | None = None
         self._reader: asyncio.Task | None = None
-        self._ids = itertools.count(1)
+        # Start ids somewhere random: after a server restart, a response to the old process's request
+        # (still in flight in the agent) must not land on one of ours.
+        self._ids = itertools.count(secrets.randbelow(2**31) * 1000 + 1)
         self._pending: dict[int, asyncio.Future] = {}
         self._handlers: set[asyncio.Task] = set()
+        self.on_unmatched: Callable[[dict], None] | None = None   # responses to requests we didn't send
 
     @property
     def connected(self) -> bool:
@@ -70,6 +74,10 @@ class AcpConnection:
 
     async def cancel(self, session_id: str) -> None:
         await self._send({"jsonrpc": "2.0", "method": "session/cancel", "params": {"sessionId": session_id}})
+
+    async def respond(self, req_id: Any, result: dict) -> None:
+        """Answer an agent request this connection didn't receive (one adopted after a restart)."""
+        await self._send({"jsonrpc": "2.0", "id": req_id, "result": result})
 
     async def petd(self, command: str) -> None:
         """A control message for petd itself ("pause" or "resume"); never reaches the agent."""
@@ -114,7 +122,11 @@ class AcpConnection:
                             log.exception("session/update handler failed")
                 elif "id" in msg:
                     fut = self._pending.pop(msg["id"], None)
-                    if fut is None or fut.done():
+                    if fut is None:
+                        if self.on_unmatched:
+                            self.on_unmatched(msg)
+                        continue
+                    if fut.done():
                         continue
                     if "error" in msg:
                         fut.set_exception(AcpError(msg["error"].get("code", -1), msg["error"].get("message", "")))

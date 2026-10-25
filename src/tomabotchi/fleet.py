@@ -68,18 +68,26 @@ class Fleet:
                 except Exception:  # noqa: BLE001
                     log.exception("could not wake %s", pet.name)
                 continue
-            if pet.id not in containers or self.docker is None:
-                self._notice(pet, "home_missing", "Its home isn't running. Hatch it again or retire it.")
+            if self.docker is None:
+                self._notice(pet, "docker_down", "tomabotchi can't reach Docker, so it can't wake up. "
+                                                 "Start Docker, then restart tomabotchi.")
+                store.set_pet_state(self.conn, pet.id, "asleep")
+                continue
+            if pet.id not in containers:
+                self._notice(pet, "home_missing", "Its home is gone. Retire it to keep its soul and files.")
                 store.set_pet_state(self.conn, pet.id, "asleep")
                 continue
             if containers[pet.id].paused:
                 self._lights_off[pet.id] = None                 # it went to sleep before the restart
                 store.set_pet_state(self.conn, pet.id, "asleep")
                 continue
-            if not containers[pet.id].running:
+            # Still running: the agent kept its session (and maybe a turn and a call), so rejoin it.
+            # Stopped: starting it starts a fresh agent, which needs a fresh session.
+            running = containers[pet.id].running
+            if not running:
                 await self.docker.start(pet.id)
             await self.docker.create_network(pet.id)      # a recreated server must rejoin the pet's network
-            self._spawn(self._attach(pet, self._token(pet.id), first_task=None))
+            self._spawn(self._attach(pet, self._token(pet.id), first_task=None, reattach=running))
 
     async def hatch(self, form: HatchForm, lessons_from: str | None = None) -> Pet:
         """lessons_from: a (retired) pet whose lessons the new soul keeps."""
@@ -191,6 +199,13 @@ class Fleet:
         self._notice(pet, "lights_on", "Lights on. Awake again.")
         if interrupted:
             await sup.feed(interrupted, send=f"Continue where you left off. Your task was: {interrupted}")
+
+    def on_model_down(self, pet_id: str, text: str) -> None:
+        """The gateway couldn't reach the pet's model. One notice per minute, not one per retry."""
+        last = store.last_notice(self.conn, pet_id, "model_down")
+        if last and (store.now() - last.ts).total_seconds() < 60:
+            return
+        self._notice(store.get_pet(self.conn, pet_id), "model_down", text)
 
     def on_budget(self, pet_id: str, reason: str) -> None:
         """The gateway refused a model call: the pet falls asleep until it's fed a new task (a new budget)."""
@@ -389,12 +404,12 @@ class Fleet:
     def is_awake(self, pet_id: str) -> bool:
         return pet_id in self._sups
 
-    async def _attach(self, pet: Pet, token: str, first_task: str | None) -> None:
+    async def _attach(self, pet: Pet, token: str, first_task: str | None, reattach: bool = False) -> None:
         sup = PetSupervisor(self.cfg, self.conn, self.bus, pet, f"ws://{container_name(pet.id)}:7000", token,
                             session_mode=brains.get(pet.brain).session_mode)
         for attempt in range(ATTACH_TRIES):
             try:
-                await sup.start()
+                await sup.start(reattach=reattach)
                 break
             except (OSError, ConnectionError, asyncio.TimeoutError, InvalidHandshake, InvalidMessage) as e:
                 if attempt == ATTACH_TRIES - 1:

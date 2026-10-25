@@ -1,7 +1,9 @@
 """A scripted ACP agent over a WebSocket.
 
 It is the "practice brain" for the slice 1 tracer bullet, and the agent the integration tests
-talk to. It speaks the same frames petd will: one JSON-RPC message per WebSocket message.
+talk to. It speaks the same frames petd does (one JSON-RPC message per WebSocket message) and,
+like petd, outlives any one connection: what it says while nobody is connected is buffered and
+replayed to the next client.
 """
 from __future__ import annotations
 
@@ -11,6 +13,7 @@ import json
 from typing import Awaitable, Callable
 
 from websockets.asyncio.server import Server, ServerConnection, serve
+from websockets.exceptions import ConnectionClosed
 
 OPTIONS = [
     {"optionId": "allow_once", "name": "Allow once", "kind": "allow_once"},
@@ -22,13 +25,13 @@ OPTIONS = [
 class Turn:
     """What a script can do during one session/prompt turn."""
 
-    def __init__(self, agent: "FakeAgent", ws: ServerConnection, session_id: str) -> None:
-        self.agent, self.ws, self.session_id = agent, ws, session_id
+    def __init__(self, agent: "FakeAgent", session_id: str) -> None:
+        self.agent, self.session_id = agent, session_id
 
     async def _update(self, update: dict) -> None:
         await asyncio.sleep(self.agent.step_delay)
-        await self.ws.send(json.dumps({"jsonrpc": "2.0", "method": "session/update",
-                                       "params": {"sessionId": self.session_id, "update": update}}))
+        await self.agent.send({"jsonrpc": "2.0", "method": "session/update",
+                               "params": {"sessionId": self.session_id, "update": update}})
 
     async def thought(self, text: str) -> None:
         await self._update({"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": text}})
@@ -53,9 +56,8 @@ class Turn:
         req_id = f"fake-{next(self.agent._ids)}"
         fut = asyncio.get_running_loop().create_future()
         self.agent._waiting[req_id] = fut
-        await self.ws.send(json.dumps({"jsonrpc": "2.0", "id": req_id, "method": "session/request_permission",
-                                       "params": {"sessionId": self.session_id, "toolCall": tool_call,
-                                                  "options": options}}))
+        await self.agent.send({"jsonrpc": "2.0", "id": req_id, "method": "session/request_permission",
+                               "params": {"sessionId": self.session_id, "toolCall": tool_call, "options": options}})
         result = await fut
         outcome = result.get("outcome", {})
         return outcome.get("optionId", "cancelled") if outcome.get("outcome") == "selected" else "cancelled"
@@ -160,6 +162,20 @@ class FakeAgent:
         self._sessions = itertools.count(1)
         self._waiting: dict[str, asyncio.Future] = {}
         self._turns: set[asyncio.Task] = set()
+        self._ws: ServerConnection | None = None
+        self._buffer: list[str] = []             # said while no client was connected
+        self.sessions: set[str] = set()
+
+    async def send(self, msg: dict) -> None:
+        text = json.dumps(msg)
+        ws = self._ws
+        if ws is None:
+            self._buffer.append(text)
+            return
+        try:
+            await ws.send(text)
+        except ConnectionClosed:
+            self._buffer.append(text)
 
     async def start(self, host: str = "127.0.0.1", port: int = 0) -> str:
         self._server = await serve(self._handle, host, port, max_size=None)
@@ -178,17 +194,33 @@ class FakeAgent:
         if self.token and ws.request.headers.get("Authorization") != f"Bearer {self.token}":
             await ws.close(4401, "bad token")
             return
+        self._ws = ws
+        while self._buffer:
+            await ws.send(self._buffer.pop(0))
+        try:
+            await self._serve(ws)
+        except ConnectionClosed:
+            pass
+        finally:
+            if self._ws is ws:
+                self._ws = None
+
+    async def _serve(self, ws: ServerConnection) -> None:
         async for raw in ws:
             msg = json.loads(raw)
             self.received.append(msg)
             method, req_id = msg.get("method"), msg.get("id")
             if method == "initialize":
-                await self._reply(ws, req_id, {"protocolVersion": 1, "agentCapabilities": {"loadSession": False}})
+                await self._reply(req_id, {"protocolVersion": 1, "agentCapabilities": {"loadSession": False}})
             elif method == "session/new":
-                await self._reply(ws, req_id, {"sessionId": f"fake-session-{next(self._sessions)}"})
+                sid = f"fake-session-{next(self._sessions)}"
+                self.sessions.add(sid)
+                await self._reply(req_id, {"sessionId": sid})
+            elif method == "session/prompt" and msg["params"]["sessionId"] not in self.sessions:
+                await self.send({"jsonrpc": "2.0", "id": req_id, "error": {"code": -32602, "message": "Session not found"}})
             elif method == "session/prompt":
                 text = " ".join(b.get("text", "") for b in msg["params"]["prompt"] if b.get("type") == "text")
-                task = asyncio.create_task(self._turn(ws, req_id, msg["params"]["sessionId"], text))
+                task = asyncio.create_task(self._turn(req_id, msg["params"]["sessionId"], text))
                 self._turns.add(task)
                 task.add_done_callback(self._turns.discard)
             elif method == "session/cancel":
@@ -199,13 +231,12 @@ class FakeAgent:
                 if not fut.done():                # a session/cancel can overtake the keeper's answer
                     fut.set_result(msg.get("result") or {})
 
-    async def _turn(self, ws: ServerConnection, req_id, session_id: str, text: str) -> None:
+    async def _turn(self, req_id, session_id: str, text: str) -> None:
         try:
-            stop = await (self.script or pick_script(text))(Turn(self, ws, session_id), text)
+            stop = await (self.script or pick_script(text))(Turn(self, session_id), text)
         except asyncio.CancelledError:
             stop = "cancelled"
-        await self._reply(ws, req_id, {"stopReason": stop})
+        await self._reply(req_id, {"stopReason": stop})
 
-    @staticmethod
-    async def _reply(ws: ServerConnection, req_id, result: dict) -> None:
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": req_id, "result": result}))
+    async def _reply(self, req_id, result: dict) -> None:
+        await self.send({"jsonrpc": "2.0", "id": req_id, "result": result})

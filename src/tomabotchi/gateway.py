@@ -184,18 +184,31 @@ def _gate(request: Request, pet: Pet) -> tuple[int | None, JSONResponse | None]:
     return task_id, None
 
 
+def _unreachable(request: Request, pet: Pet, where: str, e: Exception) -> JSONResponse:
+    """The model isn't answering: tell the brain in its API's error shape, and tell the keeper."""
+    text = f"Its model isn't answering ({where}: {e.__class__.__name__}). Check that it's running."
+    on_down = getattr(request.app.state, "on_model_down", None)
+    if on_down:
+        on_down(pet.id, text)
+    return JSONResponse({"type": "error", "error": {"type": "api_error", "message": f"tomabotchi: {text}"}},
+                        status_code=502)
+
+
 async def _relay(request: Request, pet: Pet, task_id: int | None, model: str, url: str, body: dict,
                  headers: dict[str, str], meter_stream, meter_json) -> Response:
     """Forward one model call, stream the answer back, and meter it once it's done."""
     client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10))
-    if not body.get("stream"):
-        r = await client.post(url, json=body, headers=headers)
+    try:
+        if not body.get("stream"):
+            r = await client.post(url, json=body, headers=headers)
+            await client.aclose()
+            if r.status_code == 200:
+                _record(request, pet, task_id, model, meter_json(r.json()))
+            return Response(r.content, status_code=r.status_code, media_type="application/json")
+        upstream = await client.send(client.build_request("POST", url, json=body, headers=headers), stream=True)
+    except httpx.HTTPError as e:
         await client.aclose()
-        if r.status_code == 200:
-            _record(request, pet, task_id, model, meter_json(r.json()))
-        return Response(r.content, status_code=r.status_code, media_type="application/json")
-
-    upstream = await client.send(client.build_request("POST", url, json=body, headers=headers), stream=True)
+        return _unreachable(request, pet, url.split("/v1/")[0], e)
 
     async def relay():
         seen: list[bytes] = []
@@ -224,7 +237,10 @@ async def openai_chat(request: Request, token: str):
     if refused:
         return refused
     body = await request.json()
-    body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
+    try:
+        body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
+    except httpx.HTTPError as e:
+        return _unreachable(request, pet, cfg.ollama_url, e)
     if body.get("stream"):
         body.setdefault("stream_options", {})["include_usage"] = True
     return await _relay(request, pet, task_id, choice.model, f"{cfg.ollama_url}/v1/chat/completions", body, {},
@@ -247,7 +263,10 @@ async def anthropic_messages(request: Request, token: str):
         return refused
     body = await request.json()
     if choice.provider == "ollama":
-        body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
+        try:
+            body["model"] = await ensure_ollama_alias(cfg.ollama_url, choice.model)
+        except httpx.HTTPError as e:
+            return _unreachable(request, pet, cfg.ollama_url, e)
         url, headers = f"{cfg.ollama_url}/v1/messages", {}
     else:
         if not cfg.anthropic_key:

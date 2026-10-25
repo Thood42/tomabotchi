@@ -266,3 +266,8 @@ dialog.retire p { margin-top: 10px; }
 dialog.retire .field { margin-top: 14px; }
 .parent-note { margin-bottom: 18px; }
 @media (max-width: 700px) { .rested > li { grid-template-columns: 1fr; justify-items: center; } }
+
+/* ---- trouble ---- */
+.trouble { border-color: var(--tangerine); box-shadow: 5px 5px 0 var(--tangerine); }
+.trouble h2 { color: #b35a00; }
+.trouble p { margin-top: 6px; }

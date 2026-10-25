@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     app.state.cfg, app.state.conn, app.state.bus, app.state.fleet = cfg, conn, bus, fleet
     app.state.on_usage = fleet.on_usage
     app.state.on_budget = fleet.on_budget
+    app.state.on_model_down = fleet.on_model_down
     views.CONFIG = cfg
     await fleet.boot()
     yield

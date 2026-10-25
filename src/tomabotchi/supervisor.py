@@ -10,7 +10,7 @@ import sqlite3
 from datetime import datetime, timezone
 
 from . import brains, notify, store, views
-from .acp import AcpConnection
+from .acp import AcpConnection, AcpError
 from .bus import Bus, BusMessage
 from .config import Config
 from .models import Call, CallOutcome, Event, Pet, PlanStep, TaskKind
@@ -97,6 +97,7 @@ class PetSupervisor:
         self.session_id: str | None = None
         self._tools: dict[str, dict] = {}
         self._waiting: dict[int, tuple[asyncio.Future, list[dict]]] = {}
+        self._replies: set[asyncio.Task] = set()
         self._turn: asyncio.Task | None = None
         self._stream: dict | None = None            # the thought/message being streamed: kind, event id, text
         self._thoughts_this_turn = 0
@@ -104,14 +105,27 @@ class PetSupervisor:
         self._publish_later: asyncio.TimerHandle | None = None
         self._blocks = 0
         self._soul_changed = False
+        self._adopted: int | None = None             # a task whose turn began before a server restart
+        self._reattached = False                     # using a session opened by an earlier server process
         self._rules_file = str(brains.get(pet.brain).rules_path(cfg.pet_dir(pet.id) / "brain"))
 
     # ---- lifecycle ----
 
-    async def start(self) -> None:
+    async def start(self, reattach: bool = False) -> None:
+        """Connect. reattach: the agent kept running while the server restarted, so rejoin its session
+        (no initialize, no session/new), take back its open calls, and let a running turn finish."""
+        self.acp.on_unmatched = self._on_unmatched
         await self.acp.connect()
-        await self.acp.initialize()
-        await self._new_session()
+        if reattach and self.pet.acp_session_id:
+            self.session_id, self._reattached = self.pet.acp_session_id, True
+            for call in store.pending_calls(self.conn, self.pet.id):
+                self._adopt_call(call)
+            task = store.current_task(self.conn, self.pet.id)
+            if task and task.state in ("running", "waiting"):
+                self._adopted = task.id
+        else:
+            await self.acp.initialize()
+            await self._new_session()
         if self.pet.state != "asleep":           # out of budget stays asleep across a restart, until it's fed
             store.update_pet(self.conn, self.pet.id, state="awake")
         self._refresh()
@@ -135,7 +149,37 @@ class PetSupervisor:
 
     @property
     def busy(self) -> bool:
-        return bool(self._turn and not self._turn.done())
+        return bool(self._turn and not self._turn.done()) or self._adopted is not None
+
+    def _adopt_call(self, call: Call) -> None:
+        """A call the agent is still waiting on from before a restart: answering it replies to the
+        agent's original request id over this connection."""
+        fut = asyncio.get_running_loop().create_future()
+        self._waiting[call.id] = (fut, call.options)
+
+        async def reply():
+            result = await fut
+            try:
+                await self.acp.respond(call.acp_request_id, result)
+            except ConnectionError:
+                log.warning("couldn't answer %s's adopted call %s", self.pet.name, call.id)
+        task = asyncio.create_task(reply())
+        self._replies.add(task)
+        task.add_done_callback(self._replies.discard)
+
+    def _on_unmatched(self, msg: dict) -> None:
+        """The answer to a prompt sent by an earlier server process: the adopted turn is over."""
+        if self._adopted is None:
+            return
+        stop = (msg.get("result") or {}).get("stopReason")
+        state = "failed" if "error" in msg else {"end_turn": "done", "cancelled": "cancelled"}.get(stop, "done")
+        task_id, self._adopted = self._adopted, None
+        self._take_blocks(task_id)
+        store.end_task(self.conn, task_id, state)
+        self.pet = store.get_pet(self.conn, self.pet.id)
+        self._refresh()
+        if state == "done":
+            self.notify("finished", "Its task is done. It's ready for another.")
 
     async def feed(self, prompt_md: str, kind: TaskKind = "task", send: str | None = None) -> int:
         """Start a turn. `prompt_md` is what the keeper sees; `send` (default the same) is what the brain gets."""
@@ -174,6 +218,14 @@ class PetSupervisor:
                 fut.set_result({"outcome": {"outcome": "cancelled"}})
             self._waiting.pop(call_id, None)
         await self.acp.cancel(self.session_id)
+        if self._adopted is not None:        # begun before a restart: its answer arrives via _on_unmatched
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + wait
+            while self._adopted is not None and loop.time() < deadline:
+                await asyncio.sleep(0.1)
+            if self._adopted is not None:
+                self._on_unmatched({"result": {"stopReason": "cancelled"}})
+            return
         try:
             await asyncio.wait_for(asyncio.shield(self._turn), wait)
         except asyncio.TimeoutError:
@@ -195,7 +247,17 @@ class PetSupervisor:
     async def _run_turn(self, task_id: int, text: str) -> None:
         state = "failed"
         try:
-            res = await self.acp.prompt(self.session_id, text)
+            try:
+                res = await self.acp.prompt(self.session_id, text)
+            except AcpError:
+                if not self._reattached:
+                    raise
+                # the agent restarted and forgot the session we rejoined: start a fresh one and retry
+                log.info("%s's old session is gone; starting a new one", self.pet.name)
+                self._reattached = False
+                await self._new_session()
+                res = await self.acp.prompt(self.session_id, text)
+            self._reattached = False
             state = {"end_turn": "done", "cancelled": "cancelled"}.get(res.get("stopReason"), "done")
         except asyncio.CancelledError:
             state = "cancelled"
@@ -243,6 +305,9 @@ class PetSupervisor:
                                                     kind=kind, payload={**base, "kind": b.get("kind")}))
 
     async def _on_permission(self, req_id, params: dict) -> dict:
+        for open_call in store.pending_calls(self.conn, self.pet.id):
+            if open_call.acp_request_id == req_id and open_call.id in self._waiting:
+                return await self._waiting[open_call.id][0]      # replayed by petd: the same call, not a new one
         task = store.current_task(self.conn, self.pet.id)
         call = Call(id=0, pet_id=self.pet.id, task_id=task.id if task else None, acp_request_id=req_id,
                     tool_call=normalize_permission(params.get("toolCall") or {}), options=params.get("options") or [],
@@ -325,7 +390,7 @@ def _permission_result(outcome: CallOutcome, options: list[dict]) -> dict:
 
 
 PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_lesson.html", "_steps.html", "_thoughts.html", "_tools.html",
-            "_vitals.html", "_home.html", "_editbar.html")
+            "_vitals.html", "_home.html", "_editbar.html", "_trouble.html")
 
 
 def publish_pet(conn, bus: Bus, pet: Pet) -> None:

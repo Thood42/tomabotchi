@@ -17,7 +17,7 @@
 - [x] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
 - [x] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
 - [x] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
-- [ ] Slice 12 — resilience: server restart reattach, petd replay, pending calls survive, clear error states
+- [x] Slice 12 — resilience: server restart reattach, petd replay, pending calls survive, clear error states
 - [ ] Slice 13 — polish and docs: shuffle, phone layouts, focus, README, final screenshot pass, full test run
 
 ## Notes for a fresh session
@@ -225,3 +225,24 @@
     - Retired the original Biscuit (`abe8a3c9`, Hermes) → `archive/biscuit-2026-10-25.zip` (2.0 MB). The container, network and pet dir are gone. Unzipped and diffed against a copy taken before: the workspace is identical. Re-packing that copy with the final code also matches the brain except its 3 sockets. (Biscuit's own zip predates the empty-folder fix.)
     - Retired Pip ("Learned to use drafts/…") → hatched "Pip Jr" from its soul, and Pip Jr's SOUL.md has "Store all new notes in the drafts/ folder…". The shelf lists both, with backups.
     - Unit: 148 passed (`test_archive.py`: 6).
+- Slice 12 notes (2026-10-25):
+  - **Rejoin, don't restart:** on boot, a pet whose container is still running is reattached with `PetSupervisor.start(reattach=True)`.
+    - It reuses `pets.acp_session_id`, with no `initialize` and no `session/new` (this fixes the slice 5 finding).
+    - Every pending call in the DB is **adopted**: answering it sends `AcpConnection.respond(<agent's original request id>, …)` over the new socket.
+    - A task still `running` becomes `_adopted`, and `busy` stays true. Its prompt's answer arrives as a response to an id this connection never sent, which goes to `on_unmatched` → `_on_unmatched` and closes the task (done / cancelled / failed, plus the "finished" notification).
+    - `cancel_turn` handles an adopted turn by waiting for that answer, then closing the task itself.
+    - A container that was stopped gets a fresh agent, so it gets a fresh session as before.
+  - **Request ids start at a random offset** per connection, so the old process's in-flight prompt id can't collide with the new connection's ids.
+  - **Dedup:** a `session/request_permission` whose request id matches an open call this supervisor already holds (petd can replay one) resolves to the same call instead of opening a second.
+  - **An agent that forgot the session** (an agent restart we didn't see): the first prompt's ACP error on a rejoined session opens a new session and retries once.
+  - **Clear trouble:**
+    - The gateway turns upstream connection errors (Ollama down, the alias create failing, the Claude API unreachable) into a 502 in the brain's API error shape.
+    - It also calls `Fleet.on_model_down`, at most one `model_down` notice a minute.
+    - The pet page has a `_trouble.html` banner (one of the PARTIALS) showing the newest of `model_down|docker_down|home_missing|hatch_failed|retire_failed`, hidden once the model has answered since (`store.last_usage_at`).
+    - Boot without Docker says "tomabotchi can't reach Docker, so it can't wake up. Start Docker, then restart tomabotchi." A missing container says "Its home is gone. Retire it to keep its soul and files." Image build failures were already reported as `hatch_failed`.
+  - **The practice brain now behaves like petd:** it outlives connections, buffers while nobody is connected and replays on reconnect, tracks its sessions, and errors on unknown ones. That makes restart behaviour testable without Docker.
+  - **Proof:**
+    - Pip Jr (`91e61ad6`, Hermes) was fed a write task. Call 26 ("Write /workspace/drafts/sqlite-wal-mode.md", in drafts/ thanks to the lesson inherited from Pip) was pending when `docker restart aihub-tomabotchi-1` ran.
+    - After the restart the call was still on the page. Allow → the file landed, task 33 closed `done` from the old prompt's late answer, there was exactly 1 call, and `tasks_done` went to 1.
+    - `pytest -m docker -k buffers_across`: passed. A client sends a prompt and drops; 4 min later a new client gets the backlog replayed, including the response to prompt id 777.
+    - Unit: 154 passed (`test_resilience.py`: 6, covering restart mid-call, a replayed call not doubled, a forgotten session, model down → 502 plus one notice, trouble clearing, and Docker down on boot).
