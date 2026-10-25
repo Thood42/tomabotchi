@@ -164,13 +164,21 @@ def pet_context(conn, pet: Pet) -> dict:
     lights_off = pet.state == "asleep" and bool(switches) and switches[-1] == "lights_off"
     steps = store.plan(conn, task.id) if task else []
     done = sum(s.status == "completed" for s in steps)
-    track = tracks.sample(pet.look_seed, now, calling=bool(open_call), sick=bool(v.sick_reason), busy=working)
+    track = track_context(conn, pet, updates, loop, working=working, now=now)
     return {"pet": pet, "track": track, "meters": module_meters(v), "led": led_state(pet, open_call, v, working), "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
             "working": working, "tokens": tokens, "lights_off": lights_off,
             "trouble": trouble.payload.get("text") if trouble else None, "home": home_context(pet), **rules_context(conn, pet, open_call),
             **lessons_context(conn, pet)}
+
+
+def track_context(conn, pet: Pet, updates, loop_notice, *, working: bool, now: datetime) -> tracks.Track:
+    """The pet's last hour as blocks. `updates` are its recent tool updates, for the loop bracket."""
+    since = now - tracks.WINDOW
+    return tracks.track(store.events_since(conn, pet.id, since, tracks.EVENT_KINDS, tracks.MAX_EVENTS),
+                        store.calls_since(conn, pet.id, since), store.tasks_ended_since(conn, pet.id, since),
+                        streak=vitals.failed_streak(updates), loop_notice=loop_notice, working=working, now=now)
 
 
 def _segments(filled: int, warn_from: int | None = None, bad: bool = False) -> list[str]:

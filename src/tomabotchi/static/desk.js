@@ -38,6 +38,7 @@
 
   function relayout() {
     const now = Date.now();
+    laneWidth = 0;
     ticks(now);
     screen.querySelectorAll(".lane .reel").forEach((reel) => layout(reel, now));
   }
@@ -108,6 +109,24 @@
     mark();
   };
 
+  // The "now" edge glides: each reel slides left by the time since it was laid out. One transform per reel
+  // per frame, and nothing is laid out again until the next relayout.
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  let laneWidth = 0;
+  function glide() {
+    if (!still.matches) {
+      const now = Date.now();
+      if (!laneWidth) laneWidth = screen.querySelector(".ruler").clientWidth;
+      for (const reel of screen.querySelectorAll("[data-reel]")) {
+        reel.style.transform = `translate3d(${-(now - Number(reel.dataset.origin)) / win() * laneWidth}px,0,0)`;
+      }
+    }
+    requestAnimationFrame(glide);               // the browser pauses this while the tab is hidden
+  }
+  addEventListener("resize", () => { laneWidth = 0; });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) relayout(); });
+
   setZoom(zoom);
   setInterval(relayout, 5000);
+  requestAnimationFrame(glide);
 })();

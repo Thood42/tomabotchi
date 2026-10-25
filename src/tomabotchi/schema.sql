@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS events (
     payload TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS events_pet_kind ON events(pet_id, kind, id);
+CREATE INDEX IF NOT EXISTS events_pet_ts ON events(pet_id, ts);
 
 CREATE TABLE IF NOT EXISTS calls (
     id             INTEGER PRIMARY KEY,

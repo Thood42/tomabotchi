@@ -77,3 +77,12 @@ def test_median_wait_odd_even_empty():
     assert vitals.median_wait(s(10, 30, 200)) == timedelta(seconds=30)
     assert vitals.median_wait(s(10, 30)) == timedelta(seconds=20)
     assert vitals.median_wait([]) is None
+
+
+def test_failed_streak_is_trailing_identical_failures():
+    a, b = {"url": "a"}, {"url": "b"}
+    evs = [upd("failed", args=a, i=1), upd("completed", i=2), upd("failed", args=b, i=3), upd("failed", args=b, i=4),
+           upd("failed", args=b, i=5)]
+    assert [e.id for e in vitals.failed_streak(evs)] == [3, 4, 5]
+    assert vitals.failed_streak(evs + [upd("completed", i=6)]) == []
+    assert vitals.failed_streak([]) == []

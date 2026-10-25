@@ -99,6 +99,12 @@ def current_task(conn, pet_id: str) -> Task | None:
     return _task(row) if row else None
 
 
+def tasks_ended_since(conn, pet_id: str, since: datetime) -> list[Task]:
+    rows = conn.execute("SELECT * FROM tasks WHERE pet_id = ? AND ended_at >= ? ORDER BY ended_at",
+                        (pet_id, _ts(since))).fetchall()
+    return [_task(r) for r in rows]
+
+
 def end_task(conn, task_id: int, state: str) -> None:
     with tx(conn):
         conn.execute("UPDATE tasks SET state = ?, ended_at = ? WHERE id = ?", (state, _ts(now()), task_id))
@@ -148,6 +154,15 @@ def recent_events(conn, pet_id: str, kinds: set[EventKind], limit: int) -> list[
                   payload=json.loads(r["payload"])) for r in reversed(rows)]
 
 
+def events_since(conn, pet_id: str, since: datetime, kinds: set[EventKind], limit: int) -> list[Event]:
+    """The newest `limit` events of these kinds at or after `since`, oldest first."""
+    marks = ", ".join("?" * len(kinds))
+    rows = conn.execute(f"SELECT * FROM events WHERE pet_id = ? AND ts >= ? AND kind IN ({marks}) "
+                        "ORDER BY id DESC LIMIT ?", (pet_id, _ts(since), *kinds, limit)).fetchall()
+    return [Event(id=r["id"], pet_id=r["pet_id"], task_id=r["task_id"], ts=_dt(r["ts"]), kind=r["kind"],
+                  payload=json.loads(r["payload"])) for r in reversed(rows)]
+
+
 # ---- calls ----
 
 def _call(row: sqlite3.Row) -> Call:
@@ -184,6 +199,13 @@ def pending_calls(conn, pet_id: str | None = None) -> list[Call]:
     else:
         rows = conn.execute("SELECT * FROM calls WHERE answered_at IS NULL AND pet_id = ? ORDER BY id",
                             (pet_id,)).fetchall()
+    return [_call(r) for r in rows]
+
+
+def calls_since(conn, pet_id: str, since: datetime) -> list[Call]:
+    """Calls still open, or answered at or after `since`, oldest first."""
+    rows = conn.execute("SELECT * FROM calls WHERE pet_id = ? AND (answered_at IS NULL OR answered_at >= ?) "
+                        "ORDER BY asked_at", (pet_id, _ts(since))).fetchall()
     return [_call(r) for r in rows]
 
 

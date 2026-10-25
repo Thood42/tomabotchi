@@ -27,10 +27,10 @@ def _hearts_from_fraction(f: float) -> int:
     return max(0, min(4, int(f * 4 + 0.5)))
 
 
-def sick_reason(recent_tool_updates: list[Event], loop_notice: Event | None) -> str | None:
-    if loop_notice is not None:
-        return loop_notice.payload.get("text") or "Stuck in a loop"
-    streak, key = 0, None
+def failed_streak(recent_tool_updates: list[Event]) -> list[Event]:
+    """The trailing run of failures of one identical tool call (same tool and args), oldest first. Empty if the
+    last finished update didn't fail."""
+    streak, key = [], None
     for ev in reversed(recent_tool_updates):
         if ev.payload.get("status") != "failed":
             break
@@ -39,9 +39,16 @@ def sick_reason(recent_tool_updates: list[Event], loop_notice: Event | None) -> 
             key = k
         if k != key:
             break
-        streak += 1
-    if streak >= SICK_AFTER:
-        return f"The same {key[0] or 'tool'} call has failed {streak} times in a row"
+        streak.append(ev)
+    return streak[::-1]
+
+
+def sick_reason(recent_tool_updates: list[Event], loop_notice: Event | None) -> str | None:
+    if loop_notice is not None:
+        return loop_notice.payload.get("text") or "Stuck in a loop"
+    streak = failed_streak(recent_tool_updates)
+    if len(streak) >= SICK_AFTER:
+        return f"The same {streak[0].payload.get('tool') or 'tool'} call has failed {len(streak)} times in a row"
     return None
 
 
