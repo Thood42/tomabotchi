@@ -47,7 +47,19 @@
 .who p { margin-top: 4px; color: var(--dim); }
 
 @media (max-width: 1100px) { .deck { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 760px) { .wrap { padding: 4px 16px 32px; } .deck { grid-template-columns: 1fr; } .top { padding-inline: 16px; } }
+@media (max-width: 760px) {
+  .wrap { padding: 4px 16px 32px; }
+  .deck { grid-template-columns: 1fr; }
+  .top { padding-inline: 16px; gap: 10px; }
+  .top nav { margin-left: auto; flex-wrap: wrap; }
+  .desk { grid-template-columns: 92px minmax(0, 1fr); overflow-x: auto; }
+  .desk .screen { min-width: 540px; }                    /* the timeline scrolls sideways under the narrow strips */
+  .strips .mod { grid-template-columns: 1fr; justify-items: start; padding: 6px; }
+  .strips .mod .scr { grid-row: auto; }
+  .strips .mod .d, .strips .mod .vus, .strips .mod .zz, .strips .mod .k { display: none; }
+  .strips .hd .lbl:last-child { display: none; }
+  .legend { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { .led.ring, .calls.on i { animation: none; } }
 
 /* deck panels */

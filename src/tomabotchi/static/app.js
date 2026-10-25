@@ -247,6 +247,11 @@ function unsend(form, message) {
 document.addEventListener("htmx:beforeRequest", (e) => { if (e.target.matches?.(".callform")) sending(e.target); });
 document.addEventListener("htmx:responseError", (e) => {
   const message = errorText(e.detail.xhr);
+  e.target.querySelectorAll?.("input[data-was]").forEach((input) => {      // a rule that didn't save goes back
+    input.value = input.dataset.was;
+    input.closest(".rule")?.querySelectorAll(".sw3 [data-set]").forEach((o) => o.setAttribute("aria-pressed", String(o.dataset.set === input.value)));
+    delete input.dataset.was;
+  });
   if (e.target.matches?.(".callform")) unsend(e.target, message); else toast(message);
 });
 document.addEventListener("htmx:sendError", (e) => {
@@ -260,6 +265,7 @@ document.addEventListener("click", (e) => {
   const row = b.closest(".rule");
   const input = row.querySelector('input[name="rule"]');
   if (input.value === b.dataset.set) return;
+  input.dataset.was = input.value;                  // so a failed save can put the switch back
   input.value = b.dataset.set;
   row.querySelectorAll(".sw3 [data-set]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
   input.dispatchEvent(new Event("change", { bubbles: true }));

@@ -107,12 +107,12 @@ def _pet_or_404(request: Request, pet_id: str):
 # ---- pages ----
 
 @app.get("/", response_class=HTMLResponse)
-def desk(request: Request, focus: str | None = None):
+async def desk(request: Request, focus: str | None = None):
     return _page(request, "desk.html", **views.desk_context(request.app.state.conn, focus))
 
 
 @app.get("/pets/{pet_id}/deck", response_class=HTMLResponse)
-def deck(request: Request, pet_id: str):
+async def deck(request: Request, pet_id: str):
     """The desk's deck for one pet, swapped in when the keeper focuses it."""
     pet = _pet_or_404(request, pet_id)
     if pet.state == "retired":
@@ -121,7 +121,7 @@ def deck(request: Request, pet_id: str):
 
 
 @app.get("/hatch", response_class=HTMLResponse)
-def hatch_page(request: Request, from_: str | None = Query(None, alias="from")):
+async def hatch_page(request: Request, from_: str | None = Query(None, alias="from")):
     """?from=<retired pet> prefills the soul answers from that pet's soul, and keeps its lessons."""
     cfg, conn = request.app.state.cfg, request.app.state.conn
     parent = _pet_or_404(request, from_) if from_ else None
@@ -132,12 +132,12 @@ def hatch_page(request: Request, from_: str | None = Query(None, alias="from")):
 
 
 @app.get("/memory", response_class=HTMLResponse)
-def memory_page(request: Request):
+async def memory_page(request: Request):
     return _page(request, "memory.html", **views.memory_context(request.app.state.conn))
 
 
 @app.get("/memory/{pet_id}/backup")
-def download_backup(request: Request, pet_id: str):
+async def download_backup(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     path = Path(pet.backup_path) if pet.backup_path else None
     if pet.state != "retired" or path is None or not path.is_file():
@@ -181,7 +181,7 @@ async def test_beep(request: Request):
 
 
 @app.get("/pets/{pet_id}", response_class=HTMLResponse)
-def pet_page(request: Request, pet_id: str):
+async def pet_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     if pet.state == "retired":
         return RedirectResponse(f"/pets/{pet_id}/soul", status_code=303)    # all that's left is its soul
@@ -200,7 +200,7 @@ async def workspace_page(request: Request, pet_id: str):
 
 
 @app.get("/pets/{pet_id}/soul", response_class=HTMLResponse)
-def soul_page(request: Request, pet_id: str):
+async def soul_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     conn = request.app.state.conn
     return _page(request, "soul.html", **{**views.pet_context(conn, pet), **views.soul_context(conn, pet),
