@@ -1,7 +1,6 @@
-"""Slice 13: the small things: honest shelf summaries, looks that stick, tasks closed on restart,
+"""Slice 13: the small things: looks that stick, tasks closed on restart,
 and a quiet VS Code in every home."""
 import json
-from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 from test_web import HATCH, client, wait_for  # noqa: F401 - client is a fixture
@@ -9,23 +8,12 @@ from test_web import HATCH, client, wait_for  # noqa: F401 - client is a fixture
 from tomabotchi import brains, db, store, views
 
 
-def ctx(name, sick=None, working=False, call=None):
-    return {"pet": SimpleNamespace(name=name), "call": call, "working": working,
-            "vitals": SimpleNamespace(sick_reason=sick)}
-
-
-def test_summary_grammar_for_one_and_many():
-    assert views.summary([ctx("Pip", sick="loop")]) == "Pip is stuck and needs medicine."
-    assert views.summary([ctx("Pip", sick="x"), ctx("Fig", sick="y"), ctx("Bean", working=True)]) == \
-        "1 is working, and Pip and Fig are stuck and need medicine."
-
-
-def test_look_sticks_from_hatch_to_shelf(client):
+def test_look_sticks_from_hatch_to_desk(client):
     pet_id = client.post("/pets", data={**HATCH, "look_seed": "4242", "shell": "tangerine"},
                          follow_redirects=False).headers["location"].rsplit("/", 1)[1]
-    shelf = client.get("/").text
-    slot = shelf[shelf.index(f'id="slot-{pet_id}"'):]
-    assert 'data-seed="4242"' in slot[:600] and "var(--tangerine)" in slot[:600]
+    desk = client.get("/").text
+    module = desk[desk.index(f'id="module-{pet_id}"'):]
+    assert 'data-seed="4242"' in module[:600]
     assert 'data-seed="4242"' in client.get(f"/pets/{pet_id}").text
 
 

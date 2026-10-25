@@ -1,0 +1,1 @@
+<a id="status" data-live class="calls{{ ' on' if calling else ' quiet' }}"{% if next_pet %} href="/?focus={{ next_pet.id }}"{% else %} href="/"{% endif %}><i></i>{{ calling ~ " calling" if calling else "All quiet" }}</a>

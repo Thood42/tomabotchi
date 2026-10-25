@@ -1,0 +1,51 @@
+/* The desk: every pet is a channel strip, and its work plays across a shared timeline. */
+.transport { display: flex; align-items: center; gap: 8px; }
+.zoom { display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; border-radius: 4px; background: var(--raise); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18); }
+.zoom button { border: 0; background: none; padding: 5px 11px; border-radius: 3px; font: 500 12px/1 "Chivo Mono", monospace; color: var(--dim); }
+.zoom button[aria-pressed="true"] { background: var(--well); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+
+.desk { display: grid; grid-template-columns: 236px 1fr; gap: 6px; padding: 8px; border-radius: 6px; background: var(--seam); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .3); }
+.strips { display: grid; grid-template-rows: 28px; grid-auto-rows: 66px; gap: 4px; counter-reset: mod; }
+.strips .hd { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; color: var(--dim); }
+.strips .mod { height: 66px; padding-block: 6px; }
+
+.screen { position: relative; display: grid; grid-template-rows: 28px; grid-auto-rows: 66px; gap: 4px; padding-right: 64px; overflow: hidden; border-radius: 3px; background: var(--screen); color: var(--stext); }
+.ruler { position: relative; overflow: hidden; border-bottom: 1px solid var(--grid); }
+.reel { position: absolute; inset: 0; will-change: transform; }
+.ruler span { position: absolute; top: 8px; translate: -50% 0; font: 500 11px/1 "Chivo Mono", monospace; color: var(--sdim); }
+.grid { position: absolute; top: 28px; bottom: 0; left: 0; right: 64px; overflow: hidden; pointer-events: none; }
+.grid i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--grid); }
+.lane { position: relative; overflow: hidden; cursor: pointer; }
+.lane::after { content: ""; position: absolute; inset: auto 0 -2px 0; height: 1px; background: var(--grid); }
+.lane[aria-current] { background: rgba(255, 255, 255, .035); }
+.blk { position: absolute; top: 20px; height: 26px; min-width: 3px; border-radius: 2px; }
+.blk.think { background: var(--think); }
+.blk.tool { background: var(--tool); }
+.blk.said { background: var(--said); }
+.blk.failed { background: var(--err); }
+.blk.call { background: repeating-linear-gradient(135deg, var(--signal) 0 6px, color-mix(in oklab, var(--signal), #000 18%) 6px 12px); box-shadow: 0 0 0 2px color-mix(in oklab, var(--signal), transparent 60%); }
+.blk.done { min-width: 2px; width: 2px; top: 12px; height: 42px; background: var(--led); }
+.blk:hover { outline: 2px solid #fff; outline-offset: 1px; z-index: 2; }
+.loop { position: absolute; top: 4px; height: 12px; border: 1.5px solid var(--err); border-bottom: 0; border-radius: 3px 3px 0 0; }
+.loop span { position: absolute; top: -3px; left: 50%; translate: -50% 0; padding: 0 6px; background: var(--screen); font: 500 10.5px/1 "Chivo Mono", monospace; color: var(--err); white-space: nowrap; }
+.idle { position: absolute; top: 24px; left: 16px; font: 500 12px/1.4 "Chivo Mono", monospace; color: var(--sdim); }
+.now { position: absolute; top: 0; bottom: 0; right: 64px; width: 2px; background: var(--signal); }
+.now span { position: absolute; top: 7px; left: 8px; font: 700 11px/1 "Chivo Mono", monospace; color: var(--signal); }
+.legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 2px; }
+.legend span { display: flex; gap: 6px; align-items: center; }
+.legend i { width: 14px; height: 8px; border-radius: 1px; }
+.tip { position: fixed; z-index: 9; display: none; max-width: 300px; padding: 7px 10px; border-radius: 3px; background: var(--lcd); color: var(--pixel); font: 500 12px/1.35 "Chivo Mono", monospace; box-shadow: 0 6px 20px var(--shadow); pointer-events: none; }
+
+.empty { display: grid; gap: 14px; justify-items: start; padding: 48px 8px; }
+.empty h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
+
+/* the deck under the desk */
+.deck { display: grid; grid-template-columns: 1fr 1.35fr 0.95fr; gap: 14px; align-items: start; }
+.panel { display: grid; gap: 12px; padding: 16px 16px 18px; border-radius: 4px; background: var(--face); box-shadow: inset 0 -2px 0 var(--groove); }
+.panel h2 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; font-weight: 700; }
+.who h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
+.who p { margin-top: 4px; color: var(--dim); }
+
+@media (max-width: 1100px) { .deck { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .wrap { padding: 4px 16px 32px; } .deck { grid-template-columns: 1fr; } .top { padding-inline: 16px; } }
+@media (prefers-reduced-motion: reduce) { .led.ring, .calls.on i { animation: none; } }

@@ -112,18 +112,6 @@ def test_hermes_permission_bookkeeping_is_not_a_tool_the_pet_used():
                      tool_index={}, now=NOW) == []
 
 
-async def test_finished_task_hides_step_progress_on_the_plate(make_pet, conn):
-    sup = await make_pet()
-    task_id = await sup.feed("write a note")
-    await until(lambda: store.pending_calls(conn, sup.pet.id))
-    working = views.render("_slot.html", **views.pet_context(conn, store.get_pet(conn, sup.pet.id)))
-    assert 'class="steps"' in working
-    await sup.answer(store.pending_calls(conn, sup.pet.id)[0].id, "reject_once", None)
-    await until(lambda: store.get_task(conn, task_id).state == "done")
-    done = views.render("_slot.html", **views.pet_context(conn, store.get_pet(conn, sup.pet.id)))
-    assert 'class="steps"' not in done
-
-
 async def test_thinking_shows_only_the_current_task(make_pet, conn):
     sup = await make_pet(streamy)
     first = await sup.feed("go")

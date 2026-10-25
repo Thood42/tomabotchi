@@ -1,0 +1,113 @@
+/* tomabotchi UI kit: tokens (light and dark) and the parts every page shares.
+   Light is brushed aluminium, dark is graphite; the timeline screen is dark in both. */
+@font-face { font-family: "Chivo"; font-weight: 400; font-display: swap; src: url(/static/vendor/fonts/chivo-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Chivo"; font-weight: 500; font-display: swap; src: url(/static/vendor/fonts/chivo-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Chivo"; font-weight: 700; font-display: swap; src: url(/static/vendor/fonts/chivo-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Chivo"; font-weight: 800; font-display: swap; src: url(/static/vendor/fonts/chivo-latin-800-normal.woff2) format("woff2"); }
+@font-face { font-family: "Chivo Mono"; font-weight: 400; font-display: swap; src: url(/static/vendor/fonts/chivo-mono-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Chivo Mono"; font-weight: 500; font-display: swap; src: url(/static/vendor/fonts/chivo-mono-latin-500-normal.woff2) format("woff2"); }
+
+* { box-sizing: border-box; }
+:root {
+  color-scheme: light;
+  --chassis: #cfcfc8; --face: #ececE6; --raise: #e1e1da; --groove: #b2b2aa; --seam: #bdbdb5; --well: #fff;
+  --text: #1c1c1a; --dim: #66665f; --faint: #7d7d75;
+  --signal: #ff5a1f; --signal-ink: #fff; --signal-low: #b83c10; --led: #2fb565; --red: #d8403f; --violet: #6d5fd0;
+  --lcd: #a9b79a; --pixel: #24301f;
+  --screen: #1d2229; --grid: #2a3039; --sdim: #7f8a98; --stext: #dfe4ea;
+  --think: #9d8ff0; --tool: #49b98a; --said: #dfe4ea; --err: #ee5555;
+  --stop: #1c1c1a; --stop-ink: #fff; --shadow: rgba(0, 0, 0, .35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; --dark: 1;
+    --chassis: #1d2229; --face: #252b34; --raise: #2e3540; --groove: #3a424e; --seam: #14181d; --well: #14181d;
+    --text: #dfe4ea; --dim: #8d98a7; --faint: #6a7685;
+    --signal: #ff6a2b; --signal-ink: #1b0d05; --signal-low: #a33a0e; --led: #3fcf7c; --red: #ef5b5b; --violet: #a99bf2;
+    --lcd: #9fb08f; --pixel: #1f2a1b; --stop: #3a2226; --stop-ink: #ef5b5b; --shadow: rgba(0, 0, 0, .55); }
+}
+:root[data-theme="dark"] { color-scheme: dark; --dark: 1;
+  --chassis: #1d2229; --face: #252b34; --raise: #2e3540; --groove: #3a424e; --seam: #14181d; --well: #14181d;
+  --text: #dfe4ea; --dim: #8d98a7; --faint: #6a7685;
+  --signal: #ff6a2b; --signal-ink: #1b0d05; --signal-low: #a33a0e; --led: #3fcf7c; --red: #ef5b5b; --violet: #a99bf2;
+  --lcd: #9fb08f; --pixel: #1f2a1b; --stop: #3a2226; --stop-ink: #ef5b5b; --shadow: rgba(0, 0, 0, .55); }
+
+body { margin: 0; min-height: 100vh; background: var(--chassis); color: var(--text); font: 400 14px/1.45 "Chivo", system-ui, sans-serif; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+code, pre { font-family: "Chivo Mono", ui-monospace, monospace; font-size: 12.5px; }
+.lbl { font: 500 11.5px/1 "Chivo Mono", ui-monospace, monospace; color: var(--faint); letter-spacing: .02em; }
+.dim { color: var(--dim); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 12px 20px; max-width: 1440px; margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; text-decoration: none; }
+.brand i { width: 10px; height: 10px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 3px color-mix(in oklab, var(--signal), transparent 75%); }
+.top nav { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+.top nav a { padding: 6px 11px; border-radius: 4px; text-decoration: none; color: var(--dim); font-weight: 500; }
+.top nav a:hover, .top nav a[aria-current] { color: var(--text); }
+.calls { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 4px; background: var(--raise); text-decoration: none; font-weight: 700; box-shadow: inset 0 -2px 0 var(--groove); }
+.calls i { width: 8px; height: 8px; border-radius: 50%; background: var(--groove); }
+.calls.on i { background: var(--signal); animation: blink 1.2s steps(2) infinite; }
+.calls.quiet { font-weight: 500; color: var(--dim); }
+@keyframes blink { 50% { opacity: .25; } }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 4px 20px 40px; display: grid; gap: 14px; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 0; border-radius: 4px; background: var(--raise); box-shadow: inset 0 -2px 0 var(--groove); font-weight: 700; text-decoration: none; }
+.btn:hover { background: var(--face); }
+.btn.primary { background: var(--signal); color: var(--signal-ink); box-shadow: inset 0 -2px 0 var(--signal-low); }
+.btn.stop { background: var(--stop); color: var(--stop-ink); }
+.btn.quiet { background: none; box-shadow: none; color: var(--dim); }
+
+/* parts: LED, segment meter, LCD */
+.led { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--groove); }
+.led.ring { background: var(--signal); box-shadow: 0 0 0 3px color-mix(in oklab, var(--signal), transparent 72%); animation: blink 1.2s steps(2) infinite; }
+.led.go { background: var(--led); box-shadow: 0 0 0 3px color-mix(in oklab, var(--led), transparent 78%); }
+.led.bad { background: var(--red); }
+.vu { display: flex; gap: 2px; height: 5px; }
+.vu i { flex: 1; border-radius: 1px; background: var(--groove); }
+.vu i.f { background: var(--text); }
+.vu i.w { background: var(--signal); }
+.vu i.x { background: var(--red); }
+.lcdbox { display: block; width: 44px; height: 44px; padding: 4px; background: var(--lcd); border: 2px solid var(--seam); border-radius: 2px; box-shadow: inset 1px 1px 0 rgba(31, 42, 27, .3); }
+.lcd svg { display: block; width: 100%; }
+.lcd svg .on { fill: var(--pixel); opacity: .92; }
+.lcd svg .off { fill: var(--pixel); opacity: .07; }
+.lcd .f2, .lcd.alt .f1 { display: none; }
+.lcd.alt .f2 { display: block; }
+.lcdbox .lcd { display: grid; place-items: center; height: 100%; }
+
+/* three-way switch */
+.sw3 { display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; border-radius: 3px; background: var(--raise); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .18); }
+.sw3 button { border: 0; background: none; padding: 4px 9px; border-radius: 2px; font: 500 11px/1 "Chivo Mono", monospace; color: var(--dim); }
+.sw3 button[aria-pressed="true"] { background: var(--well); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.sw3 button.never[aria-pressed="true"] { background: var(--stop); color: var(--stop-ink); }
+
+/* channel strip / rack module */
+.mod { position: relative; display: grid; grid-template-columns: 44px 1fr auto; grid-template-rows: auto auto auto; align-items: center; gap: 2px 10px;
+  padding: 8px 10px; border-radius: 3px; background: var(--face); box-shadow: inset 0 -2px 0 var(--groove); counter-increment: mod; }
+.mod:hover { background: var(--well); }
+.mod[aria-current] { background: var(--well); box-shadow: inset 3px 0 0 var(--signal), inset 0 -2px 0 var(--groove); }
+.mod .hit { display: contents; text-decoration: none; }
+.mod .scr { grid-row: 1 / span 3; }
+.mod .r1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mod .n { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+.mod .k::before { content: counter(mod, decimal-leading-zero); }
+.mod .d { grid-column: 2; color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod .vus { grid-column: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 2px; }
+.mod .zz { grid-column: 3; grid-row: 1 / span 3; align-self: center; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 3px;
+  background: var(--raise); box-shadow: 0 2px 0 var(--groove); font: 500 11px/1 "Chivo Mono", monospace; color: var(--dim); }
+.mod .zz:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--groove); }
+.mod .zz.on { background: var(--text); color: var(--chassis); }
+.mod.gone { display: none; }
+
+/* notification opt-in banner */
+.optin { display: flex; align-items: center; gap: 14px 24px; flex-wrap: wrap; padding: 10px 20px; background: var(--face); box-shadow: inset 0 -2px 0 var(--groove); }
+.optin p { flex: 1 1 360px; color: var(--dim); }
+.optin b { color: var(--text); }
+.answers { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

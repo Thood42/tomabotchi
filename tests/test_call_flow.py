@@ -47,7 +47,7 @@ async def test_permission_request_opens_call_and_publishes(setup, conn, bus):
     [call] = store.pending_calls(conn, "p1")
     assert call.tool_call["toolCallId"] == "write-1"
     await until(lambda: "call-p1" in seen)
-    assert {"slot-p1", "bigegg-p1", "shelf-head"} <= set(seen)
+    assert {"module-p1", "track-p1", "bigegg-p1"} <= set(seen)
     assert views.pet_context(conn, store.get_pet(conn, "p1"))["vitals"].scene == "alert"
     collector.cancel()
 
@@ -86,7 +86,7 @@ async def test_metric_median_from_answered_calls(setup, conn):
         await until(lambda: store.get_task(conn, task_id).state == "done")
     waits = store.call_waits(conn, store.now() - timedelta(days=7))
     assert len(waits) == 3
-    assert views.shelf_context(conn)["median_wait"] is not None
+    assert views.desk_context(conn, None)["median_wait"] is not None
 
 
 def test_soul_render_initial_has_sections():

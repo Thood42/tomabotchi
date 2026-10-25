@@ -389,15 +389,19 @@ def _permission_result(outcome: CallOutcome, options: list[dict]) -> dict:
     return {"outcome": {"outcome": "cancelled"}}
 
 
-PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_lesson.html", "_steps.html", "_thoughts.html", "_tools.html",
+PARTIALS = ("_module.html", "_track.html", "_bigegg.html", "_call.html", "_lesson.html", "_steps.html", "_thoughts.html", "_tools.html",
             "_vitals.html", "_home.html", "_editbar.html", "_trouble.html")
 
 
 def publish_pet(conn, bus: Bus, pet: Pet) -> None:
-    """Re-render every live partial for this pet, plus the shelf header. Each partial's root
+    """Re-render every live partial for this pet, plus the top bar's calls key. Each partial's root
     element id is its SSE event name, so the browser swaps it in place."""
     ctx = views.pet_context(conn, pet)
     for name in PARTIALS:
         html = views.render(name, **ctx)
         bus.publish(BusMessage(event=f"{name[1:-5]}-{pet.id}", data=html, pet_id=pet.id))
-    bus.publish(BusMessage(event="shelf-head", data=views.render("_shelf_head.html", **views.shelf_context(conn))))
+    publish_status(conn, bus)
+
+
+def publish_status(conn, bus: Bus) -> None:
+    bus.publish(BusMessage(event="status", data=views.render("_status.html", **views.status_context(conn))))

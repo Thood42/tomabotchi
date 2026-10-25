@@ -88,7 +88,7 @@ def test_retire_backs_up_cleans_up_and_shelves_the_pet(client):
     dl = client.get(f"/memory/{pet_id}/backup")
     assert dl.status_code == 200 and dl.content == backup.read_bytes()
     home = client.get("/").text
-    assert f'id="slot-{pet_id}"' not in home and "1 retired pet on the memory shelf" in home
+    assert f'id="module-{pet_id}"' not in home and "1 retired pet in the archive" in home
     assert client.get(f"/pets/{pet_id}", follow_redirects=False).headers["location"] == f"/pets/{pet_id}/soul"
     assert "Teach Biscuit" not in client.get(f"/pets/{pet_id}/soul").text
     assert client.post(f"/pets/{pet_id}/retire").status_code == 409

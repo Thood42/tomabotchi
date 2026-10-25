@@ -44,14 +44,14 @@ def test_hatch_page_renders_brains_and_homes(client):
     assert "Python (default)" in r.text
 
 
-def test_hatch_redirects_to_pet_and_call_shows_on_shelf(client):
+def test_hatch_redirects_to_pet_and_call_shows_on_desk(client):
     r = client.post("/pets", data=HATCH, follow_redirects=False)
     assert r.status_code == 303
     pet_id = r.headers["location"].rsplit("/", 1)[1]
     conn = client.app.state.conn
     wait_for(lambda: store.pending_calls(conn, pet_id))
     shelf = client.get("/").text
-    assert "Biscuit is calling you" in shelf
+    assert "1 calling" in shelf and f'href="/?focus={pet_id}"' in shelf
     assert "Wants your OK to write notes/hello.md" in shelf
     page = client.get(f"/pets/{pet_id}").text
     assert 'value="reject_once"' in page

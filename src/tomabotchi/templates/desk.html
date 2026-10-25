@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% block title %}Desk · tomabotchi{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/desk.css">{% endblock %}
+{% block transport %}
+  {% if pets %}
+  <div class="transport"><div class="zoom" role="group" aria-label="Time window">
+    <button type="button" data-w="5" aria-pressed="false">5m</button><button type="button" data-w="15" aria-pressed="true">15m</button><button type="button" data-w="60" aria-pressed="false">1h</button>
+  </div></div>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="wrap">
+{% if not pets %}
+  <section class="empty">
+    <h1>Nobody lives here yet.</h1>
+    <p class="dim">Hatch your first pet: give it a name, a soul and a first task.</p>
+    <a class="btn primary" href="/hatch">Hatch a pet</a>
+  </section>
+{% else %}
+  <section class="desk" aria-label="All pets over time">
+    <div class="strips" id="strips">
+      <div class="hd"><span class="lbl">{{ pets|length }} channel{{ "" if pets|length == 1 else "s" }}</span><span class="lbl">1–9 focus · [ ] zoom</span></div>
+      {% for ctx in pets %}{{ partial("_module.html", ctx) }}{% endfor %}
+    </div>
+    <div class="screen" id="screen">
+      <div class="ruler"><div class="reel" data-reel id="ruler"></div></div>
+      <div class="grid"><div class="reel" data-reel id="gridlines"></div></div>
+      {% for ctx in pets %}{{ partial("_track.html", ctx) }}{% endfor %}
+      <i class="now"><span>now</span></i>
+    </div>
+  </section>
+  <div class="legend">
+    <span class="lbl"><i style="background: var(--said); outline: 1px solid var(--groove)"></i>said</span>
+    <span class="lbl"><i style="background: var(--think)"></i>thinking</span>
+    <span class="lbl"><i style="background: var(--tool)"></i>tool</span>
+    <span class="lbl"><i style="background: var(--err)"></i>failed</span>
+    <span class="lbl"><i style="background: var(--signal)"></i>waiting on you</span>
+    <span class="lbl"><i style="background: var(--led); width: 3px"></i>finished</span>
+    <span class="lbl" style="margin-left: auto">{% if median_wait %}typical wait for your answer this week: {{ human_wait(median_wait) }}{% endif %}</span>
+  </div>
+  {% if focus %}{{ partial("_deck.html", focus) }}{% endif %}
+{% endif %}
+{% if retired_count %}<p class="dim"><a href="/memory">{{ retired_count }} retired pet{{ "s" if retired_count != 1 }} in the archive.</a></p>{% endif %}
+</div>
+<div class="tip" id="tip"></div>
+{% endblock %}
+{% block scripts %}<script src="/static/desk.js"></script>{% endblock %}

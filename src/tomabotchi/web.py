@@ -76,8 +76,8 @@ async def pet_subnet_guard(request: Request, call_next):
     return await call_next(request)
 
 
-def _page(name: str, **ctx) -> HTMLResponse:
-    return HTMLResponse(views.render(name, **ctx))
+def _page(request: Request, name: str, **ctx) -> HTMLResponse:
+    return HTMLResponse(views.render(name, **{**views.status_context(request.app.state.conn), **ctx}))
 
 
 def _pet_or_404(request: Request, pet_id: str):
@@ -90,8 +90,17 @@ def _pet_or_404(request: Request, pet_id: str):
 # ---- pages ----
 
 @app.get("/", response_class=HTMLResponse)
-def shelf(request: Request):
-    return _page("shelf.html", **views.shelf_context(request.app.state.conn))
+def desk(request: Request, focus: str | None = None):
+    return _page(request, "desk.html", **views.desk_context(request.app.state.conn, focus))
+
+
+@app.get("/pets/{pet_id}/deck", response_class=HTMLResponse)
+def deck(request: Request, pet_id: str):
+    """The desk's deck for one pet, swapped in when the keeper focuses it."""
+    pet = _pet_or_404(request, pet_id)
+    if pet.state == "retired":
+        raise HTTPException(409, f"{pet.name} is in the archive.")
+    return HTMLResponse(views.render("_deck.html", **views.deck_context(request.app.state.conn, pet)))
 
 
 @app.get("/hatch", response_class=HTMLResponse)
@@ -100,14 +109,14 @@ def hatch_page(request: Request, from_: str | None = Query(None, alias="from")):
     cfg, conn = request.app.state.cfg, request.app.state.conn
     parent = _pet_or_404(request, from_) if from_ else None
     prefill = soul.prefill_from(store.latest_soul(conn, parent.id).content) if parent else {}
-    return _page("hatch.html", homes=cfg.homes, models=cfg.models, shells=views.SHELLS,
+    return _page(request, "hatch.html", homes=cfg.homes, models=cfg.models, shells=views.SHELLS,
                  seed=parent.look_seed if parent else random.randrange(1, 99999),
                  anthropic_ready=bool(cfg.anthropic_key), parent=parent, prefill=prefill)
 
 
 @app.get("/memory", response_class=HTMLResponse)
 def memory_page(request: Request):
-    return _page("memory.html", **views.memory_context(request.app.state.conn))
+    return _page(request, "memory.html", **views.memory_context(request.app.state.conn))
 
 
 @app.get("/memory/{pet_id}/backup")
@@ -122,7 +131,7 @@ def download_backup(request: Request, pet_id: str):
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request):
     cfg = request.app.state.cfg
-    return _page("settings.html", homes=cfg.homes, home_status=await request.app.state.fleet.home_status(),
+    return _page(request, "settings.html", homes=cfg.homes, home_status=await request.app.state.fleet.home_status(),
                  notes=store.get_notification_settings(request.app.state.conn))
 
 
@@ -159,7 +168,7 @@ def pet_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     if pet.state == "retired":
         return RedirectResponse(f"/pets/{pet_id}/soul", status_code=303)    # all that's left is its soul
-    return _page("pet.html", **views.pet_context(request.app.state.conn, pet))
+    return _page(request, "pet.html", **views.pet_context(request.app.state.conn, pet))
 
 
 @app.get("/pets/{pet_id}/workspace", response_class=HTMLResponse)
@@ -167,14 +176,14 @@ async def workspace_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
     if pet.brain == "fake":
         return RedirectResponse(f"/pets/{pet_id}", status_code=303)       # practice pets have no home
-    return _page("workspace.html", **views.pet_context(request.app.state.conn, pet),
+    return _page(request, "workspace.html", **views.pet_context(request.app.state.conn, pet),
                  direct_url=await request.app.state.fleet.direct_code_url(pet_id))
 
 
 @app.get("/pets/{pet_id}/soul", response_class=HTMLResponse)
 def soul_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
-    return _page("soul.html", **views.soul_context(request.app.state.conn, pet))
+    return _page(request, "soul.html", **views.soul_context(request.app.state.conn, pet))
 
 
 # ---- actions ----

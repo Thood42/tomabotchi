@@ -1,0 +1,8 @@
+<section id="deck" class="deck" aria-label="{{ pet.name }}" data-pet="{{ pet.id }}">
+  <div class="panel who">
+    <h1>{{ pet.name }}</h1>
+    <p>{{ home.brain_label }} on {{ home.model_label }}, day {{ day }}</p>
+    <p>{{ doing }}</p>
+    <p><a class="btn" href="/pets/{{ pet.id }}">Open {{ pet.name }}</a></p>
+  </div>
+</section>

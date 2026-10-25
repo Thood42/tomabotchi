@@ -31,6 +31,7 @@
     hydrate(el);
     if (window.htmx) htmx.process(el);
     listen();                       // a swapped partial may bring new live ids
+    window.onSwap?.(el);
   }
 
   function listen() {
@@ -51,6 +52,7 @@
     note.onclick = () => { window.focus(); location.href = n.url; };
   });
 
+  window.tbListen = listen;
   listen();
 })();
 

@@ -13,6 +13,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup
 
 from . import soul, store, vitals
+from . import timeline as tracks
 from .models import Call, Lesson, Pet, SoulRevision, ToolRule
 from .rules import rule_for_allow_always
 
@@ -38,11 +39,15 @@ def _ago(ts: datetime) -> str:
 
 
 ENV.filters["hm"] = _ago
+ENV.filters["ms"] = lambda ts: int(ts.timestamp() * 1000)         # epoch milliseconds, for the timeline's data-t0 / data-t1
 ENV.globals["human_wait"] = human_wait
 
 
 def render(name: str, **ctx) -> str:
     return ENV.get_template(name).render(**ctx)
+
+
+ENV.globals["partial"] = lambda name, ctx: Markup(render(name, **ctx))     # a partial rendered with another page's context
 
 
 # ---- tool rules ----
@@ -141,12 +146,38 @@ def pet_context(conn, pet: Pet) -> dict:
     lights_off = pet.state == "asleep" and bool(switches) and switches[-1] == "lights_off"
     steps = store.plan(conn, task.id) if task else []
     done = sum(s.status == "completed" for s in steps)
-    return {"pet": pet, "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
+    track = tracks.sample(pet.look_seed, now, calling=bool(open_call), sick=bool(v.sick_reason), busy=working)
+    return {"pet": pet, "track": track, "meters": module_meters(v), "led": led_state(pet, open_call, v, working), "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
             "working": working, "tokens": tokens, "lights_off": lights_off,
             "trouble": trouble.payload.get("text") if trouble else None, "home": home_context(pet), **rules_context(conn, pet, open_call),
             **lessons_context(conn, pet)}
+
+
+def _segments(filled: int, warn_from: int | None = None, bad: bool = False) -> list[str]:
+    """Five segments of a meter: 'f' filled, 'w' filled and warming, 'x' filled and bad, '' empty."""
+    return [("x" if bad else "w" if warn_from is not None and i >= warn_from else "f") if i < filled else "" for i in range(5)]
+
+
+def module_meters(v) -> list[dict]:
+    """The three meters on a pet's module: budget left, context used, health."""
+    budget = 5 if v.energy_pct is None else round(v.energy_pct / 20)
+    context = 0 if v.mess_pct is None else round(v.mess_pct / 20)
+    return [{"label": "Budget left", "segs": _segments(budget, warn_from=None if budget > 1 else 0),
+             "text": f"{v.energy_pct:.0f}%" if v.energy_pct is not None else "no limit"},
+            {"label": "Context used", "segs": _segments(context, warn_from=4),
+             "text": f"{v.mess_pct:.0f}%" if v.mess_pct is not None else "unknown"},
+            {"label": "Health", "segs": _segments(1 if v.sick_reason else 5, bad=bool(v.sick_reason)),
+             "text": v.sick_reason or "no errors or loops"}]
+
+
+def led_state(pet: Pet, call: Call | None, v, working: bool) -> str:
+    if call:
+        return "ring"
+    if v.sick_reason:
+        return "bad"
+    return "go" if working else ""
 
 
 TROUBLE = {"model_down", "docker_down", "home_missing", "hatch_failed", "retire_failed"}
@@ -248,33 +279,27 @@ def home_context(pet: Pet) -> dict:
     return ctx
 
 
-def _names(ctxs: list[dict]) -> str:
-    names = [c["pet"].name for c in ctxs]
-    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+def status_context(conn) -> dict:
+    """The top bar's "N calling" key: how many calls wait, and the pet that has waited longest."""
+    calls = store.pending_calls(conn)
+    owner = None
+    for call in calls:
+        pet = store.get_pet(conn, call.pet_id)
+        if pet.state != "retired":
+            owner = owner or pet
+    return {"calling": len(calls), "next_pet": owner}
 
 
-def summary(pets: list[dict]) -> str:
-    if not pets:
-        return "Nobody lives here yet. Hatch your first pet."
-    calling = [c for c in pets if c["call"]]
-    sick = [c for c in pets if not c["call"] and c["vitals"].sick_reason]
-    working = [c for c in pets if c["working"] and not c["call"] and not c["vitals"].sick_reason]
-    parts = []
-    if working:
-        parts.append(f"{len(working)} {'is' if len(working) == 1 else 'are'} working")
-    if calling:
-        parts.append(f"{_names(calling)} {'is' if len(calling) == 1 else 'are'} waiting for your answer")
-    if sick:
-        parts.append(f"{_names(sick)} {'is stuck and needs' if len(sick) == 1 else 'are stuck and need'} medicine")
-    if not parts:
-        return "Everyone is idle and hungry for a task."
-    text = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + ", and " + parts[-1]
-    return text[0].upper() + text[1:] + "."
-
-
-def shelf_context(conn) -> dict:
+def desk_context(conn, focus: str | None) -> dict:
+    """The desk: every pet, the focused one (the pet asked for, else the one waiting longest, else the first)."""
     pets = [pet_context(conn, p) for p in store.list_pets(conn)]
+    status = status_context(conn)
+    by_id = {c["pet"].id: c for c in pets}
+    chosen = by_id.get(focus) or (by_id.get(status["next_pet"].id) if status["next_pet"] else None) or (pets[0] if pets else None)
     week = store.call_waits(conn, datetime.now(timezone.utc) - timedelta(days=7))
-    calling = [c for c in pets if c["call"]]
-    return {"pets": pets, "calling": calling, "median_wait": vitals.median_wait(week), "summary": summary(pets),
-            "retired_count": len(store.list_pets(conn, retired=True))}
+    return {"pets": pets, "focus": chosen, "median_wait": vitals.median_wait(week),
+            "retired_count": len(store.list_pets(conn, retired=True)), **status}
+
+
+def deck_context(conn, pet: Pet) -> dict:
+    return pet_context(conn, pet)

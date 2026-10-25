@@ -1,0 +1,13 @@
+<div id="module-{{ pet.id }}" data-live class="mod" data-pet="{{ pet.id }}">
+  <a class="hit" href="/pets/{{ pet.id }}" title="{{ doing }}">
+    <span class="scr lcdbox"><span class="lcd" data-scene="{{ vitals.scene }}" data-seed="{{ pet.look_seed }}"></span></span>
+    <span class="r1"><span class="n">{{ pet.name }}</span><span class="led {{ led }}"></span><span class="lbl k"></span></span>
+    <span class="d">{{ doing }}</span>
+    <span class="vus">{% for m in meters %}<span class="vu" title="{{ m.label }}: {{ m.text }}">{% for s in m.segs %}<i class="{{ s }}"></i>{% endfor %}</span>{% endfor %}</span>
+  </a>
+  {% if pet.state in ("awake", "asleep") %}
+  {% set asleep = pet.state == "asleep" %}
+  <button class="zz{{ ' on' if asleep }}" type="button" hx-post="/pets/{{ pet.id }}/lights" hx-vals='{"on": {{ 1 if asleep else 0 }}}' hx-swap="none"
+          title="{{ 'Wake ' if asleep else 'Sleep ' }}{{ pet.name }}" aria-label="{{ 'Wake ' if asleep else 'Sleep ' }}{{ pet.name }}">{{ "Wk" if asleep else "Zz" }}</button>
+  {% endif %}
+</div>

@@ -24,7 +24,7 @@ from .docker_ops import DockerOps, container_name
 from .fake_agent import FakeAgent
 from .models import Call, CallOutcome, Event, HatchForm, Lesson, LessonSource, Pet, ToolRule
 from .rules import DEFAULT_RULES, with_rule
-from .supervisor import PetSupervisor, publish_pet
+from .supervisor import PetSupervisor, publish_pet, publish_status
 
 log = logging.getLogger(__name__)
 
@@ -340,9 +340,9 @@ class Fleet:
         views.HOME_STATS.pop(pet_id, None)
         store.update_pet(self.conn, pet_id, state="retired", retired_at=store.now(), retire_reason=reason,
                          backup_path=str(dest), backup_bytes=size, container_id=None)
-        self.bus.publish(BusMessage(event=f"slot-{pet_id}", data=f'<li id="slot-{pet_id}" hidden></li>'))
-        self.bus.publish(BusMessage(event="shelf-head", data=views.render(
-            "_shelf_head.html", **views.shelf_context(self.conn))))
+        for part in ("module", "track"):
+            self.bus.publish(BusMessage(event=f"{part}-{pet_id}", data=f'<div id="{part}-{pet_id}" data-live hidden></div>'))
+        publish_status(self.conn, self.bus)
         return store.get_pet(self.conn, pet_id)
 
     async def shutdown(self) -> None:
