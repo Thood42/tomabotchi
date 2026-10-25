@@ -1,0 +1,13 @@
+<div id="editbar-{{ pet.id }}" data-live class="toolbar">
+  <p class="note"><span class="lcd" data-scene="{{ vitals.scene }}" data-seed="{{ pet.look_seed }}"></span>
+    <span>{% if pet.state == "paused" %}<span class="working">{{ pet.name }} is paused while you edit.</span> Resume it when you're done.
+      {%- elif call %}<span class="working">{{ pet.name }} is waiting on you.</span> It sees your changes as soon as you save.
+      {%- elif working %}<span class="working">{{ pet.name }} is working.</span> Pause it if you'd rather it didn't touch files while you edit.
+      {%- else %}{{ pet.name }} is idle. It sees your changes as soon as you save.{% endif %}</span></p>
+  {% if pet.state == "paused" %}
+    <button class="btn primary" hx-post="/pets/{{ pet.id }}/resume" hx-swap="none">Resume {{ pet.name }}</button>
+  {% elif pet.state == "awake" %}
+    <button class="btn" hx-post="/pets/{{ pet.id }}/pause" hx-swap="none">Pause {{ pet.name }} while I edit</button>
+  {% endif %}
+  <a class="btn" href="/pets/{{ pet.id }}/code/?folder=/workspace" target="_blank" rel="noopener">Open in a new tab</a>
+</div>

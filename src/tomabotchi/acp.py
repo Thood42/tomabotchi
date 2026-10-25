@@ -71,6 +71,10 @@ class AcpConnection:
     async def cancel(self, session_id: str) -> None:
         await self._send({"jsonrpc": "2.0", "method": "session/cancel", "params": {"sessionId": session_id}})
 
+    async def petd(self, command: str) -> None:
+        """A control message for petd itself ("pause" or "resume"); never reaches the agent."""
+        await self._send({"jsonrpc": "2.0", "method": f"petd/{command}", "params": {}})
+
     async def close(self) -> None:
         if self._ws is not None:
             await self._ws.close()

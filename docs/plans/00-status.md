@@ -12,7 +12,7 @@
 - [x] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
 - [x] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
 - [x] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
-- [ ] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
+- [x] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
 - [ ] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
 - [ ] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
 - [ ] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
@@ -137,3 +137,20 @@
     - Mochi (practice) showed a proposed lesson on its Live page. The timeline shows "You scolded" with the quote and the `+ lesson` diff.
     - Unit: 113 passed (`test_soul.py`: 12).
     - The egg's Train key now opens the soul page.
+- Slice 7 notes (2026-10-25):
+  - **The VS Code proxy is `codeproxy.py`**, a FastAPI router (no Caddy needed, which retires risk 3).
+    - HTTP: `ANY /pets/{id}/code/{path}` streams through a shared httpx client to `tbx-pet-<id>:8080`, minus hop-by-hop headers.
+    - WebSocket: the same path pumps frames both ways. The URI carries the browser's Host, which code-server's origin check compares, while `host`/`port` kwargs dial the pet, with `proxy=None`.
+    - `/pets/{id}/code` redirects to the trailing slash, because code-server uses relative URLs.
+    - A practice pet gives 404, and an unreachable code-server gives 502 "isn't answering yet". The first seconds after a hatch can 502 while the new network's DNS settles.
+  - **Workspace page** `/pets/{id}/workspace`: the iframe loads `/pets/{id}/code/?folder=/workspace`. "Open in a new tab" uses the same URL. When `direct_code_ports = true`, `run_pet` publishes 8080 on `127.0.0.1:<random>` and the page links `http://127.0.0.1:<port>/` (`DockerOps.code_port`). The live status bar (`_editbar.html`, one of the PARTIALS) has Pause/Resume.
+  - **Deviation from 02:** "Pause while I edit" is **not** `docker pause`, which would freeze code-server too. petd now starts the agent in its own process group, and a `petd/pause` / `petd/resume` JSON-RPC notification (never forwarded to the agent) sends SIGSTOP or SIGCONT to that group, covering the agent and its tool subprocesses. The pet state becomes `paused` (sleep scene, "Paused while you edit its workspace"), and feeding returns 409 until it resumes. Lights off (slice 8) stays `docker pause`.
+  - The Workspace tab is a link for container pets and a dimmed label for practice pets. Fixed `_tabs.html` escaping `aria-current` (now plain `{% if %}`).
+  - **Screenshots of the embed** need a real wait (VS Code boots in about 10–20 s). `scratchpad/cdp_shot.py` and `cdp_edit.py` drive Chromium over CDP; the latter does Ctrl+P → `todo.md` → type → Ctrl+S inside the iframe.
+  - **Test note:** Starlette's TestClient cancels a WebSocket app right after its own close, so the proxy test closes, then waits 0.3 s before leaving the `with`.
+  - **Proof (Fig, `471168d5`, Hermes, fresh runtime):**
+    - The Workspace tab embeds VS Code through the proxy (workbench JS/CSS 200, WebSocket accepted).
+    - Over CDP, inside the iframe: Ctrl+P `todo.md`, typed "- Added in VS Code: the second word is PERSIMMON", Ctrl+S → the line is in `pets/471168d5/workspace/notes/todo.md` on the host.
+    - Pause → the agent's state is `T` (stopped), VS Code still returns 200, feeding returns 409, and the bar says "Fig is paused while you edit" with Resume. Resume → `S`.
+    - "Read notes/todo.md and tell me both secret words" → "The two secret words in the file are **MARMALADE** and **PERSIMMON**."
+    - `pytest -m docker -k "pause or runtime"`: 2 passed. Unit: 121 passed (`test_codeproxy.py`, `test_pause.py`).

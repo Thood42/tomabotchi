@@ -120,6 +120,8 @@ def pet_context(conn, pet: Pet) -> dict:
         doing = f"Wants your OK to {title[:1].lower()}{title[1:]}"
     elif v.sick_reason:
         doing = f"Sick: {v.sick_reason}"
+    elif pet.state == "paused":
+        doing = "Paused while you edit its workspace"
     elif pet.state == "hatching":
         note = store.recent_events(conn, pet.id, {"notice"}, 1)
         doing = (note[0].payload.get("text") if note else None) or "Hatching..."

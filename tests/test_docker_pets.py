@@ -189,3 +189,33 @@ def test_claude_never_rule_denies_without_asking(claude_pet, tmp_path):
     assert not asked
     blocks = drain_blocks(rules_file)
     assert blocks and blocks[0]["tool"] == "Bash", said[:300]
+
+
+STATES = ("python3 -c \"import os\nfor p in os.listdir('/proc'):\n if p.isdigit():\n  try:\n"
+          "   c=open(f'/proc/{p}/cmdline').read().replace(chr(0),' ')\n   s=open(f'/proc/{p}/stat').read().rsplit(')',1)[1].split()[0]\n"
+          "   print(s, c[:80])\n  except OSError: pass\"")
+CODE_UP = "python3 -c \"import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5).status)\""
+
+
+def test_pause_stops_the_agent_but_not_its_vscode(pet):
+    async def go(command):
+        acp = AcpConnection(pet["url"], pet["token"], lambda p: None, lambda i, p: None)
+        for _ in range(60):
+            try:
+                await acp.connect()
+                break
+            except Exception:  # noqa: BLE001 - petd not listening yet
+                await asyncio.sleep(1)
+        await acp.petd(command)
+        await asyncio.sleep(1)
+        await acp.close()
+
+    def agent_state():
+        out = pet["container"].exec_run(["sh", "-c", STATES], user="1000").output.decode()
+        return next(line.split()[0] for line in out.splitlines() if "acp_adapter" in line)
+
+    asyncio.run(go("pause"))
+    assert agent_state() == "T"
+    assert pet["container"].exec_run(["sh", "-c", CODE_UP]).output.strip() == b"200"     # VS Code still serves
+    asyncio.run(go("resume"))
+    assert agent_state() in ("S", "R")

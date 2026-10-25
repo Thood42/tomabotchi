@@ -1,5 +1,6 @@
 <nav class="tabs" aria-label="{{ pet.name }}">
-  <a href="/pets/{{ pet.id }}"{{ ' aria-current="page"' if tab == "live" }}>Live</a>
-  <span title="Arrives in slice 7">Workspace</span>
-  <a href="/pets/{{ pet.id }}/soul"{{ ' aria-current="page"' if tab == "soul" }}>Soul</a>
+  <a href="/pets/{{ pet.id }}"{% if tab == "live" %} aria-current="page"{% endif %}>Live</a>
+  {% if pet.brain == "fake" %}<span title="Practice pets have no home of their own">Workspace</span>
+  {%- else %}<a href="/pets/{{ pet.id }}/workspace"{% if tab == "workspace" %} aria-current="page"{% endif %}>Workspace</a>{% endif %}
+  <a href="/pets/{{ pet.id }}/soul"{% if tab == "soul" %} aria-current="page"{% endif %}>Soul</a>
 </nav>

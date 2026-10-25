@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import json
 import logging
 import os
 import signal
@@ -45,7 +46,7 @@ class Petd:
                                                     stderr=asyncio.subprocess.DEVNULL, cwd="/workspace")
         self.agent = await asyncio.create_subprocess_exec(
             *AGENT_ARGV[self.brain], stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-            cwd="/workspace", limit=LINE_LIMIT)
+            cwd="/workspace", limit=LINE_LIMIT, start_new_session=True)   # its own group, for pause
         log.info("petd up: brain=%s agent pid=%s code-server pid=%s", self.brain, self.agent.pid, code.pid)
         async with serve(self._client, "0.0.0.0", 7000, max_size=None, ping_interval=20):
             pump = asyncio.create_task(self._pump_agent_stdout())
@@ -68,6 +69,8 @@ class Petd:
         try:
             async for msg in ws:
                 text = msg if isinstance(msg, str) else msg.decode()
+                if self._control(text):
+                    continue
                 self.agent.stdin.write(text.encode() + b"\n")
                 await self.agent.stdin.drain()
         except ConnectionClosed:
@@ -76,6 +79,22 @@ class Petd:
             if self.ws is ws:
                 self.ws = None
             log.info("client disconnected")
+
+    def _control(self, text: str) -> bool:
+        """petd/pause and petd/resume stop and continue the agent and everything it started, while
+        code-server keeps running, so the keeper can edit while the pet holds still."""
+        if '"petd/' not in text:
+            return False
+        try:
+            method = json.loads(text).get("method", "")
+        except ValueError:
+            return False
+        sig = {"petd/pause": signal.SIGSTOP, "petd/resume": signal.SIGCONT}.get(method)
+        if sig is None:
+            return False
+        os.killpg(self.agent.pid, sig)
+        log.info("agent %s", "paused" if sig == signal.SIGSTOP else "resumed")
+        return True
 
     async def _pump_agent_stdout(self) -> None:
         while True:

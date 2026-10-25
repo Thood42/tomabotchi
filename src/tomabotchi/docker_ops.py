@@ -158,9 +158,21 @@ class DockerOps:
                 volumes={src: {"bind": dst, "mode": "rw"} for src, dst in binds.items()},
                 mem_limit=limits.memory, memswap_limit=limits.memory, nano_cpus=int(limits.cpus * 1e9),
                 pids_limit=limits.pids, cap_drop=["ALL"], security_opt=["no-new-privileges"],
-                labels={LABEL: pet.id}, restart_policy={"Name": "unless-stopped"})
+                labels={LABEL: pet.id}, restart_policy={"Name": "unless-stopped"},
+                # direct_code_ports: VS Code on a free host port, bound to the host's loopback only
+                ports={"8080/tcp": ("127.0.0.1", None)} if self.cfg.direct_code_ports else None)
             return PetContainer(id=c.id, pet_id=pet.id, network=network, running=True, paused=False)
         return await asyncio.to_thread(run)
+
+    async def code_port(self, pet_id: str) -> int | None:
+        def get():
+            c = self.client.containers.get(container_name(pet_id))
+            bound = (c.attrs["NetworkSettings"].get("Ports") or {}).get("8080/tcp") or []
+            return int(bound[0]["HostPort"]) if bound else None
+        try:
+            return await asyncio.to_thread(get)
+        except Exception:  # noqa: BLE001 - container gone; there's just no direct link
+            return None
 
     async def pause(self, pet_id: str) -> None:
         await asyncio.to_thread(lambda: self.client.containers.get(container_name(pet_id)).pause())

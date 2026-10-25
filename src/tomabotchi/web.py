@@ -13,7 +13,7 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, db, gateway, soul, store, views
+from . import codeproxy, config, db, gateway, soul, store, views
 from .bus import Bus
 from .fleet import Fleet
 from .models import HatchForm, ToolRule
@@ -54,6 +54,7 @@ def _docker(cfg):
 app = FastAPI(title="tomabotchi", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=Path(__file__).with_name("static")), name="static")
 app.include_router(gateway.router)
+app.include_router(codeproxy.router)
 
 
 @app.middleware("http")
@@ -101,6 +102,15 @@ def pet_page(request: Request, pet_id: str):
     return _page("pet.html", **views.pet_context(request.app.state.conn, pet))
 
 
+@app.get("/pets/{pet_id}/workspace", response_class=HTMLResponse)
+async def workspace_page(request: Request, pet_id: str):
+    pet = _pet_or_404(request, pet_id)
+    if pet.brain == "fake":
+        return RedirectResponse(f"/pets/{pet_id}", status_code=303)       # practice pets have no home
+    return _page("workspace.html", **views.pet_context(request.app.state.conn, pet),
+                 direct_url=await request.app.state.fleet.direct_code_url(pet_id))
+
+
 @app.get("/pets/{pet_id}/soul", response_class=HTMLResponse)
 def soul_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
@@ -134,8 +144,31 @@ async def feed(request: Request, pet_id: str, prompt_md: str = Form(...)):
     fleet = request.app.state.fleet
     if not fleet.is_awake(pet_id):
         raise HTTPException(409, "It's still waking up. Try again in a moment.")
+    if store.get_pet(request.app.state.conn, pet_id).state == "paused":
+        raise HTTPException(409, "It's paused while you edit. Resume it first.")
     await fleet.get(pet_id).feed(prompt_md)
     return RedirectResponse(f"/pets/{pet_id}", status_code=303)
+
+
+@app.post("/pets/{pet_id}/pause", status_code=204)
+async def pause(request: Request, pet_id: str):
+    """Pause while I edit: the agent holds still, its VS Code keeps running."""
+    _pet_or_404(request, pet_id)
+    fleet = request.app.state.fleet
+    if not fleet.is_awake(pet_id):
+        raise HTTPException(409, "It isn't awake, so there's nothing to pause.")
+    await fleet.pause_for_edit(pet_id)
+    return Response(status_code=204)
+
+
+@app.post("/pets/{pet_id}/resume", status_code=204)
+async def resume(request: Request, pet_id: str):
+    _pet_or_404(request, pet_id)
+    fleet = request.app.state.fleet
+    if not fleet.is_awake(pet_id):
+        raise HTTPException(409, "It isn't awake yet. Try again in a moment.")
+    await fleet.resume_after_edit(pet_id)
+    return Response(status_code=204)
 
 
 @app.post("/pets/{pet_id}/soul")

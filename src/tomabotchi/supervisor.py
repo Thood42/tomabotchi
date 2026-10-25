@@ -283,8 +283,8 @@ def _permission_result(outcome: CallOutcome, options: list[dict]) -> dict:
     return {"outcome": {"outcome": "cancelled"}}
 
 
-PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_lesson.html", "_steps.html", "_thoughts.html", "_tools.html", "_vitals.html",
-            "_home.html")
+PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_lesson.html", "_steps.html", "_thoughts.html", "_tools.html",
+            "_vitals.html", "_home.html", "_editbar.html")
 
 
 def publish_pet(conn, bus: Bus, pet: Pet) -> None:

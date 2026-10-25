@@ -129,6 +129,27 @@ class Fleet:
             self._spawn(self.draft_lesson(call.pet_id, "scold", reason, call_id=call_id))
         return answered
 
+    # ---- workspace ----
+
+    async def pause_for_edit(self, pet_id: str) -> None:
+        """Stop the agent (petd SIGSTOPs its process group) but not code-server, so the keeper can
+        edit while the pet holds still. Unlike Lights off, which pauses the whole container."""
+        await self.get(pet_id).acp.petd("pause")
+        store.set_pet_state(self.conn, pet_id, "paused")
+        publish_pet(self.conn, self.bus, store.get_pet(self.conn, pet_id))
+
+    async def resume_after_edit(self, pet_id: str) -> None:
+        await self.get(pet_id).acp.petd("resume")
+        store.set_pet_state(self.conn, pet_id, "awake")
+        publish_pet(self.conn, self.bus, store.get_pet(self.conn, pet_id))
+
+    async def direct_code_url(self, pet_id: str) -> str | None:
+        """The host-only VS Code address, when direct_code_ports is on."""
+        if not (self.cfg.direct_code_ports and self.docker):
+            return None
+        port = await self.docker.code_port(pet_id)
+        return f"http://127.0.0.1:{port}/?folder=/workspace" if port else None
+
     # ---- soul and lessons ----
 
     def teach(self, pet_id: str, source: LessonSource, text: str) -> None:
