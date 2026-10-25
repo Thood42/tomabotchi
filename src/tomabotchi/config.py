@@ -117,7 +117,7 @@ def runtime_version(source_dir: Path) -> str:
 
 def from_dicts(tb: dict, containment: dict, *, data_dir: Path, config_file: Path) -> Config:
     homes = [Home(name=h["name"], slug=h["slug"], image=h["image"],
-                  description=h.get("description", ""), default=bool(h.get("default", False)))
+                  description=h.get("description", ""), default=bool(h.get("default", False)), build=h.get("build"))
              for h in tb.get("homes", [])]
     defaults = [h for h in homes if h.default]
     if len(defaults) != 1:

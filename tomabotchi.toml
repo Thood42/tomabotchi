@@ -21,6 +21,7 @@ default = true
 slug = "python-data"
 name = "Python with data tools"
 image = "tomabotchi/python-data:1"
+build = "runtime/homes/python-data"   # a home tomabotchi builds itself, from this Dockerfile
 description = "pandas, numpy, matplotlib"
 
 [[homes]]
@@ -32,7 +33,8 @@ description = "Node 22 and npm"
 [[homes]]
 slug = "browser"
 name = "Web browser"
-image = "mcr.microsoft.com/playwright/python:v1.48.0"
+image = "tomabotchi/browser:1"
+build = "runtime/homes/browser"       # Playwright's image plus its Python package
 description = "Python and a headless browser"
 
 [[models]]

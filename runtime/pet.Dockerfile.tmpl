@@ -3,7 +3,8 @@ FROM {runtime} AS runtime
 FROM {home}
 COPY --from=runtime /opt/hermes /opt/hermes
 COPY --from=runtime /opt/tomabotchi /opt/tomabotchi
-ENV PATH=/opt/tomabotchi/bin:/opt/hermes/bin:/opt/hermes/.venv/bin:$PATH \
+# The home's own tools come first (its python3, node, ...); the runtime's commands are appended.
+ENV PATH=$PATH:/opt/tomabotchi/bin:/opt/hermes/bin \
     HERMES_PYTHON=/opt/hermes/.venv/bin/python \
     HERMES_RUNTIME_DIR=/opt/hermes/tools \
     HOME=/home/pet \

@@ -205,3 +205,17 @@ a.ico { text-decoration: none; }
 .vscode { display: block; width: 100%; height: min(78vh, 820px); border: 2.5px solid var(--ink); border-radius: 12px; background: #1e1e1e; }
 .fallback { margin-top: 18px; color: var(--ink-soft); }
 @media (max-width: 900px) { .frame { padding: 8px; border-radius: 18px; } .vscode { height: 70vh; } }
+
+/* ---- settings ---- */
+.cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: start; }
+.cols > :only-child { grid-column: 1 / -1; max-width: 640px; }
+.sheet > p.muted { margin-top: 6px; }
+.homes { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.homes li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 10px; background: #fff; }
+.homes small { color: var(--ink-soft); font-size: 14px; grid-column: 1 / -1; }
+.homes code { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-soft); }
+.homes .ready { font-size: 13px; }
+.tag { align-self: start; font-size: 13px; font-weight: 700; padding: 0 10px; border-radius: 999px; background: var(--lcd); }
+.cfg { margin-top: 14px; font-size: 14.5px; color: var(--ink-soft); }
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+

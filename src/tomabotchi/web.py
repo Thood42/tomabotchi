@@ -97,6 +97,12 @@ def hatch_page(request: Request):
                  seed=random.randrange(1, 99999), anthropic_ready=bool(cfg.anthropic_key))
 
 
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    cfg = request.app.state.cfg
+    return _page("settings.html", homes=cfg.homes, home_status=await request.app.state.fleet.home_status())
+
+
 @app.get("/pets/{pet_id}", response_class=HTMLResponse)
 def pet_page(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)

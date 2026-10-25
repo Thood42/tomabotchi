@@ -134,6 +134,18 @@ class Fleet:
             self._spawn(self.draft_lesson(call.pet_id, "scold", reason, call_id=call_id))
         return answered
 
+    async def home_status(self) -> dict[str, str]:
+        """Per home: whether its image is on this machine yet, in the keeper's words."""
+        out = {}
+        for h in self.cfg.homes:
+            if self.docker is None:
+                out[h.slug] = "Docker isn't reachable, so only practice pets can hatch."
+            elif await self.docker.has_pet_image(h):
+                out[h.slug] = "Ready: pets hatch in seconds."
+            else:
+                out[h.slug] = ("Built" if h.build else "Fetched") + " the first time a pet hatches here (a few minutes)."
+        return out
+
     # ---- care ----
 
     def lights_are_off(self, pet_id: str) -> bool:

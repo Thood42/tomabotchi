@@ -138,6 +138,21 @@ def test_runtime_on_python_home(pet_image):
     assert b"runtime OK" in out
 
 
+HOME_TOOLS = {"python": "python3 -c 'import sys; assert not sys.prefix.startswith(\"/opt/hermes\"), sys.prefix'", "python-data": "python3 -c 'import pandas, numpy, matplotlib'",
+              "node": "node --version && npm --version",
+              "browser": "python3 -c 'from playwright.sync_api import sync_playwright' && ls /ms-playwright | grep -q chromium"}
+
+
+@pytest.mark.parametrize("slug", list(HOME_TOOLS))
+def test_runtime_on_homes(cfg, slug):
+    """Every configured home takes the runtime (smoke passes) and keeps its own tools."""
+    said = []
+    tag = asyncio.run(DockerOps(cfg).ensure_pet_image(cfg.home(slug), said.append))
+    run = lambda cmd: docker.from_env().containers.run(tag, entrypoint=["sh", "-c", cmd], remove=True)  # noqa: E731
+    assert b"runtime OK" in run("/opt/tomabotchi/bin/smoke")
+    run(HOME_TOOLS[slug])                                     # raises ContainerError if the home lost its tools
+
+
 def test_leash_gates_write_file_and_deny_leaves_no_file(pet):
     """Denied, a pet may try another way (on 2026-10-25 Hermes retried with `echo > notes/hello.md`).
     Every attempt must still come to the keeper first, and with all of them denied no file appears."""

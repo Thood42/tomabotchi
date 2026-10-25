@@ -68,6 +68,7 @@ class DockerOps:
         self.cfg = cfg
         self.client = docker.from_env()
         self._build_lock = asyncio.Lock()
+        self._net_lock = asyncio.Lock()      # two hatches at once would pick the same free subnet
 
     # ---- images ----
 
@@ -86,11 +87,45 @@ class DockerOps:
             if await self._has_image(tag):
                 return tag
             runtime = await self.ensure_runtime(progress)
-            progress(f"Building the {home.name} home")
+            await self.ensure_home(home, progress)
+            progress(f"Moving into the {home.name} home")
             dockerfile = (self.cfg.source_dir / "runtime" / "pet.Dockerfile.tmpl").read_text() \
                 .replace("{runtime}", runtime).replace("{home}", home.image)
             await asyncio.to_thread(self._build, fileobj=io.BytesIO(dockerfile.encode()), tag=tag, progress=progress)
             return tag
+
+    async def has_pet_image(self, home: Home) -> bool:
+        return await self._has_image(pet_image_tag(self.cfg, home))
+
+    async def ensure_home(self, home: Home, progress: Progress) -> None:
+        """The home's base image: built from its Dockerfile folder, or pulled once if it isn't here."""
+        if await self._has_image(home.image):
+            return
+        if home.build:
+            progress(f"Building the {home.name} home (first time only)")
+            await asyncio.to_thread(self._build, path=str(self.cfg.source_dir / home.build), tag=home.image,
+                                    progress=progress)
+            return
+        progress(f"Fetching the {home.name} home (first time only)")
+        await asyncio.to_thread(self._pull, home, progress)
+
+    def _pull(self, home: Home, progress: Progress) -> None:
+        repo, sep, tag = home.image.rpartition(":")
+        if not sep or "/" in tag:                     # no tag, or the colon was a registry port
+            repo, tag = home.image, "latest"
+        layers: dict[str, tuple[int, int]] = {}
+        said = 0
+        for chunk in self.client.api.pull(repo, tag=tag, stream=True, decode=True):
+            if "error" in chunk:
+                raise RuntimeError(f"couldn't fetch {home.image}: {chunk['error'].strip()}")
+            d = chunk.get("progressDetail") or {}
+            if chunk.get("id") and d.get("total") and chunk.get("status") == "Downloading":
+                layers[chunk["id"]] = (d.get("current", 0), d["total"])
+            done, total = sum(c for c, _ in layers.values()), sum(t for _, t in layers.values())
+            pct = int(100 * done / total) if total else 0
+            if pct >= said + 20:
+                said = pct - pct % 20
+                progress(f"Fetching the {home.name} home: {pct}% of {total / 1e6:,.0f} MB")
 
     async def _has_image(self, tag: str) -> bool:
         try:
@@ -114,7 +149,8 @@ class DockerOps:
 
     async def create_network(self, pet_id: str) -> str:
         name = network_name(pet_id)
-        return await asyncio.to_thread(self._create_network, name)
+        async with self._net_lock:
+            return await asyncio.to_thread(self._create_network, name)
 
     def _create_network(self, name: str) -> str:
         try:

@@ -14,7 +14,7 @@
 - [x] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
 - [x] Slice 7 — workspace: code-server proxy embed, new-tab and direct-port fallbacks, pause while editing
 - [x] Slice 8 — care actions and budget: feed, chat, lights (docker pause), medicine, tidy, out-of-budget sleep
-- [ ] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
+- [x] Slice 9 — homes: tomabotchi.toml list, per-home builds with egg progress, Node and Playwright smoke tests, settings homes list
 - [ ] Slice 10 — notifications: opt-in, switches, quiet hours, test beep, background-tab notifications
 - [ ] Slice 11 — retire and memory shelf: verified zip archive, memory page, download, hatch from soul
 - [ ] Slice 12 — resilience: server restart reattach, petd replay, pending calls survive, clear error states
@@ -177,3 +177,17 @@
     - **Clover (practice, `#sick`):** showed "Sick: … failed 4 times in a row". Medicine → "My keeper stopped me… I'll use the RSS feed instead", done, and no longer sick.
     - Unit: 129 passed (`test_care.py`: 8).
   - **Nit:** after Medicine cures a pet, Happy can still say "Recent steps going badly" until newer tool results push the failures out of the window.
+- Slice 9 notes (2026-10-25):
+  - **Homes can be built or fetched.** `Home.build` (TOML `build = "runtime/homes/<slug>"`) names a Dockerfile folder that tomabotchi builds as the home's `image`. Otherwise, a missing image is pulled (`DockerOps._pull`), with egg progress every 20% ("Fetching the Node.js home: 40% of 80 MB"). The home Dockerfiles live under `runtime/`, so they are part of the runtime hash and editing one gives new pet image tags.
+    - `python-data` = `python:3.12-slim` + pandas/numpy/matplotlib (`tomabotchi/python-data:1`).
+    - **`browser` changed from the raw Playwright image** to `tomabotchi/browser:1` = `mcr.microsoft.com/playwright/python:v1.48.0` + `pip install playwright==1.48.0`, because Microsoft's image ships the browsers but **not the Python package**.
+  - **Bug found and fixed:** pet images put Hermes's venv first on `PATH`, so a pet's `python3` was Hermes's 3.14 and the home's own Python and packages were invisible. `pet.Dockerfile.tmpl` now appends the runtime to the home's `PATH` (`$PATH:/opt/tomabotchi/bin:/opt/hermes/bin`) and leaves Hermes's venv off it. petd, the leash and Hermes all use absolute interpreter paths.
+  - **Settings page** `/settings` (header link): a read-only Homes list with image, description, Default tag and "Ready: pets hatch in seconds" or "Fetched/Built the first time a pet hatches here" (`Fleet.home_status`, `DockerOps.has_pet_image`). It names `platform/tomabotchi.toml` as the place to edit.
+  - `test_runtime_on_homes[python|python-data|node|browser]` (docker) builds each pet image and runs the smoke test plus the home's own tools (the home's `python3`, pandas, node+npm, playwright+chromium).
+  - **Bug found and fixed:** hatching several pets at once raced on subnets (Docker: "Pool overlaps with other one"), so network creation is now serialized (`DockerOps._net_lock`).
+  - **Proof:**
+    - `pytest -m docker -k test_runtime_on_homes`: 4 passed (the python-data and browser homes built locally, node pulled).
+    - Hatched Panda on python-data: "Run python3 -c 'import pandas…'" asked to run it, Allow → "Pandas version installed is **3.1.0**".
+    - Hatched Nodey on node: "Run node --version" → "The installed Node.js version is **v22.23.4**".
+    - Webby on browser hit the subnet race above (fixed, and covered by a unit test). The browser home itself passes its Docker test.
+    - The Settings page lists all four homes as "Ready". Unit: 142 passed.
