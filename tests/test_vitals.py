@@ -44,14 +44,14 @@ def test_sick_after_three_identical_failures():
 
 def test_energy_hearts_from_budget():
     v = vitals.compute(pet(budget_tokens=100_000), task=task(), open_call=None, recent_tool_updates=[],
-                       tokens_used=59_000, elapsed=timedelta(0), last_notice=None, discipline=(0, 0), now=NOW)
+                       tokens_used=59_000, elapsed=timedelta(0), loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
     assert v.energy_pct == 41.0
     assert v.hearts.energy == 2
 
 
 def test_energy_takes_the_lower_of_tokens_and_time():
     v = vitals.compute(pet(budget_tokens=100_000, budget_seconds=3600), task=task(), open_call=None,
-                       recent_tool_updates=[], tokens_used=0, elapsed=timedelta(minutes=45), last_notice=None,
+                       recent_tool_updates=[], tokens_used=0, elapsed=timedelta(minutes=45), loop_notice=None, context_pct=None,
                        discipline=(0, 0), now=NOW)
     assert v.energy_pct == 25.0
 
@@ -59,11 +59,11 @@ def test_energy_takes_the_lower_of_tokens_and_time():
 def test_happy_hearts_from_last_ten():
     ups = [upd("failed", args={"n": i}, i=i) for i in range(5)] + [upd("completed", i=10 + i) for i in range(10)]
     v = vitals.compute(pet(), task=task(), open_call=None, recent_tool_updates=ups, tokens_used=0,
-                       elapsed=timedelta(0), last_notice=None, discipline=(0, 0), now=NOW)
+                       elapsed=timedelta(0), loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
     assert v.hearts.happy == 4          # the five early failures fall outside the last ten
     ups = [upd("completed", i=i) for i in range(5)] + [upd("failed", args={"n": i}, i=10 + i) for i in range(5)]
     v = vitals.compute(pet(), task=task(), open_call=None, recent_tool_updates=ups, tokens_used=0,
-                       elapsed=timedelta(0), last_notice=None, discipline=(0, 0), now=NOW)
+                       elapsed=timedelta(0), loop_notice=None, context_pct=None, discipline=(0, 0), now=NOW)
     assert v.hearts.happy == 2
 
 

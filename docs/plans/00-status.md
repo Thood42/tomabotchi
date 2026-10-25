@@ -8,7 +8,7 @@
 ## Slices
 - [x] Slice 1 — tracer bullet (done 2026-10-25): mocked pet (fake ACP agent) end to end, from hatch to call card to answer to shelf metric, served by compose on :8770
 - [x] Slice 2 — real Hermes pet (done 2026-10-25): runtime and Python-home images, petd, OpenAI gateway route, leash gates write_file, pet-subnet guard
-- [ ] Slice 3 — live view from real data: thoughts, tools, plan, hearts and scene, sick detection, Energy, Home stats
+- [x] Slice 3 — live view from real data: thoughts, tools, plan, hearts and scene, sick detection, Energy, Home stats
 - [ ] Slice 4 — tool rules: defaults, editor, allow-always narrowing, never, dangerous commands forced to ask
 - [ ] Slice 5 — Claude Code brain: selection, ClaudeBrain config, PreToolUse leash, Anthropic gateway route (Claude API and Ollama /v1/messages)
 - [ ] Slice 6 — soul and lessons: Markdown editor and preview, revisions, deny-reason lessons, teach and praise, timeline
@@ -77,3 +77,11 @@
     - `pytest -m docker` gives 3 passed. Unit: 58 passed.
   - **Soul wording matters:** with "Ask first: writing files" plus "ask before risky things", Hermes asked in chat instead of using the tool. The soul now says tomabotchi asks the keeper for it, so "just use the tool". The hatch "ask first" answer becomes the section "What my keeper wants to approve".
   - **Denied pets try another way:** after `write_file` was denied, Hermes tried `echo > notes/hello.md` through the terminal. The leash asked again (execute), and denying again left no file. The Docker test now checks every attempt is asked.
+- Slice 3 notes (2026-10-25):
+  - **Streaming:** consecutive thought or message chunks grow one event (`store.update_event_payload`), and live re-renders are throttled to one every 0.4 s. When a brain streams no thoughts, the gateway's `reasoning` text fills in (`PetSupervisor.on_gateway_usage`).
+  - **Thinking shows the current task only.** Older rows from before coalescing existed were one word each.
+  - **Mess** comes from ACP `usage_update` (used ÷ size), **Energy** from gateway-metered tokens for the task, and **Home** from `docker stats`, polled every 15 s into `views.HOME_STATS`.
+  - **Sick:** 3 or more identical failures in a row. The practice brain has a `#sick` script to show it.
+  - **Restart:** the server rejoins every pet network on boot, then reattaches. Feeding or answering a pet that isn't attached returns 409.
+  - **Hermes's todo list:** Qwen kept its todo list in prose rather than calling Hermes's `todo` tool, so a real pet's plan panel can stay empty ("No steps were recorded"). The panel works whenever a brain sends ACP `plan`.
+  - **Proof:** Biscuit (Hermes, `abe8a3c9`) was given "list files, then write notes/pgvector.md, keep a todo list". It made 2 calls (`ls -la`, then `write_file` with a preview) and the file landed. The page showed coalesced thoughts, 4 tools, 40,968 tokens, Mess 21% and the Home stats. The `#sick` practice pet showed a skull on the shelf with "4 times in a row". Unit tests: 67 passed.

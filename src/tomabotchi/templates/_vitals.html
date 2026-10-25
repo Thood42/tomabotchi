@@ -3,7 +3,8 @@
   <dl style="margin-top: 12px">
     <dt>Hunger</dt><dd><span class="hearts" data-hearts="{{ vitals.hearts.hunger }}/4"></span><small>{{ "Has a task" if working else "Hungry for a task" }}</small></dd>
     <dt>Happy</dt><dd><span class="hearts" data-hearts="{{ vitals.hearts.happy }}/4"></span><small>Recent steps going {{ "well" if vitals.hearts.happy >= 3 else "badly" }}</small></dd>
-    <dt>Energy</dt><dd><span class="hearts" data-hearts="{{ vitals.hearts.energy }}/4"></span><small>{{ vitals.energy_pct|round|int }}% of budget left</small></dd>
+    <dt>Energy</dt><dd><span class="hearts" data-hearts="{{ vitals.hearts.energy }}/4"></span><small>{% if pet.budget_tokens or pet.budget_seconds %}{{ vitals.energy_pct|round|int }}% of budget left{% else %}No budget limit{% endif %}{% if tokens %}, {{ "{:,}".format(tokens) }} tokens used{% endif %}</small></dd>
+    <dt>Mess</dt><dd>{% if vitals.mess_pct is not none %}<span class="bar" style="--v: {{ vitals.mess_pct }}%"></span><small>Memory {{ vitals.mess_pct|round|int }}% full</small>{% else %}<small>Tidy</small>{% endif %}</dd>
     <dt>Health</dt><dd><span class="hearts" data-hearts="{{ vitals.hearts.health }}/4"></span><small>{{ vitals.sick_reason or "No errors or loops" }}</small></dd>
   </dl>
 </section>

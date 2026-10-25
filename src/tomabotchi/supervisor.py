@@ -18,6 +18,9 @@ from .models import Call, CallOutcome, Event, Pet, PlanStep
 log = logging.getLogger(__name__)
 
 _CHUNK_KINDS = {"agent_thought_chunk": "thought", "agent_message_chunk": "message"}
+INTERNAL_TOOL_IDS = ("perm-check-",)
+QUIET_UPDATES = {"available_commands_update", "session_info_update", "current_mode_update", "config_option_update"}
+PUBLISH_EVERY = 0.4            # seconds between live re-renders while text streams in
 
 _LEASH_MESSAGE = re.compile(r"^(?P<tool>\S+) \((?P<kind>\w+)\): (?P<target>[^\n]*)(?:\n---\n(?P<preview>.*))?$", re.S)
 _VERBS = {"write_file": "Write", "patch": "Edit", "read_file": "Read", "terminal": "Run", "process": "Run",
@@ -57,6 +60,8 @@ def translate(update: dict, *, pet_id: str, task_id: int | None, tool_index: dic
     if kind in _CHUNK_KINDS:
         text = (update.get("content") or {}).get("text", "")
         return [ev(_CHUNK_KINDS[kind], {"text": text})] if text else []
+    if kind in ("tool_call", "tool_call_update") and str(update.get("toolCallId", "")).startswith(INTERNAL_TOOL_IDS):
+        return []                       # Hermes's own permission-check bookkeeping, not a tool the pet used
     if kind == "tool_call":
         info = {"title": update.get("title"), "kind": update.get("kind", "other"),
                 "args": update.get("rawInput"), "paths": _paths(update)}
@@ -70,6 +75,10 @@ def translate(update: dict, *, pet_id: str, task_id: int | None, tool_index: dic
                                    "args": info.get("args")})]
     if kind == "plan":
         return [ev("plan", {"entries": update.get("entries", [])})]
+    if kind == "usage_update" and update.get("size"):
+        return [ev("notice", {"type": "usage_update", "context_pct": round(100 * update.get("used", 0) / update["size"], 1)})]
+    if kind in QUIET_UPDATES:
+        return []
     return [ev("notice", {"type": kind, "raw": update})]
 
 
@@ -83,6 +92,10 @@ class PetSupervisor:
         self._tools: dict[str, dict] = {}
         self._waiting: dict[int, tuple[asyncio.Future, list[dict]]] = {}
         self._turn: asyncio.Task | None = None
+        self._stream: dict | None = None            # the thought/message being streamed: kind, event id, text
+        self._thoughts_this_turn = 0
+        self._last_publish = 0.0
+        self._publish_later: asyncio.TimerHandle | None = None
 
     # ---- lifecycle ----
 
@@ -104,6 +117,7 @@ class PetSupervisor:
 
     async def feed(self, prompt_md: str) -> int:
         task = store.start_task(self.conn, self.pet.id, prompt_md)
+        self._stream, self._thoughts_this_turn = None, 0
         self._turn = asyncio.create_task(self._run_turn(task.id, prompt_md))
         self._refresh()
         return task.id
@@ -128,6 +142,7 @@ class PetSupervisor:
         except Exception:  # noqa: BLE001
             log.exception("turn failed for %s", self.pet.name)
         finally:
+            self._stream = None
             store.end_task(self.conn, task_id, state)
             self.pet = store.get_pet(self.conn, self.pet.id)
             self._refresh()
@@ -138,15 +153,18 @@ class PetSupervisor:
         update = params.get("update") or {}
         task = store.current_task(self.conn, self.pet.id)
         task_id = task.id if task else None
-        # Slice 1 stores each thought/message chunk as its own event; coalescing streamed
-        # token chunks from real brains arrives with slice 3.
+        kind = update.get("sessionUpdate")
+        if kind in _CHUNK_KINDS:
+            self._stream_chunk(_CHUNK_KINDS[kind], (update.get("content") or {}).get("text", ""), task_id)
+            return
+        self._stream = None
+        before_sick = views.pet_context(self.conn, self.pet)["vitals"].sick_reason
         for ev in translate(update, pet_id=self.pet.id, task_id=task_id, tool_index=self._tools, now=store.now()):
             store.append_event(self.conn, ev)
             if ev.kind == "plan" and task_id is not None:
                 store.replace_plan(self.conn, task_id, [
                     PlanStep(task_id=task_id, idx=i, content=e.get("content", ""), status=e.get("status", "pending"))
                     for i, e in enumerate(ev.payload["entries"])])
-        before_sick = views.pet_context(self.conn, self.pet)["vitals"].sick_reason
         self._refresh()
         after = views.pet_context(self.conn, self.pet)["vitals"].sick_reason
         if after and not before_sick:
@@ -164,9 +182,51 @@ class PetSupervisor:
         self._notify("calling", f"Wants your OK to {call.tool_call.get('title', 'use a tool')}")
         return await fut
 
+    # ---- streamed text ----
+
+    def _stream_chunk(self, kind: str, text: str, task_id: int | None) -> None:
+        """Brains stream thoughts and messages a few tokens at a time. Consecutive chunks of one kind
+        grow a single event, re-rendered at most every PUBLISH_EVERY seconds."""
+        if not text:
+            return
+        if kind == "thought":
+            self._thoughts_this_turn += 1
+        s = self._stream
+        if s and s["kind"] == kind:
+            s["text"] += text
+            store.update_event_payload(self.conn, s["id"], {"text": s["text"]})
+        else:
+            ev_id = store.append_event(self.conn, Event(id=0, pet_id=self.pet.id, task_id=task_id, ts=store.now(),
+                                                        kind=kind, payload={"text": text}))
+            self._stream = {"kind": kind, "id": ev_id, "text": text}
+        self._refresh_soon()
+
+    def on_gateway_usage(self, reasoning: str | None) -> None:
+        """The gateway saw the model's reasoning. If the brain didn't stream it as thoughts, show it."""
+        if reasoning and reasoning.strip() and self._thoughts_this_turn == 0:
+            task = store.current_task(self.conn, self.pet.id)
+            store.append_event(self.conn, Event(id=0, pet_id=self.pet.id, task_id=task.id if task else None,
+                                                ts=store.now(), kind="thought", payload={"text": reasoning.strip()}))
+            self._refresh_soon()
+
     # ---- publishing ----
 
+    def _refresh_soon(self) -> None:
+        loop = asyncio.get_running_loop()
+        wait = PUBLISH_EVERY - (loop.time() - self._last_publish)
+        if wait <= 0:
+            self._refresh()
+        elif self._publish_later is None:
+            self._publish_later = loop.call_later(wait, self._refresh)
+
     def _refresh(self) -> None:
+        if self._publish_later is not None:
+            self._publish_later.cancel()
+            self._publish_later = None
+        try:
+            self._last_publish = asyncio.get_running_loop().time()
+        except RuntimeError:
+            pass
         self.pet = store.get_pet(self.conn, self.pet.id)
         publish_pet(self.conn, self.bus, self.pet)
 
@@ -191,7 +251,8 @@ def _permission_result(outcome: CallOutcome, options: list[dict]) -> dict:
     return {"outcome": {"outcome": "cancelled"}}
 
 
-PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_steps.html", "_thoughts.html", "_tools.html", "_vitals.html")
+PARTIALS = ("_slot.html", "_bigegg.html", "_call.html", "_steps.html", "_thoughts.html", "_tools.html", "_vitals.html",
+            "_home.html")
 
 
 def publish_pet(conn, bus: Bus, pet: Pet) -> None:

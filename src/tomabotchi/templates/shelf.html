@@ -6,7 +6,8 @@
 
   <ul class="shelf">
     {% for ctx in pets %}{% with pet=ctx.pet, call=ctx.call, vitals=ctx.vitals, doing=ctx.doing, steps=ctx.steps,
-                                 task=ctx.task, day=ctx.day, step_now=ctx.step_now %}
+                                 task=ctx.task, day=ctx.day, step_now=ctx.step_now,
+                                 working=ctx.working %}
       {% include "_slot.html" %}
     {% endwith %}{% endfor %}
     <li class="empty">

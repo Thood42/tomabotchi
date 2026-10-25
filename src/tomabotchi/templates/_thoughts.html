@@ -3,8 +3,7 @@
   {% if thoughts %}
     <ol class="thoughts">
       {% for t in thoughts %}
-        <li class="{{ 'said' if t.kind == 'message' else '' }}{{ ' live' if loop.last and working else '' }}">
-          <time>{{ t.ts|hm }}{{ ", now" if loop.last and working else "" }}{{ ", said" if t.kind == 'message' else "" }}</time>{{ t.payload.text }}</li>
+        <li class="{{ 'said' if t.kind == 'message' else '' }}{{ ' live' if loop.last and working else '' }}"><time>{{ t.ts|hm }}{{ ", now" if loop.last and working else "" }}{{ ", said" if t.kind == 'message' else "" }}</time>{{ t.payload.text|trim }}</li>
       {% endfor %}
     </ol>
   {% else %}

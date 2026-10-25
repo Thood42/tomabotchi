@@ -89,3 +89,12 @@ def test_pet_subnet_is_kept_out_of_the_keepers_api(client):
 
 def test_bad_call_option_is_rejected(client):
     assert client.post("/calls/1", data={"option": "maybe"}).status_code == 400
+
+
+def test_feeding_a_pet_that_is_still_waking_up_says_so(client):
+    from tomabotchi.models import Pet
+    store.insert_pet(client.app.state.conn, Pet(id="sleepy", name="Moth", shell="tangerine", look_seed=1, home="python",
+                                                brain="hermes", model="local-qwen", state="hatching", born_at=store.now()))
+    r = client.post("/pets/sleepy/tasks", data={"prompt_md": "hi"}, follow_redirects=False)
+    assert r.status_code == 409
+    assert "still waking up" in r.text

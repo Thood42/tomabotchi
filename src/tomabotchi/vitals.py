@@ -27,9 +27,9 @@ def _hearts_from_fraction(f: float) -> int:
     return max(0, min(4, int(f * 4 + 0.5)))
 
 
-def sick_reason(recent_tool_updates: list[Event], last_notice: Event | None) -> str | None:
-    if last_notice and last_notice.payload.get("type") == "loop_guard":
-        return last_notice.payload.get("text") or "Stuck in a loop"
+def sick_reason(recent_tool_updates: list[Event], loop_notice: Event | None) -> str | None:
+    if loop_notice is not None:
+        return loop_notice.payload.get("text") or "Stuck in a loop"
     streak, key = 0, None
     for ev in reversed(recent_tool_updates):
         if ev.payload.get("status") != "failed":
@@ -60,7 +60,7 @@ def scene(pet: Pet, *, open_call: Call | None, sick_reason: str | None, task: Ta
 
 
 def compute(pet: Pet, *, task: Task | None, open_call: Call | None, recent_tool_updates: list[Event],
-            tokens_used: int, elapsed: timedelta, last_notice: Event | None,
+            tokens_used: int, elapsed: timedelta, loop_notice: Event | None, context_pct: float | None,
             discipline: tuple[int, int], now: datetime) -> Vitals:
     working = task is not None and task.state in ("running", "waiting")
     finished = [e for e in recent_tool_updates if e.payload.get("status") in ("completed", "failed")][-10:]
@@ -71,15 +71,14 @@ def compute(pet: Pet, *, task: Task | None, open_call: Call | None, recent_tool_
     if pet.budget_seconds:
         fractions.append(1 - elapsed.total_seconds() / pet.budget_seconds)
     energy_f = max(0.0, min(fractions)) if fractions else 1.0
-    reason = sick_reason(recent_tool_updates, last_notice)
-    mess = last_notice.payload.get("context_pct") if last_notice else None
+    reason = sick_reason(recent_tool_updates, loop_notice)
     return Vitals(
         hearts=Hearts(hunger=4 if working else 1, happy=_hearts_from_fraction(happy_f),
                       energy=_hearts_from_fraction(energy_f), health=1 if reason else 4),
         scene=scene(pet, open_call=open_call, sick_reason=reason, task=task),
         stage=stage(pet.tasks_done),
         energy_pct=round(energy_f * 100, 1),
-        mess_pct=mess,
+        mess_pct=context_pct,
         discipline=discipline,
         sick_reason=reason,
     )

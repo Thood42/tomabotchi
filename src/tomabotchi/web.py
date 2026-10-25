@@ -26,6 +26,8 @@ async def lifespan(app: FastAPI):
     bus = Bus()
     fleet = Fleet(cfg, conn, bus, _docker(cfg))
     app.state.cfg, app.state.conn, app.state.bus, app.state.fleet = cfg, conn, bus, fleet
+    app.state.on_usage = fleet.on_usage
+    views.CONFIG = cfg
     await fleet.boot()
     yield
     await fleet.shutdown()
@@ -123,7 +125,10 @@ async def hatch(request: Request, name: str = Form(...), shell: str = Form("grap
 @app.post("/pets/{pet_id}/tasks")
 async def feed(request: Request, pet_id: str, prompt_md: str = Form(...)):
     _pet_or_404(request, pet_id)
-    await request.app.state.fleet.get(pet_id).feed(prompt_md)
+    fleet = request.app.state.fleet
+    if not fleet.is_awake(pet_id):
+        raise HTTPException(409, "It's still waking up. Try again in a moment.")
+    await fleet.get(pet_id).feed(prompt_md)
     return RedirectResponse(f"/pets/{pet_id}", status_code=303)
 
 
@@ -138,6 +143,8 @@ async def answer_call(request: Request, call_id: int, option: str = Form(...), r
         raise HTTPException(404, "That call isn't waiting any more.") from None
     if call.answered_at is not None:
         raise HTTPException(409, "That call was already answered.")
+    if not request.app.state.fleet.is_awake(call.pet_id):
+        raise HTTPException(409, "That pet is still waking up. Try again in a moment.")
     await request.app.state.fleet.get(call.pet_id).answer(call_id, option, reason.strip() or None)
     pet = store.get_pet(conn, call.pet_id)
     return views.render("_call.html", **views.pet_context(conn, pet))
@@ -169,6 +176,7 @@ async def events(request: Request, pet: str | None = None):
                 nxt = asyncio.ensure_future(anext(sub))
         finally:
             nxt.cancel()
+            await asyncio.gather(nxt, return_exceptions=True)    # let the pending read unwind first
             await sub.aclose()
 
     return StreamingResponse(stream(), media_type="text/event-stream",

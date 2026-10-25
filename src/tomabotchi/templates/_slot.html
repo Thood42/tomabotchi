@@ -7,7 +7,7 @@
     <div class="plate{% if call %} call{% elif vitals.sick_reason %} sick{% endif %}">
       <div class="who"><h2>{{ pet.name }}</h2><span class="age">{{ vitals.stage|capitalize }}, day {{ day }}</span></div>
       <p class="doing">{{ doing }}</p>
-      {% if steps %}
+      {% if steps and working %}
         <div class="steps" aria-label="Step {{ step_now }} of {{ steps|length }}">
           {%- for s in steps %}<i class="{{ 'done' if s.status == 'completed' else 'now' if s.status == 'in_progress' else '' }}"></i>{% endfor -%}
         </div>

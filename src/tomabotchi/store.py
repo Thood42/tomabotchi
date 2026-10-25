@@ -127,6 +127,18 @@ def append_event(conn, ev: Event) -> int:
     return cur.lastrowid
 
 
+def update_event_payload(conn, event_id: int, payload: dict) -> None:
+    conn.execute("UPDATE events SET payload = ? WHERE id = ?", (json.dumps(payload), event_id))
+
+
+def last_notice(conn, pet_id: str, notice_type: str) -> Event | None:
+    row = conn.execute("SELECT * FROM events WHERE pet_id = ? AND kind = 'notice' "
+                       "AND json_extract(payload, '$.type') = ? ORDER BY id DESC LIMIT 1",
+                       (pet_id, notice_type)).fetchone()
+    return Event(id=row["id"], pet_id=row["pet_id"], task_id=row["task_id"], ts=_dt(row["ts"]), kind=row["kind"],
+                 payload=json.loads(row["payload"])) if row else None
+
+
 def recent_events(conn, pet_id: str, kinds: set[EventKind], limit: int) -> list[Event]:
     """Newest last."""
     marks = ", ".join("?" * len(kinds))

@@ -18,6 +18,10 @@ ENV = Environment(loader=FileSystemLoader(Path(__file__).with_name("templates"))
 
 SHELLS = ["grape", "lagoon", "tangerine", "bubblegum"]
 
+# Latest container stats per pet, filled by Fleet's poller (docker_ops.HomeStats), read when rendering.
+HOME_STATS: dict = {}
+CONFIG = None                     # set by web.py at startup so views can name homes and models
+
 
 def human_wait(d: timedelta | None) -> str:
     if d is None:
@@ -58,10 +62,18 @@ def pet_context(conn, pet: Pet) -> dict:
     open_call = calls[0] if calls else None
     tool_evs = store.recent_events(conn, pet.id, {"tool_call", "tool_update"}, 200)
     updates = [e for e in tool_evs if e.kind == "tool_update"]
-    thoughts = store.recent_events(conn, pet.id, {"thought", "message"}, 20)
+    thoughts = [e for e in store.recent_events(conn, pet.id, {"thought", "message"}, 20)
+                if not task or e.task_id == task.id]       # what it thought about this task, not old ones
     now = datetime.now(timezone.utc)
-    v = vitals.compute(pet, task=task, open_call=open_call, recent_tool_updates=updates, tokens_used=0,
-                       elapsed=(now - task.started_at) if task else timedelta(0), last_notice=None,
+    working = bool(task and task.state in ("running", "waiting"))
+    usage = store.last_notice(conn, pet.id, "usage_update")
+    loop = store.last_notice(conn, pet.id, "loop_guard")
+    if loop and (not task or loop.task_id != task.id or not working):
+        loop = None                  # a loop warning only makes a pet sick during the task it happened in
+    tokens = store.task_tokens(conn, task.id) if task else 0
+    v = vitals.compute(pet, task=task, open_call=open_call, recent_tool_updates=updates, tokens_used=tokens,
+                       elapsed=((task.ended_at or now) - task.started_at) if task else timedelta(0),
+                       loop_notice=loop, context_pct=usage.payload.get("context_pct") if usage else None,
                        discipline=(0, 0), now=now)
     if open_call:
         title = open_call.tool_call.get("title") or "Use a tool"
@@ -74,7 +86,7 @@ def pet_context(conn, pet: Pet) -> dict:
     elif pet.state == "asleep":
         note = store.recent_events(conn, pet.id, {"notice"}, 1)
         doing = (note[0].payload.get("text") if note else None) or "Asleep"
-    elif task and task.state in ("running", "waiting"):
+    elif working:
         last = next((t for t in reversed(thoughts) if t.kind == "thought"), None)
         doing = f"Thinking: “{last.payload['text']}”" if last else "Getting started"
     elif task:
@@ -86,7 +98,43 @@ def pet_context(conn, pet: Pet) -> dict:
     return {"pet": pet, "task": task, "call": open_call, "vitals": v, "doing": doing, "steps": steps,
             "thoughts": thoughts, "tools": tool_rows(tool_evs)[-12:], "done_steps": done,
             "step_now": min(done + 1, len(steps)), "day": (now - pet.born_at).days + 1,
-            "working": bool(task and task.state in ("running", "waiting"))}
+            "working": working, "tokens": tokens, "home": home_context(pet)}
+
+
+def _workspace_size(path: Path) -> tuple[int, int]:
+    files = size = 0
+    if path.is_dir():
+        for p in path.rglob("*"):
+            if p.is_file():
+                files += 1
+                size += p.stat().st_size
+    return files, size
+
+
+def human_bytes(n: float) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} GB"
+
+
+ENV.filters["bytes"] = human_bytes
+
+
+def home_context(pet: Pet) -> dict:
+    cfg = CONFIG
+    ctx = {"stats": HOME_STATS.get(pet.id), "home_name": pet.home, "model_label": pet.model,
+           "brain_label": {"hermes": "Hermes", "claude": "Claude Code", "fake": "Practice"}.get(pet.brain, pet.brain),
+           "files": 0, "size": 0}
+    if cfg is not None:
+        try:
+            ctx["home_name"] = cfg.home(pet.home).name
+            ctx["model_label"] = cfg.model(pet.model).label
+        except KeyError:
+            pass
+        ctx["files"], ctx["size"] = _workspace_size(cfg.pet_dir(pet.id) / "workspace")
+    return ctx
 
 
 def _names(ctxs: list[dict]) -> str:

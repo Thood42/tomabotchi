@@ -92,8 +92,24 @@ async def write_note_script(t: Turn, prompt: str) -> str:
     return "end_turn"
 
 
+async def sick_script(t: Turn, prompt: str) -> str:
+    """Keeps retrying the same failing fetch: what a stuck pet looks like."""
+    await t.thought("I'll fetch the paper list first.")
+    await t.plan(["Fetch this week's papers", "Summarise them"], current=0)
+    for i in range(4):
+        await t.tool_call({"toolCallId": f"fetch-{i}", "title": "Read page arxiv.org/list/cs.AI/new", "kind": "fetch",
+                           "rawInput": {"url": "https://arxiv.org/list/cs.AI/new"}})
+        await t.tool_update(f"fetch-{i}", "failed")
+        await t.thought("That failed. I'll try the exact same thing again.")
+    return "end_turn"
+
+
+def pick_script(prompt: str) -> Script:
+    return sick_script if "#sick" in prompt else write_note_script
+
+
 class FakeAgent:
-    def __init__(self, script: Script = write_note_script, step_delay: float = 0.8, token: str | None = None) -> None:
+    def __init__(self, script: Script | None = None, step_delay: float = 0.8, token: str | None = None) -> None:
         self.script = script
         self.step_delay = step_delay
         self.token = token
@@ -142,7 +158,7 @@ class FakeAgent:
 
     async def _turn(self, ws: ServerConnection, req_id, session_id: str, text: str) -> None:
         try:
-            stop = await self.script(Turn(self, ws, session_id), text)
+            stop = await (self.script or pick_script(text))(Turn(self, ws, session_id), text)
         except asyncio.CancelledError:
             stop = "cancelled"
         await self._reply(ws, req_id, {"stopReason": stop})

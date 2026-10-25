@@ -15,7 +15,7 @@ from pathlib import Path
 
 from websockets.exceptions import InvalidHandshake, InvalidMessage
 
-from . import brains, soul, store
+from . import brains, soul, store, views
 from .bus import Bus
 from .config import Config
 from .docker_ops import DockerOps, container_name
@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 
 BUDGETS = {"100k-2h": (100_000, 7200), "25k-30m": (25_000, 1800), "none": (None, None)}
 ATTACH_TRIES = 90
+STATS_EVERY = 15                # seconds between container stats polls
 
 
 class Fleet:
@@ -36,6 +37,8 @@ class Fleet:
         self._sups: dict[str, PetSupervisor] = {}
         self._fakes: dict[str, FakeAgent] = {}
         self._tasks: set[asyncio.Task] = set()
+        if docker is not None:
+            self._spawn(self._poll_stats())
 
     # ---- paths ----
 
@@ -68,6 +71,7 @@ class Fleet:
                 continue
             if not containers[pet.id].running:
                 await self.docker.start(pet.id)
+            await self.docker.create_network(pet.id)      # a recreated server must rejoin the pet's network
             self._spawn(self._attach(pet, self._token(pet.id), first_task=None))
 
     async def hatch(self, form: HatchForm) -> Pet:
@@ -119,12 +123,35 @@ class Fleet:
         for agent in self._fakes.values():
             await agent.stop()
 
+    def on_usage(self, pet_id: str, metered) -> None:
+        """Called by the gateway after each model call."""
+        sup = self._sups.get(pet_id)
+        if sup is not None:
+            sup.on_gateway_usage(metered.reasoning)
+
     # ---- internals ----
+
+    async def _poll_stats(self) -> None:
+        while True:
+            for pet_id, sup in list(self._sups.items()):
+                if sup.pet.brain == "fake":
+                    continue
+                try:
+                    views.HOME_STATS[pet_id] = await self.docker.stats(pet_id)
+                    publish_pet(self.conn, self.bus, store.get_pet(self.conn, pet_id))
+                except Exception:  # noqa: BLE001 - container gone or paused; try again next round
+                    log.debug("no stats for %s", pet_id, exc_info=True)
+            await asyncio.sleep(STATS_EVERY)
 
     def _spawn(self, coro) -> None:
         task = asyncio.create_task(coro)
         self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+        task.add_done_callback(self._done)
+
+    def _done(self, task: asyncio.Task) -> None:
+        self._tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            log.error("background task failed", exc_info=task.exception())
 
     def _notice(self, pet: Pet, kind: str, text: str) -> None:
         store.append_event(self.conn, Event(id=0, pet_id=pet.id, task_id=None, ts=store.now(), kind="notice",
@@ -146,6 +173,9 @@ class Fleet:
             log.exception("hatching %s failed", pet.name)
             store.set_pet_state(self.conn, pet.id, "asleep")
             self._notice(pet, "hatch_failed", f"Hatching failed: {e}")
+
+    def is_awake(self, pet_id: str) -> bool:
+        return pet_id in self._sups
 
     async def _attach(self, pet: Pet, token: str, first_task: str | None) -> None:
         sup = PetSupervisor(self.cfg, self.conn, self.bus, pet, f"ws://{container_name(pet.id)}:7000", token,

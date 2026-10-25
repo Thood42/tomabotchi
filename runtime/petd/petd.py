@@ -17,6 +17,7 @@ import signal
 import sys
 
 from websockets.asyncio.server import ServerConnection, serve
+from websockets.exceptions import ConnectionClosed
 
 log = logging.getLogger("petd")
 
@@ -67,6 +68,8 @@ class Petd:
                 text = msg if isinstance(msg, str) else msg.decode()
                 self.agent.stdin.write(text.encode() + b"\n")
                 await self.agent.stdin.drain()
+        except ConnectionClosed:
+            pass                      # the server went away (restart); it will reconnect
         finally:
             if self.ws is ws:
                 self.ws = None

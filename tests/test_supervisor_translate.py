@@ -38,9 +38,9 @@ def test_plan_update_keeps_entries():
 
 
 def test_unknown_update_kind_becomes_notice():
-    [ev] = tr({"sessionUpdate": "available_commands_update", "availableCommands": []})
+    [ev] = tr({"sessionUpdate": "something_new", "detail": 1})
     assert ev.kind == "notice"
-    assert ev.payload["type"] == "available_commands_update"
+    assert ev.payload["type"] == "something_new"
 
 
 OPTIONS = [{"optionId": "a1", "kind": "allow_once"}, {"optionId": "r1", "kind": "reject_once"}]
