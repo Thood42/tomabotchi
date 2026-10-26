@@ -110,3 +110,17 @@ dialog.sheet input { padding: 7px 10px; border: 0; border-radius: 3px; backgroun
 }
 @media (prefers-reduced-motion: reduce) { .tg .s::after { transition: none; } }
 .head .steps .stuck { grid-column: 1 / -1; }
+
+/* history */
+.hist-cols { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.hist-list { display: grid; gap: 4px; max-height: calc(100vh - 260px); overflow: auto; position: sticky; top: 0; }
+.hist-list a { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; padding: 8px 10px; border-radius: 3px; text-decoration: none; background: var(--face); box-shadow: inset 0 -2px 0 var(--groove); }
+.hist-list a:hover { background: var(--raise); }
+.hist-list a[aria-current] { background: var(--raise); box-shadow: inset 3px 0 0 var(--signal), inset 0 -2px 0 var(--groove); }
+.hist-list .kind { justify-self: end; }
+.hist-list .what { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.hist-list .state { grid-column: 1 / -1; }
+.hist-head { display: flex; justify-content: space-between; align-items: start; gap: 14px; flex-wrap: wrap; }
+.hist-head h2 { font-size: 16px; }
+.transcript .asked { padding: 10px 12px; border-radius: 3px; background: var(--well); }
+@media (max-width: 900px) { .hist-cols { grid-template-columns: 1fr; } .hist-list { position: static; max-height: 260px; } }

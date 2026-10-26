@@ -1,0 +1,15 @@
+{% set states = {"pending": "running", "in_progress": "running", "completed": "done", "failed": "failed", "blocked": "blocked", "needs you": "needs you"} %}
+<ol class="stream" aria-label="What happened">
+  {% for r in stream %}
+  <li class="ev {{ 'wait' if r.kind == 'call' else r.kind }}">
+    <time>{{ r.at|hm }}</time><span class="sp"><i></i></span>
+    {% if r.kind in ("tool", "call") %}
+    <div class="b tr"><b>{{ r.title }}</b>{% if r.detail %}<code>{{ r.detail }}</code>{% endif %}<span class="st {{ 'ok' if r.status in ('completed', 'allowed once', 'always allowed') else 'bad' if r.status in ('failed', 'blocked', 'denied', 'timed out') else '' }}">{{ states.get(r.status, r.status) }}</span></div>
+    {% else %}
+    <div class="b{{ ' prose' if r.kind == 'said' }}">{% if r.kind == 'said' %}{{ r.text|trim|md }}{% else %}{{ r.text|trim }}{% endif %}</div>
+    {% endif %}
+  </li>
+  {% else %}
+  <li class="none">Nothing was recorded for this one.</li>
+  {% endfor %}
+</ol>

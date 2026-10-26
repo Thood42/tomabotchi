@@ -132,6 +132,55 @@ def stream_rows(events, open_call: Call | None, limit: int = 60) -> list[dict]:
     return rows[-limit:]
 
 
+OUTCOMES = {"allow_once": "allowed once", "allow_always": "always allowed", "reject_once": "denied",
+            "timeout": "timed out", "cancelled": "cancelled"}
+TASK_STATES = {"running": "running", "waiting": "waiting on you", "done": "finished", "failed": "didn't finish",
+               "cancelled": "stopped"}
+
+
+def transcript_rows(events, calls: list[Call]) -> list[dict]:
+    """A whole task on one spine: what it thought, said and ran, and each call with how you answered."""
+    rows = stream_rows(events, None, limit=100_000)
+    for c in calls:
+        title = c.tool_call.get("title") or "use a tool"
+        rows.append({"kind": "call", "at": c.asked_at, "title": f"Asked to {title[:1].lower()}{title[1:]}",
+                     "detail": c.reason or "", "status": OUTCOMES.get(c.outcome, "answered") if c.answered_at else "waiting"})
+    return sorted(rows, key=lambda r: r["at"])
+
+
+def _took(task) -> str | None:
+    return human_wait(task.ended_at - task.started_at) if task.ended_at else None
+
+
+def history_context(conn, pet: Pet, task_id: int | None) -> dict:
+    """Every task and chat the pet has had, and the transcript of the one picked (the newest by default)."""
+    items = [{"task": t, "tokens": store.task_tokens(conn, t.id), "took": _took(t),
+              "state": TASK_STATES.get(t.state, t.state)} for t in store.tasks(conn, pet.id)]
+    picked = next((i for i in items if i["task"].id == task_id), items[0] if items else None)
+    rows = transcript_rows(store.task_events(conn, picked["task"].id), store.task_calls(conn, picked["task"].id)) if picked else []
+    return {"items": items, "picked": picked, "transcript": rows}
+
+
+def transcript_markdown(pet: Pet, item: dict, rows: list[dict]) -> str:
+    """The transcript as a Markdown file you can keep."""
+    t = item["task"]
+    when = t.started_at.astimezone().strftime("%Y-%m-%d %H:%M")
+    out = [f"# {pet.name}: {t.prompt.strip().splitlines()[0][:100] if t.prompt.strip() else t.kind}", "",
+           f"- {t.kind.capitalize()}, {item['state']}, started {when}" + (f", took {item['took']}" if item["took"] else ""),
+           f"- {item['tokens']:,} tokens", "", "## What you asked", "", t.prompt.strip(), "", "## What happened", ""]
+    for r in rows:
+        at = r["at"].astimezone().strftime("%H:%M:%S")
+        if r["kind"] == "think":
+            out.append(f"- **{at} thought:** {r['text'].strip()}")
+        elif r["kind"] == "said":
+            out += [f"- **{at} said:**", "", "  " + r["text"].strip().replace("\n", "\n  "), ""]
+        elif r["kind"] == "tool":
+            out.append(f"- **{at} {r['title']}**" + (f" `{r['detail']}`" if r["detail"] else "") + f" ({r['status']})")
+        else:
+            out.append(f"- **{at} {r['title']}**, {r['status']}" + (f": “{r['detail']}”" if r["detail"] else ""))
+    return "\n".join(out).rstrip() + "\n"
+
+
 def tool_rows(events) -> list[dict]:
     """Merge tool_call and tool_update events into one row per tool call, in call order."""
     rows: dict[str, dict] = {}

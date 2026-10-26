@@ -208,6 +208,43 @@ async def soul_page(request: Request, pet_id: str):
                                           **views.rack_context(conn)})
 
 
+@app.get("/pets/{pet_id}/history", response_class=HTMLResponse)
+async def history_page(request: Request, pet_id: str, task: int | None = None):
+    pet = _pet_or_404(request, pet_id)
+    conn = request.app.state.conn
+    return _page(request, "history.html", **{**views.pet_context(conn, pet), **views.history_context(conn, pet, task),
+                                             **views.rack_context(conn)})
+
+
+def _transcript(request: Request, pet_id: str, task_id: int):
+    pet = _pet_or_404(request, pet_id)
+    ctx = views.history_context(request.app.state.conn, pet, task_id)
+    if not ctx["picked"] or ctx["picked"]["task"].id != task_id:
+        raise HTTPException(404, "No such task for this pet.")
+    t = ctx["picked"]["task"]
+    name = f"{t.started_at.astimezone().strftime('%Y-%m-%d-%H%M')}-{t.kind}-{t.id}.md"
+    return pet, name, views.transcript_markdown(pet, ctx["picked"], ctx["transcript"])
+
+
+@app.get("/pets/{pet_id}/history/{task_id}.md")
+async def history_download(request: Request, pet_id: str, task_id: int):
+    pet, name, md = _transcript(request, pet_id, task_id)
+    return Response(md, media_type="text/markdown; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{pet.name.lower()}-{name}"'})
+
+
+@app.post("/pets/{pet_id}/history/{task_id}/save", status_code=204)
+async def history_save(request: Request, pet_id: str, task_id: int):
+    """Write the transcript into the pet's workspace, where you (and the pet) can open it."""
+    pet, name, md = _transcript(request, pet_id, task_id)
+    if pet.state == "retired":
+        raise HTTPException(409, f"{pet.name} is in the archive, so it has no workspace. Download it instead.")
+    folder = request.app.state.cfg.pet_dir(pet_id) / "workspace" / "tomabotchi-logs"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / name).write_text(md)
+    return Response(status_code=204, headers={"HX-Trigger": json.dumps({"toast": f"Saved to tomabotchi-logs/{name}"})})
+
+
 # ---- actions ----
 
 @app.post("/pets")

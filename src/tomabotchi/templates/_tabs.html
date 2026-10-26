@@ -1,10 +1,13 @@
 {% if pet.state == "retired" %}
-<nav class="tabs" aria-label="{{ pet.name }}"><a href="/memory">Archive</a><a href="/pets/{{ pet.id }}/soul" aria-current="page">Soul</a></nav>
+<nav class="tabs" aria-label="{{ pet.name }}"><a href="/memory">Archive</a>
+  <a href="/pets/{{ pet.id }}/soul"{% if tab == "soul" %} aria-current="page"{% endif %}>Soul</a>
+  <a href="/pets/{{ pet.id }}/history"{% if tab == "history" %} aria-current="page"{% endif %}>History</a></nav>
 {% else %}
 <nav class="tabs" aria-label="{{ pet.name }}">
   <a href="/pets/{{ pet.id }}" preload="mouseover"{% if tab == "live" %} aria-current="page"{% endif %}>Live</a>
   {% if pet.brain == "fake" %}<span title="Practice pets have no home of their own">Workspace</span>
   {%- else %}<a href="/pets/{{ pet.id }}/workspace" preload="mouseover"{% if tab == "workspace" %} aria-current="page"{% endif %}>Workspace</a>{% endif %}
   <a href="/pets/{{ pet.id }}/soul" preload="mouseover"{% if tab == "soul" %} aria-current="page"{% endif %}>Soul</a>
+  <a href="/pets/{{ pet.id }}/history" preload="mouseover"{% if tab == "history" %} aria-current="page"{% endif %}>History</a>
 </nav>
 {% endif %}

@@ -1,0 +1,38 @@
+{% extends "console.html" %}
+{% set tab = "history" %}
+{% block body %}
+  <div class="scroll history">
+    {% if not items %}
+      <p class="dim">No tasks or chats yet. Everything {{ pet.name }} does is kept here, from its first task on.</p>
+    {% else %}
+    <div class="hist-cols">
+      <nav class="hist-list" aria-label="{{ pet.name }}'s tasks and chats">
+        {% for i in items %}{% set t = i.task %}
+        <a href="/pets/{{ pet.id }}/history?task={{ t.id }}"{% if picked and picked.task.id == t.id %} aria-current="true"{% endif %}>
+          <span class="when lbl">{{ t.started_at.astimezone().strftime("%d %b %H:%M") }}</span>
+          <span class="kind st{{ ' ok' if t.kind == 'task' else '' }}">{{ t.kind }}</span>
+          <span class="what">{{ t.prompt|truncate(70, True, '…') }}</span>
+          <span class="state lbl">{{ i.state }}{% if i.took %}, {{ i.took }}{% endif %}</span>
+        </a>
+        {% endfor %}
+      </nav>
+      <section class="panel transcript" aria-label="Transcript">
+        {% set t = picked.task %}
+        <div class="hist-head">
+          <div>
+            <h2>{{ t.prompt|truncate(120, True, '…') }}</h2>
+            <p class="dim">{{ t.kind|capitalize }}, {{ picked.state }}, started {{ t.started_at.astimezone().strftime("%d %b %Y, %H:%M") }}{% if picked.took %}, took {{ picked.took }}{% endif %}. {{ "{:,}".format(picked.tokens) }} tokens.</p>
+          </div>
+          <div class="answers">
+            <a class="btn" href="/pets/{{ pet.id }}/history/{{ t.id }}.md" download>Download</a>
+            {% if pet.state != "retired" %}<button class="btn" type="button" hx-post="/pets/{{ pet.id }}/history/{{ t.id }}/save" hx-swap="none"
+                    title="Writes it to tomabotchi-logs/ in {{ pet.name }}'s workspace">Save to workspace</button>{% endif %}
+          </div>
+        </div>
+        {% if t.prompt|length > 120 or "\n" in t.prompt.strip() %}<div class="asked prose">{{ t.prompt|md }}</div>{% endif %}
+        {% with stream=transcript %}{% include "_transcript.html" %}{% endwith %}
+      </section>
+    </div>
+    {% endif %}
+  </div>
+{% endblock %}

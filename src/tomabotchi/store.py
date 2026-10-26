@@ -99,6 +99,24 @@ def current_task(conn, pet_id: str) -> Task | None:
     return _task(row) if row else None
 
 
+def tasks(conn, pet_id: str, limit: int = 300) -> list[Task]:
+    """A pet's tasks, chats and care turns, newest first."""
+    rows = conn.execute("SELECT * FROM tasks WHERE pet_id = ? ORDER BY id DESC LIMIT ?", (pet_id, limit)).fetchall()
+    return [_task(r) for r in rows]
+
+
+def task_events(conn, task_id: int) -> list[Event]:
+    """Everything that happened during one task, oldest first."""
+    rows = conn.execute("SELECT * FROM events WHERE task_id = ? ORDER BY id", (task_id,)).fetchall()
+    return [Event(id=r["id"], pet_id=r["pet_id"], task_id=r["task_id"], ts=_dt(r["ts"]), kind=r["kind"],
+                  payload=json.loads(r["payload"])) for r in rows]
+
+
+def task_calls(conn, task_id: int) -> list[Call]:
+    rows = conn.execute("SELECT * FROM calls WHERE task_id = ? ORDER BY asked_at", (task_id,)).fetchall()
+    return [_call(r) for r in rows]
+
+
 def tasks_ended_since(conn, pet_id: str, since: datetime) -> list[Task]:
     rows = conn.execute("SELECT * FROM tasks WHERE pet_id = ? AND ended_at >= ? ORDER BY ended_at",
                         (pet_id, _ts(since))).fetchall()

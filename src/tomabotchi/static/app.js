@@ -215,6 +215,9 @@ function toast(message) {
   el.hide = setTimeout(() => el.classList.remove("show"), 3200);
 }
 
+// The server can say something after an action with an HX-Trigger header: {"toast": "..."}.
+document.addEventListener("toast", (e) => toast(e.detail.value));
+
 function errorText(xhr) {
   try { return JSON.parse(xhr.responseText).detail || xhr.statusText; } catch { return xhr.responseText?.slice(0, 160) || xhr.statusText; }
 }
