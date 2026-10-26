@@ -137,7 +137,8 @@ class PetSupervisor:
         store.update_pet(self.conn, self.pet.id, acp_session_id=self.session_id)
 
     def soul_changed(self) -> None:
-        """Brains read their soul file when a session starts, so the next task gets a fresh session."""
+        """Brains read their soul file (and Claude Code its skills) when a session starts, so the next task gets a
+        fresh session."""
         self._soul_changed = True
 
     async def stop(self) -> None:

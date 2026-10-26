@@ -8,6 +8,7 @@
   {% if pet.brain == "fake" %}<span title="Practice pets have no home of their own">Workspace</span>
   {%- else %}<a href="/pets/{{ pet.id }}/workspace" preload="mouseover"{% if tab == "workspace" %} aria-current="page"{% endif %}>Workspace</a>{% endif %}
   <a href="/pets/{{ pet.id }}/soul" preload="mouseover"{% if tab == "soul" %} aria-current="page"{% endif %}>Soul</a>
+  <a href="/pets/{{ pet.id }}/skills" preload="mouseover"{% if tab == "skills" %} aria-current="page"{% endif %}>Skills</a>
   <a href="/pets/{{ pet.id }}/history" preload="mouseover"{% if tab == "history" %} aria-current="page"{% endif %}>History</a>
 </nav>
 {% endif %}

@@ -16,7 +16,7 @@ from fastapi.responses import (FileResponse, HTMLResponse, PlainTextResponse, Re
                                StreamingResponse)
 from fastapi.staticfiles import StaticFiles
 
-from . import codeproxy, config, db, gateway, notify, soul, store, views
+from . import codeproxy, config, db, gateway, notify, skills, soul, store, views
 from .bus import Bus, BusMessage
 from .fleet import Fleet
 from .models import HatchForm, NotificationSettings, ToolRule
@@ -243,6 +243,65 @@ async def history_save(request: Request, pet_id: str, task_id: int):
     folder.mkdir(parents=True, exist_ok=True)
     (folder / name).write_text(md)
     return Response(status_code=204, headers={"HX-Trigger": json.dumps({"toast": f"Saved to tomabotchi-logs/{name}"})})
+
+
+@app.get("/pets/{pet_id}/skills", response_class=HTMLResponse)
+async def skills_page(request: Request, pet_id: str):
+    pet = _pet_or_404(request, pet_id)
+    conn = request.app.state.conn
+    return _page(request, "skills.html", **{**views.pet_context(conn, pet), **views.skills_context(pet),
+                                            **views.rack_context(conn)})
+
+
+def _skills_panel(request: Request, pet, said: str) -> HTMLResponse:
+    html = views.render("_skills.html", pet=pet, **views.skills_context(pet))
+    return HTMLResponse(html, headers={"HX-Trigger": json.dumps({"toast": said})})
+
+
+@app.post("/pets/{pet_id}/skills/{slug}/install", response_class=HTMLResponse)
+async def install_skill(request: Request, pet_id: str, slug: str):
+    pet = _pet_or_404(request, pet_id)
+    cfg = request.app.state.cfg
+    try:
+        skill = skills.get(cfg, slug)
+        await asyncio.to_thread(skills.install, skill, pet.brain, cfg.pet_dir(pet_id) / "brain")
+        request.app.state.fleet.skills_changed(pet_id)
+    except KeyError:
+        raise HTTPException(404, "There's no skill by that name in the store.") from None
+    except skills.SkillError as e:
+        raise HTTPException(409, f"Couldn't install it: {e}.") from None
+    return _skills_panel(request, pet, f"{pet.name} can use {skill.name} from its next task.")
+
+
+@app.post("/pets/{pet_id}/skills/{slug}/remove", response_class=HTMLResponse)
+async def remove_skill(request: Request, pet_id: str, slug: str):
+    pet = _pet_or_404(request, pet_id)
+    try:
+        await asyncio.to_thread(skills.uninstall, slug, pet.brain, request.app.state.cfg.pet_dir(pet_id) / "brain")
+        request.app.state.fleet.skills_changed(pet_id)
+    except skills.SkillError as e:
+        raise HTTPException(404, f"{e}.") from None
+    return _skills_panel(request, pet, f"Removed {slug} from {pet.name}.")
+
+
+@app.post("/skills/download", response_class=HTMLResponse)
+async def download_skill(request: Request, url: str = Form(...), pet_id: str = Form(...)):
+    pet = _pet_or_404(request, pet_id)
+    try:
+        skill = await skills.download(request.app.state.cfg, url)
+    except skills.SkillError as e:
+        raise HTTPException(400, f"Couldn't add that skill: {e}.") from None
+    return _skills_panel(request, pet, f"Added {skill.name} to the store.")
+
+
+@app.post("/skills/{slug}/delete", response_class=HTMLResponse)
+async def delete_skill(request: Request, slug: str, pet_id: str = Form(...)):
+    pet = _pet_or_404(request, pet_id)
+    try:
+        await asyncio.to_thread(skills.delete, request.app.state.cfg, slug)
+    except skills.SkillError as e:
+        raise HTTPException(409, f"{e}.") from None
+    return _skills_panel(request, pet, f"Deleted {slug} from the store. Pets that installed it keep their copy.")
 
 
 # ---- actions ----

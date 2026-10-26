@@ -42,7 +42,7 @@ image, which takes a few minutes. Later hatches take seconds.
   compact log, a box for the next task, its rules and its readout.
 - **A pet's console** (`/pets/<id>`): every pet racked down the left, the live stream in the middle with the
   approval dock and composer under it, and an inspector (readout, rules, container, controls). Tabs: Live,
-  Workspace, Soul.
+  Workspace, Soul, Skills, History.
 - **Moving around:** links, tabs and the rack don't reload the page, so the live stream stays connected.
   `Ctrl K` jumps to a pet, an action or a page; `N` (or the calls key in the top bar) goes to the pet that has
   waited longest for you; `A`, `Shift A` and `D` answer the call in view. The theme is light, dark or the
@@ -62,6 +62,9 @@ image, which takes a few minutes. Later hatches take seconds.
 | Stop it for a while | Sleep (pauses the whole container). Wake picks the task back up. |
 | Unstick it | Unstick: stops the turn and nudges it to try another way. |
 | Get beeped | Allow notifications in the banner, then tune them in Settings (quiet hours use your timezone). |
+| Read what it did | History tab: every task and chat with its full transcript (thoughts, messages, tools, calls and your answers). Download one as Markdown, or save it to `tomabotchi-logs/` in the workspace. |
+| Move it to another model | Controls → Model → Switch (or Ctrl K → "Move … to …"). Its home restarts into a fresh conversation; files, soul, lessons, rules and memory stay. Claude models need `ANTHROPIC_API_KEY`. |
+| Give it skills | Skills tab → Install from the store. The store ships a few skills (in `src/tomabotchi/skill_store/`) and keeps ones you add by link (a `.zip`, a `SKILL.md`, or a GitHub folder) in `data/skills/`. Installed skills are copied to `~/.hermes/skills/tomabotchi/` or `~/.claude/skills/` in its brain home and apply from its next task. |
 | Retire it | Retire in its inspector. Its workspace and brain are zipped to `data/archive/`, and it moves to the Archive, where you can hatch a new pet from its soul. |
 
 ## Config
@@ -86,7 +89,7 @@ data/                git-ignored: tomabotchi.db, pets/<id>/{workspace,brain}, ar
 src/tomabotchi/      the server: web.py (pages, actions, SSE), fleet.py (pet lifecycle), supervisor.py
                      (one ACP client per pet), gateway.py (model proxy and metering), codeproxy.py
                      (VS Code), brains.py, rules.py (shared with the leash), soul.py, lessons.py,
-                     archive.py, store.py + schema.sql, views.py (page and partial contexts), timeline.py
+                     archive.py, skills.py + skill_store/ (the skill store), store.py + schema.sql, views.py (page and partial contexts), timeline.py
                      (a pet's recent work as blocks), vitals.py (scene and readout), bus.py (live updates)
                      templates/  Jinja pages and the partials swapped live; static/  shell.css (tokens and parts),
                      desk, console and page styles, app.js (live swaps, keys, palette), desk.js, vendor/

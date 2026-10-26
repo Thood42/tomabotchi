@@ -1,0 +1,49 @@
+<section id="skills" class="skills" aria-label="Skills">
+  <p class="dim">Skills are instructions (and sometimes scripts) {{ pet.name }}'s brain loads when a task calls for them.
+    {% if pet.brain == "hermes" %}They go in <code>~/.hermes/skills/tomabotchi/</code> in its home, where Hermes looks for them.
+    {% elif pet.brain == "claude" %}They go in <code>~/.claude/skills/</code> in its home, where Claude Code looks for them.{% endif %}
+    Only install skills you trust: {{ pet.name }} follows them, within its rules.</p>
+
+  <h2>{{ pet.name }} has</h2>
+  {% if not can_install and pet.state != "retired" %}
+    <p class="dim">Practice pets play a script, so there's no brain to load skills into.</p>
+  {% elif installed %}
+  <ul class="skill-list">
+    {% for s in installed %}
+    <li class="panel">
+      <div><b>{{ s.name }}</b><p class="dim">{{ s.description }}</p><span class="lbl">{{ s.source }}</span></div>
+      {% if pet.state != "retired" %}<button class="btn" type="button" hx-post="/pets/{{ pet.id }}/skills/{{ s.slug }}/remove" hx-target="#skills" hx-swap="outerHTML">Remove</button>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    <p class="dim">No skills yet. Add one from the store below.</p>
+  {% endif %}
+
+  <h2>Store</h2>
+  <ul class="skill-list">
+    {% for s in store %}
+    <li class="panel">
+      <div><b>{{ s.name }}</b><p class="dim">{{ s.description }}</p><span class="lbl">{{ s.source }}</span></div>
+      <div class="answers">
+        {% if can_install %}
+          {% if s.slug in installed_slugs %}<button class="btn" type="button" hx-post="/pets/{{ pet.id }}/skills/{{ s.slug }}/install" hx-target="#skills" hx-swap="outerHTML" title="Copy the store's version over {{ pet.name }}'s">Update</button>
+          {% else %}<button class="btn primary" type="button" hx-post="/pets/{{ pet.id }}/skills/{{ s.slug }}/install" hx-target="#skills" hx-swap="outerHTML">Install</button>{% endif %}
+        {% endif %}
+        {% if not s.builtin %}<button class="btn quiet" type="button" hx-post="/skills/{{ s.slug }}/delete" hx-vals='{"pet_id": "{{ pet.id }}"}' hx-target="#skills" hx-swap="outerHTML">Delete</button>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <form class="skill-add panel" hx-post="/skills/download" hx-target="#skills" hx-swap="outerHTML">
+    <input type="hidden" name="pet_id" value="{{ pet.id }}">
+    <label for="skill-url"><b>Add a skill to the store</b></label>
+    <p class="dim">A link to a <code>.zip</code>, a <code>SKILL.md</code>, or a skill's folder on GitHub (…/tree/main/skills/pdf).</p>
+    <div class="row">
+      <input id="skill-url" name="url" type="url" required placeholder="https://github.com/anthropics/skills/tree/main/skills/pdf">
+      <button class="btn primary">Download</button>
+    </div>
+    <p class="dim drafting">Fetching…</p>
+  </form>
+</section>

@@ -14,7 +14,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from markupsafe import Markup
 
-from . import soul, store, vitals
+from . import skills, soul, store, vitals
 from . import timeline as tracks
 from .models import Call, Lesson, Pet, SoulRevision, ToolRule
 from .rules import rule_for_allow_always
@@ -449,12 +449,22 @@ def jump_index(pets: list[dict]) -> list[dict]:
     for c in pets:
         pet = c["pet"]
         out.append({"group": "Go", "label": f"{pet.name}'s soul", "hint": "", "href": f"/pets/{pet.id}/soul"})
+        out.append({"group": "Go", "label": f"{pet.name}'s skills", "hint": "", "href": f"/pets/{pet.id}/skills"})
+        out.append({"group": "Go", "label": f"{pet.name}'s history", "hint": "", "href": f"/pets/{pet.id}/history"})
         if pet.brain != "fake":
             out.append({"group": "Go", "label": f"{pet.name}'s workspace", "hint": "", "href": f"/pets/{pet.id}/workspace"})
     out += [{"group": "Go", "label": "Desk", "hint": "", "href": "/"},
             {"group": "Go", "label": "Archive", "hint": "", "href": "/memory", "boost": False},
             {"group": "Go", "label": "Settings", "hint": "", "href": "/settings", "boost": False}]
     return out
+
+
+def skills_context(pet: Pet) -> dict:
+    """The skill store, and which of its skills this pet has."""
+    home = CONFIG.pet_dir(pet.id) / "brain"
+    mine = skills.installed(pet.brain, home)
+    return {"store": skills.catalog(CONFIG), "installed": mine, "installed_slugs": {s.slug for s in mine},
+            "can_install": skills.install_root(pet.brain, home) is not None and pet.state != "retired"}
 
 
 def rack_context(conn) -> dict:

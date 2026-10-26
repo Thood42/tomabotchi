@@ -368,6 +368,11 @@ class Fleet:
         html = views.render("_timeline.html", **views.soul_context(self.conn, pet))
         self.bus.publish(BusMessage(event=f"timeline-{pet.id}", data=html, pet_id=pet.id))
 
+    def skills_changed(self, pet_id: str) -> None:
+        """Claude Code loads skills when a session starts, so the next task starts a fresh one."""
+        if pet_id in self._sups:
+            self._sups[pet_id].soul_changed()
+
     async def set_rules(self, pet_id: str, rules: list[ToolRule]) -> None:
         """Rules live in the DB and in the file the pet's leash reads before every tool call."""
         pet = store.get_pet(self.conn, pet_id)
