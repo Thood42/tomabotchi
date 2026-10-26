@@ -126,7 +126,8 @@ async def hatch_page(request: Request, from_: str | None = Query(None, alias="fr
     cfg, conn = request.app.state.cfg, request.app.state.conn
     parent = _pet_or_404(request, from_) if from_ else None
     prefill = soul.prefill_from(store.latest_soul(conn, parent.id).content) if parent else {}
-    return _page(request, "hatch.html", homes=cfg.homes, models=cfg.models, shells=views.SHELLS,
+    name = f"{parent.name} Jr" if parent else views.suggest_name(conn)
+    return _page(request, "hatch.html", homes=cfg.homes, models=cfg.models, shells=views.SHELLS, pet_name=name,
                  seed=parent.look_seed if parent else random.randrange(1, 99999),
                  anthropic_ready=bool(cfg.anthropic_key), parent=parent, prefill=prefill)
 

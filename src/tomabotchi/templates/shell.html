@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="htmx-config" content='{"globalViewTransitions": true}'>
+<meta name="htmx-config" content='{"historyCacheSize": 0, "defaultSettleDelay": 0, "scrollIntoViewOnBoost": false}'>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231d2229'/%3E%3Ccircle cx='8' cy='8' r='4' fill='%23ff5a1f'/%3E%3C/svg%3E">
 <script>try { var t = localStorage.getItem("tb-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <title>{% block title %}tomabotchi{% endblock %}</title>
 <link rel="stylesheet" href="{{ asset('shell.css') }}">
@@ -18,7 +20,7 @@
 <script src="{{ asset('app.js') }}" defer></script>
 <script src="{{ asset('desk.js') }}" defer></script>
 </head>
-<body hx-boost="true" hx-ext="preload">
+<body hx-boost="true" hx-ext="preload,tb-morph" hx-swap="tb-morph">
 <div class="optin" role="region" aria-label="Notifications" hidden>
   <p><b>Let tomabotchi beep you?</b> When a pet calls, gets sick or runs out of budget while you're on another tab, your browser can tell you.</p>
   <div class="answers">
@@ -34,7 +36,11 @@
     {% include "_status.html" %}
     <a href="/memory">Archive</a>
     <a href="/settings">Settings</a>
-    <button class="themer" type="button" data-theme-toggle title="Light, dark or follow the system" aria-label="Theme"></button>
+    <span class="sw3 themer" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="system" aria-pressed="true" title="Follow the system">auto</button>
+      <button type="button" data-theme-set="light" aria-pressed="false" title="Light">light</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false" title="Dark">dark</button>
+    </span>
     <a class="btn primary" href="/hatch">Hatch a pet</a>
   </nav>
 </header>

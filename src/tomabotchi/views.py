@@ -6,6 +6,7 @@ context here so a swapped partial always matches what a page load would show.
 from __future__ import annotations
 
 import hashlib
+import random
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -354,6 +355,17 @@ def desk_context(conn, focus: str | None) -> dict:
     week = store.call_waits(conn, datetime.now(timezone.utc) - timedelta(days=7))
     return {"pets": pets, "focus": chosen, "median_wait": vitals.median_wait(week),
             "retired_count": len(store.list_pets(conn, retired=True)), **status}
+
+
+NAMES = ["Pickle", "Juniper", "Moth", "Basil", "Wren", "Quill", "Fig", "Pip", "Sorrel", "Clover", "Tansy", "Bramble",
+         "Marlow", "Otto", "Juno", "Nettle", "Hazel", "Sable", "Rook", "Biscuit", "Mochi", "Pepper", "Tofu", "Cricket"]
+
+
+def suggest_name(conn) -> str:
+    """A name for the hatch form that no pet (awake or archived) already has."""
+    taken = {p.name for p in store.list_pets(conn)} | {p.name for p in store.list_pets(conn, retired=True)}
+    free = [n for n in NAMES if n not in taken]
+    return random.choice(free) if free else f"Pet {len(taken) + 1}"
 
 
 def jump_index(pets: list[dict]) -> list[dict]:

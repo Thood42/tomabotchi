@@ -38,6 +38,8 @@
 .insp section { display: grid; gap: 12px; }
 .insp h2 { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--dim); }
 .insp .rules h2 { margin: 0; }
+.insp .rule { gap: 6px; font-size: 13px; }
+.insp .sw3 button { padding: 4px 6px; }
 .ro { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
 .ro dt { color: var(--dim); }
 .ro dd { margin: 0; text-align: right; font: 500 12.5px/1.6 "Chivo Mono", monospace; }
@@ -54,6 +56,7 @@
 dialog.sheet { width: min(480px, 92vw); padding: 20px; border: 0; border-radius: 6px; background: var(--face); color: var(--text); box-shadow: 0 30px 80px var(--shadow); }
 dialog.sheet::backdrop { background: rgba(10, 12, 16, .6); }
 dialog.sheet form { display: grid; gap: 12px; }
+dialog.sheet h2 { font-size: 18px; font-weight: 800; color: var(--text); }
 dialog.sheet input { padding: 7px 10px; border: 0; border-radius: 3px; background: var(--well); }
 
 /* workspace */
@@ -105,4 +108,5 @@ dialog.sheet input { padding: 7px 10px; border: 0; border-radius: 3px; backgroun
   .dockwrap .call .callform .keys { grid-column: 1; grid-row: auto; grid-template-columns: repeat(3, 1fr); }
   .insp { display: grid; }
 }
-@media (prefers-reduced-motion: reduce) { .tg .s::after { transition: none; } ::view-transition-group(*) { animation-duration: 0s; } }
+@media (prefers-reduced-motion: reduce) { .tg .s::after { transition: none; } }
+.head .steps .stuck { grid-column: 1 / -1; }

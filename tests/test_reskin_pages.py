@@ -102,7 +102,7 @@ def test_console_shows_stream_dock_and_rack(client):
     assert f'id="stream-{first}"' in page and 'class="dockwrap"' in page
     for key in ('data-key="a"', 'data-key="A"', 'data-key="d"'):
         assert key in page
-    assert f'id="module-{first}"' in page and f'id="module-{second}"' in page and 'id="rack" hx-preserve' in page
+    assert f'id="module-{first}"' in page and f'id="module-{second}"' in page and 'id="rack"' in page
     assert f'id="readout-{first}"' in page and f'id="controls-{first}"' in page
 
 
@@ -147,5 +147,13 @@ def test_every_shell_page_carries_the_palette_and_theme_toggle(client):
     pet_id = hatch(client, "Pip")
     for url in ("/", f"/pets/{pet_id}", f"/pets/{pet_id}/soul"):
         page = client.get(url).text
-        assert 'id="jump-data"' in page and 'id="palette"' in page and "data-theme-toggle" in page
+        assert 'id="jump-data"' in page and 'id="palette"' in page and 'data-theme-set="dark"' in page
         assert '"label": "Pip"' in page or '"label":"Pip"' in page
+
+
+def test_hatch_suggests_a_name_no_pet_has(client):
+    import re
+    taken = {n for n in ("Pip", "Pickle", "Juniper") if hatch(client, n)}
+    for _ in range(10):
+        name = re.search(r'id="name"[^>]*value="([^"]*)"', client.get("/hatch").text).group(1)
+        assert name and name not in taken

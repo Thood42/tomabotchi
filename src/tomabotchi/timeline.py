@@ -92,7 +92,7 @@ def track(events: list[Event], calls: list[Call], ended: list[Task], *, streak: 
     loop = None
     if len(streak) >= LOOP_AT:
         loop = Bracket(streak[0].ts, streak[-1].ts,
-                       f"same {_clip(streak[0].payload.get('tool') or 'tool', 22)} call failed {len(streak)} times")
+                       f"same {streak[0].payload.get('tool') or 'tool'} call failed {len(streak)} times")
     elif loop_notice is not None:
         started = [e.ts for e in events if e.task_id == loop_notice.task_id]
         loop = Bracket(min(started, default=loop_notice.ts), loop_notice.ts,

@@ -20,9 +20,9 @@
 {% block inspector %}
   <aside class="insp" aria-label="Details">
     <section><h2>Readout</h2>{% include "_readout.html" %}</section>
-    <section>{% include "_rules.html" %}</section>
-    <section><h2>Container</h2>{% include "_home.html" %}</section>
     {% include "_controls.html" %}
+    <section><h2>Container</h2>{% include "_home.html" %}</section>
+    <section>{% include "_rules.html" %}</section>
     {% if pet.state != "retired" %}
     <button class="plain bad" type="button" onclick="document.getElementById('retire').showModal()">Retire {{ pet.name }}</button>
     <dialog id="retire" class="sheet" aria-labelledby="retire-h">

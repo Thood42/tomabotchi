@@ -27,7 +27,7 @@
 .blk.done { min-width: 2px; width: 2px; top: 12px; height: 42px; background: var(--led); }
 .blk:hover { outline: 2px solid #fff; outline-offset: 1px; z-index: 2; }
 .loop { position: absolute; top: 4px; height: 12px; border: 1.5px solid var(--err); border-bottom: 0; border-radius: 3px 3px 0 0; }
-.loop span { position: absolute; top: -3px; left: 50%; translate: -50% 0; padding: 0 6px; background: var(--screen); font: 500 10.5px/1 "Chivo Mono", monospace; color: var(--err); white-space: nowrap; }
+.loop span { position: absolute; top: -3px; left: 0; padding: 0 4px; background: var(--screen); font: 500 10.5px/1 "Chivo Mono", monospace; color: var(--err); white-space: nowrap; }
 .idle { position: absolute; top: 24px; left: 16px; font: 500 12px/1.4 "Chivo Mono", monospace; color: var(--sdim); }
 .now { position: absolute; top: 0; bottom: 0; right: 64px; width: 2px; background: var(--signal); }
 .now span { position: absolute; top: 7px; left: 8px; font: 700 11px/1 "Chivo Mono", monospace; color: var(--signal); }

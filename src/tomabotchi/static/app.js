@@ -9,7 +9,7 @@
   es.addEventListener("open", () => { if (dropped) location.reload(); });
   const listening = new Set();
 
-  const keepLcd = {
+  const keepLcd = window.keepLcd = {
     // kit.js draws each LCD from its data attributes; a morph must not wipe the drawing or the animation frame.
     beforeNodeMorphed(oldNode, newNode) {
       if (!oldNode.classList?.contains("lcd")) return true;
@@ -55,16 +55,20 @@
     document.querySelectorAll(".rail .mod").forEach((m) => m.toggleAttribute("aria-current", m.dataset.pet === here));
   }
 
-  // After a boosted navigation: draw what's new, subscribe to its ids, and mark the pet in view.
-  const settle = () => {
+  // A new page is in place (first load, a boosted navigation, or Back): draw its LCDs, subscribe to its live ids,
+  // mark the pet in view and let the page's own script set up. This runs in the same task as the swap, so
+  // nothing half-ready is ever painted.
+  const ready = () => {
     hydrate(document.body);
     listen();
     markRack();
     document.querySelectorAll("[data-pin]").forEach((el) => { el.scrollTop = el.scrollHeight; });
-    window.onSettle?.();
+    window.onPage?.forEach((fn) => fn());
   };
-  document.addEventListener("htmx:afterSettle", settle);
-  window.addEventListener("DOMContentLoaded", settle);
+  window.onPage = window.onPage || [];
+  document.addEventListener("htmx:afterSwap", (e) => { if (e.detail.target === document.body) ready(); });
+  document.addEventListener("htmx:historyRestore", ready);
+  window.addEventListener("DOMContentLoaded", ready);
 
   // On a pet's page, the number keys choose a pet in the rack (the desk handles them itself).
   document.addEventListener("keydown", (e) => {
@@ -258,6 +262,10 @@ document.addEventListener("htmx:sendError", (e) => {
   if (e.target.matches?.(".callform")) unsend(e.target, "Couldn't reach tomabotchi."); else toast("Couldn't reach tomabotchi.");
 });
 
+document.addEventListener("htmx:afterRequest", (e) => {
+  if (e.detail.successful && e.target.matches?.(".rules form")) toast("Rules saved. They apply from its next tool call.");
+});
+
 // Three-way switches: a press sets the row's hidden value and fires a change, which saves the rules.
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-set]");
@@ -334,10 +342,12 @@ setInterval(() => {
     }
   }
 
-  // arriving by a palette entry that asked for a field: focus it once the page has settled
-  document.addEventListener("htmx:afterSettle", () => {
-    const f = sessionStorage.getItem("tb-focus");
-    if (f) { sessionStorage.removeItem("tb-focus"); document.querySelector(f)?.focus(); }
+  // arriving by a palette entry that asked for a field: focus it once the page is in
+  window.onPage = window.onPage || [];
+  window.onPage.push(() => {
+    let f = null;
+    try { f = sessionStorage.getItem("tb-focus"); sessionStorage.removeItem("tb-focus"); } catch { /* private window */ }
+    if (f) document.querySelector(f)?.focus();
   });
 
   document.addEventListener("click", (ev) => {
@@ -345,7 +355,8 @@ setInterval(() => {
     const li = ev.target.closest("#palette-list [data-i]");
     if (li) return run(shown[Number(li.dataset.i)]);
     if (ev.target === dlg()) dlg().close();                     // a click on the backdrop
-    if (ev.target.closest("[data-theme-toggle]")) setTheme(NEXT[theme()]);
+    const t = ev.target.closest("[data-theme-set]");
+    if (t) setTheme(t.dataset.themeSet);
   });
   document.addEventListener("input", (ev) => { if (ev.target.id === "palette-q") { sel = 0; render(); } });
   document.addEventListener("keydown", (ev) => {
@@ -367,15 +378,64 @@ setInterval(() => {
   });
 
   // Theme: light, dark, or follow the system; remembered in this browser.
-  const NEXT = { system: "light", light: "dark", dark: "system" };
   const theme = () => { try { return localStorage.getItem("tb-theme") || "system"; } catch { return "system"; } };
   function setTheme(mode) {
     try { mode === "system" ? localStorage.removeItem("tb-theme") : localStorage.setItem("tb-theme", mode); } catch { /* private window */ }
     mode === "system" ? delete document.documentElement.dataset.theme : (document.documentElement.dataset.theme = mode);
     label();
   }
-  const label = () => document.querySelectorAll("[data-theme-toggle]").forEach((b) => { b.textContent = `theme: ${theme()}`; });
+  const label = () => document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === theme())));
   window.setTheme = setTheme;
-  label();
-  document.addEventListener("htmx:afterSettle", label);
+  window.onPage.push(label);
+})();
+
+
+// ---- navigation: boosted links and forms morph the page in place ----
+// Idiomorph diffs the new page into the old one, so what both pages share (the top bar, the rack, the LCDs)
+// is never torn down, and nothing flashes. A thin bar shows when a page takes a moment to arrive.
+htmx.defineExtension("tb-morph", {
+  isInlineSwap: (style) => style === "tb-morph",
+  handleSwap(style, target, fragment) {
+    if (style !== "tb-morph") return false;
+    Idiomorph.morph(target, fragment, { morphStyle: "innerHTML", ignoreActiveValue: true, callbacks: window.keepLcd });
+    return [...target.children];
+  },
+});
+document.addEventListener("htmx:beforeRequest", (e) => { if (e.detail.boosted) document.documentElement.classList.add("loading"); });
+for (const name of ["htmx:afterRequest", "htmx:sendError", "htmx:historyRestore"]) {
+  document.addEventListener(name, () => document.documentElement.classList.remove("loading"));
+}
+
+// ---- the hatch form: six looks to pick from, a live preview, and the button says who you're hatching ----
+(() => {
+  const $ = (id) => document.getElementById(id);
+  function choose(seed) {
+    $("look_seed").value = seed;
+    $("preview-lcd").dataset.seed = seed;
+    renderScene($("preview-lcd"));
+    $("look-desc").textContent = describe(Number(seed));
+    $("looks").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.seed === String(seed))));
+  }
+  function roll(first) {
+    const seeds = [first || Math.floor(Math.random() * 99999) + 1];
+    while (seeds.length < 6) seeds.push(Math.floor(Math.random() * 99999) + 1);
+    $("looks").innerHTML = seeds.map((s) =>
+      `<button type="button" data-seed="${s}" aria-label="Look ${s}"><div class="lcd" data-scene="happy" data-seed="${s}"></div></button>`).join("");
+    hydrate($("looks"));
+    choose(seeds[0]);
+  }
+  document.addEventListener("click", (e) => {
+    const look = e.target.closest("#looks button");
+    if (look) choose(look.dataset.seed);
+    if (e.target.closest("#shuffle")) roll();
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id === "name") $("hatch-btn").textContent = `Hatch ${e.target.value.trim() || "it"}`;
+  });
+  window.onPage.push(() => {
+    if (!$("looks") || $("looks").children.length) return;
+    roll(Number($("look_seed").value));
+    $("name").focus();
+    $("name").select();             // the suggested name is a starting point: typing replaces it
+  });
 })();

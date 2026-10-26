@@ -24,7 +24,7 @@
           <h2>Name it</h2>
           <div class="field">
             <label for="name">Name</label>
-            <input id="name" name="name" type="text" required maxlength="24" value="{{ parent.name ~ ' Jr' if parent else 'Biscuit' }}">
+            <input id="name" name="name" type="text" required maxlength="24" autocomplete="off" autofocus value="{{ pet_name }}">
           </div>
         </div>
       </div>
@@ -99,7 +99,7 @@
       </div>
 
       <div class="go">
-        <button class="btn primary" id="hatch-btn">Hatch Biscuit</button>
+        <button class="btn primary" id="hatch-btn">Hatch {{ pet_name }}</button>
         <span class="dim">Or clear the task and give it one later.</span>
       </div>
     </form>
@@ -111,32 +111,4 @@
   </aside>
 </div>
 </div>
-<script>
-  (() => {
-    const start = () => {
-    const looks = document.getElementById("looks"), lcd = document.getElementById("preview-lcd");
-    const desc = document.getElementById("look-desc"), seedInput = document.getElementById("look_seed");
-    function choose(seed) {
-      seedInput.value = seed;
-      lcd.dataset.seed = seed; renderScene(lcd);
-      desc.textContent = describe(Number(seed));
-      looks.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.seed == seed));
-    }
-    function roll(first) {
-      const seeds = [first ?? Math.floor(Math.random() * 99999) + 1];
-      while (seeds.length < 6) seeds.push(Math.floor(Math.random() * 99999) + 1);
-      looks.innerHTML = seeds.map((s) =>
-        `<button type="button" data-seed="${s}" aria-label="Look ${s}"><div class="lcd" data-scene="happy" data-seed="${s}"></div></button>`).join("");
-      hydrate(looks);
-      looks.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => choose(b.dataset.seed)));
-      choose(seeds[0]);
-    }
-    document.getElementById("shuffle").addEventListener("click", () => roll());
-    const name = document.getElementById("name"), btn = document.getElementById("hatch-btn");
-    name.addEventListener("input", () => { btn.textContent = `Hatch ${name.value.trim() || "it"}`; });
-    roll(Number(seedInput.value));
-    };
-    document.readyState === "loading" ? addEventListener("DOMContentLoaded", start) : start();     // kit.js loads deferred
-  })();
-</script>
 {% endblock %}

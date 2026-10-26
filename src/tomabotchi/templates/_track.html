@@ -1,7 +1,7 @@
 <div id="track-{{ pet.id }}" data-live class="lane" data-pet="{{ pet.id }}" aria-label="{{ pet.name }}'s recent work">
   <div class="reel" data-reel>
     {%- for b in track.blocks %}<span class="blk {{ b.kind }}" data-t0="{{ b.start|ms }}"{% if b.end %} data-t1="{{ b.end|ms }}"{% endif %} data-tip="{{ b.start|hm }}  {{ b.label }}{% if b.end and b.end != b.start %} ({{ human_wait(b.end - b.start) }}){% endif %}"></span>{% endfor -%}
-    {%- if track.loop %}<span class="loop" data-t0="{{ track.loop.start|ms }}" data-t1="{{ track.loop.end|ms }}"><span>{{ track.loop.label }}</span></span>{% endif -%}
+    {%- if track.loop %}<span class="loop" data-t0="{{ track.loop.start|ms }}" data-t1="{{ track.loop.end|ms }}" data-tip="Loop: {{ track.loop.label }}"><span>loop</span></span>{% endif -%}
   </div>
   {% if not track.blocks %}<span class="idle">{{ "No task yet. Focus " ~ pet.name ~ " and give it one." if not task else "Quiet for the last hour." }}</span>{% endif %}
 </div>

@@ -8,7 +8,11 @@
       {% set now_step = steps|selectattr("status", "equalto", "in_progress")|first %}
       {% if working and now_step %}<p class="dim">{{ now_step.content }}{% if call %} <span class="lbl">waiting on you</span>{% endif %}</p>{% endif %}
     {% elif working %}<p class="dim">Working out a plan…</p>{% endif %}
-    {% if not working %}<p class="dim">Finished: {{ task.state }}.</p>{% endif %}
+    {% if not working %}<p class="dim">{{ {"done": "Finished.", "failed": "Didn't finish.", "cancelled": "Stopped."}.get(task.state, task.state) }}</p>{% endif %}
+  {% if vitals.sick_reason and pet.state == "awake" and not lights_off %}
+    <p class="stuck" role="alert"><span><b>Stuck.</b> {{ vitals.sick_reason }}</span>
+      <button class="btn stop" type="button" hx-post="/pets/{{ pet.id }}/medicine" hx-swap="none" title="Stop this turn and nudge it to try another way">Unstick</button></p>
+  {% endif %}
   {% else %}
     <h2>No task yet</h2>
     <p class="dim">{{ pet.name }} is idle. Give it a task below.</p>

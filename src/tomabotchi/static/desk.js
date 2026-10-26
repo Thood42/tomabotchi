@@ -76,12 +76,13 @@
   const strips = () => [...document.querySelectorAll(".strips .mod")].filter((m) => !m.hidden);
 
   // Each time the desk appears (first load, or arriving by a boosted link) it starts afresh.
-  window.onSettle = () => {
+  window.onPage = window.onPage || [];
+  window.onPage.push(() => {
     if (!screen()) { current = null; return; }
     current = document.querySelector("#deck")?.dataset.pet || null;
     setZoom(zoom);
     mark();
-  };
+  });
 
   document.addEventListener("click", (e) => {
     const z = e.target.closest(".zoom button");
