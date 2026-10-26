@@ -374,7 +374,8 @@ def home_context(pet: Pet) -> dict:
     cfg = CONFIG
     ctx = {"stats": HOME_STATS.get(pet.id), "home_name": pet.home, "model_label": pet.model,
            "brain_label": {"hermes": "Hermes", "claude": "Claude Code", "fake": "Practice"}.get(pet.brain, pet.brain),
-           "workspace": WORKSPACE_STATS.get(pet.id)}
+           "workspace": WORKSPACE_STATS.get(pet.id), "models": cfg.models if cfg else [],
+           "anthropic_ready": bool(cfg and cfg.anthropic_key)}
     if cfg is not None:
         try:
             ctx["home_name"] = cfg.home(pet.home).name
@@ -439,6 +440,11 @@ def jump_index(pets: list[dict]) -> list[dict]:
         if v.sick_reason and not c["lights_off"]:
             out.append({"group": "Do", "label": f"Unstick {pet.name}", "hint": "stuck", "post": f"/pets/{pet.id}/medicine"})
         out.append({"group": "Do", "label": f"New task for {pet.name}", "hint": "", "href": f"/pets/{pet.id}", "focus": "#feed-text"})
+        if CONFIG and pet.state == "awake" and not c["working"] and not c["lights_off"]:
+            for m in CONFIG.models:
+                if m.key != getattr(pet, "model", m.key) and (m.provider != "anthropic" or CONFIG.anthropic_key):
+                    out.append({"group": "Do", "label": f"Move {pet.name} to {m.label}", "hint": "model",
+                                "post": f"/pets/{pet.id}/model", "body": {"model": m.key}})
     out.append({"group": "Do", "label": "Hatch a pet", "hint": "", "href": "/hatch", "boost": False})
     for c in pets:
         pet = c["pet"]

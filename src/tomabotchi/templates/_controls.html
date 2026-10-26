@@ -10,4 +10,19 @@
             title="Compact its conversation to free context">Tidy</button>
   </div>
   {% if pet.brain != "fake" %}<a class="plain" href="/pets/{{ pet.id }}/workspace">Open workspace in VS Code</a>{% endif %}
+  {% if home.models %}
+  {% set can_switch = pet.state == "awake" and not asleep and not working %}
+  <form class="modelform" hx-post="/pets/{{ pet.id }}/model" hx-swap="none">
+    <label for="model-{{ pet.id }}">Model</label>
+    <div class="row">
+      <select id="model-{{ pet.id }}" name="model"{{ " disabled" if not can_switch }}>
+        {% for m in home.models %}{% set off = m.provider == "anthropic" and not home.anthropic_ready %}
+        <option value="{{ m.key }}"{{ " selected" if m.key == pet.model }}{{ " disabled" if off }}>{{ m.label }}{{ " (needs ANTHROPIC_API_KEY)" if off }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn" type="submit"{{ " disabled" if not can_switch }}>Switch</button>
+    </div>
+    <p class="hint">{% if pet.brain == "fake" %}Practice pets play their script on any model.{% elif can_switch %}Switching restarts its home and starts a fresh conversation. Its files, soul, lessons and memory stay.{% else %}It can switch once it's awake and between tasks.{% endif %}</p>
+  </form>
+  {% endif %}
 </section>

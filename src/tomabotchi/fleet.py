@@ -154,6 +154,57 @@ class Fleet:
             self._spawn(self._bring_up(pet, token, first))
         return store.get_pet(self.conn, pet.id)
 
+    async def switch_model(self, pet_id: str, model_key: str) -> Pet:
+        """Give a pet another model, say from the local one to Claude. Its brain's config is rewritten and its home
+        is recreated with the new settings, then it wakes into a fresh conversation. Its workspace, soul, lessons,
+        rules and the brain's own memory all live in folders that are kept."""
+        pet = store.get_pet(self.conn, pet_id)
+        model = self.cfg.model(model_key)                        # KeyError for an unknown model
+        if model.key == pet.model:
+            return pet
+        if model.provider == "anthropic" and not self.cfg.anthropic_key:
+            raise RuntimeError(f"{model.label} needs ANTHROPIC_API_KEY set for the tomabotchi server")
+        if pet.state == "retired":
+            raise ValueError(f"{pet.name} is in the archive")
+        if pet.state != "awake" or self.lights_are_off(pet_id):
+            raise ValueError(f"{pet.name} has to be awake to switch: wake it or resume it first")
+        sup = self._sups.get(pet_id)
+        if sup is None and pet.brain != "fake":
+            raise ValueError(f"{pet.name} is still waking up. Try again in a moment")
+        if sup is not None and sup.busy:
+            raise ValueError(f"{pet.name} is busy with a task. Wait for it, or unstick it first")
+        old = self.cfg.model(pet.model).label
+        store.update_pet(self.conn, pet_id, model=model.key)
+        pet = store.get_pet(self.conn, pet_id)
+        token = self._token(pet_id)
+        brain = brains.get(pet.brain)
+        brain.write_config(self.cfg, pet, model, token, self.brain_home(pet_id))
+        if pet.brain == "fake":                                   # a practice pet plays its script on any model
+            self._notice(pet, "model_switched", f"Now on {model.label} (was {old}).")
+            return pet
+        self._notice(pet, "progress", f"Moving to {model.label}")
+        self._sups.pop(pet_id, None)
+        store.set_pet_state(self.conn, pet_id, "hatching")       # reads as moving house until it's back
+        await sup.stop()
+        self._spawn(self._rehome(pet, token, model, old))
+        return pet
+
+    async def _rehome(self, pet: Pet, token: str, model, old: str) -> None:
+        """Recreate a pet's container around its kept folders (with new settings) and attach to it."""
+        try:
+            image = await self.docker.ensure_pet_image(self.cfg.home(pet.home), lambda text: self._notice(pet, "progress", text))
+            network = await self.docker.create_network(pet.id)
+            binds = {str(self.workspace(pet.id)): "/workspace", str(self.brain_home(pet.id)): "/home/pet"}
+            env = brains.get(pet.brain).container_env(pet, model, token)
+            container = await self.docker.run_pet(pet, image, network, token, self.cfg.limits_default, binds, env)
+            store.update_pet(self.conn, pet.id, container_id=container.id)
+            await self._attach(pet, token, None)
+            self._notice(pet, "model_switched", f"Now on {model.label} (was {old}).")
+        except Exception as e:  # noqa: BLE001
+            log.exception("moving %s to %s failed", pet.name, model.key)
+            store.set_pet_state(self.conn, pet.id, "asleep")
+            self._notice(pet, "hatch_failed", f"Switching to {model.label} failed: {e}")
+
     def get(self, pet_id: str) -> PetSupervisor:
         return self._sups[pet_id]
 

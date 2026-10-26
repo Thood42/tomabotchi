@@ -309,6 +309,19 @@ async def lights(request: Request, pet_id: str, on: int = Form(...)):
     return Response(status_code=204)
 
 
+@app.post("/pets/{pet_id}/model", status_code=204)
+async def switch_model(request: Request, pet_id: str, model: str = Form(...)):
+    pet = _pet_or_404(request, pet_id)
+    try:
+        await request.app.state.fleet.switch_model(pet_id, model)
+    except KeyError:
+        raise HTTPException(400, "Pick a model from the list.") from None
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(409, f"{e}.") from None
+    label = request.app.state.cfg.model(model).label
+    return Response(status_code=204, headers={"HX-Trigger": json.dumps({"toast": f"{pet.name} is moving to {label}."})})
+
+
 @app.post("/pets/{pet_id}/medicine", status_code=204)
 async def medicine(request: Request, pet_id: str):
     pet = _pet_or_404(request, pet_id)
