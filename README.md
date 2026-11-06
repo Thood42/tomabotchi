@@ -1,116 +1,139 @@
-# tomabotchi
+<div align="center">
 
-Pocket pets for AI agents. Each pet is an agent with its own Docker container, its own soul
-(SOUL.md or CLAUDE.md), and a dashboard where you watch every pet work on a shared timeline, answer
-its calls for tools from the keyboard, teach it lessons, and open its workspace in VS Code.
+# 🥚 tomabotchi
 
-http://127.0.0.1:8770 (localhost only).
+**Pocket pets for your AI agents.**
 
-## Run it
+Every agent gets its own sealed Docker container, its own soul, and a spot on a dashboard
+where you watch it work, answer its calls for tools from the keyboard, and teach it lessons it keeps.
 
-Needs Docker, and Ollama on the host for local models (`ollama pull qwen3.6:35b`).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![Docker](https://img.shields.io/badge/runs%20on-Docker-2496ED.svg?logo=docker&logoColor=white)
+![Agents: Hermes · Claude Code](https://img.shields.io/badge/agents-Hermes%20%C2%B7%20Claude%20Code-8A2BE2.svg)
+![Models: Ollama · Claude](https://img.shields.io/badge/models-Ollama%20%C2%B7%20Claude-orange.svg)
+
+[Quick start](#quick-start) · [Features](#features) · [How it works](#how-it-works) · [User guide](docs/guide.md) · [Contributing](CONTRIBUTING.md)
+
+</div>
+
+<!--
+  A screenshot or short GIF here is the most effective thing you can add for visibility.
+  Save it as docs/images/desk.png (or .gif) and uncomment:
+  <p align="center"><img src="docs/images/desk.png" alt="The tomabotchi desk: several pets working on a shared timeline" width="900"></p>
+-->
+
+## Why?
+
+> *"I start a few agents and then lose track of them. An hour later I find one has been sitting there
+> the whole time waiting for me to OK a tool. Another has been retrying the same failed search over and over.
+> To find out what any of them is thinking I have to dig through terminals. And each one's personality and
+> rules live in a prompt file I never get round to updating, even after it does something I didn't like."*
+
+tomabotchi gives each agent a home and a face, and puts all of them on one screen. A pet that needs you
+**beeps and wobbles** until you answer. A stuck pet **looks sick**. When you say no and tell it why,
+**the lesson is written into its soul** so it doesn't make the same mistake twice. And nobody dies: retired pets
+rest on the memory shelf with a backup of everything they made.
+
+## Features
+
+- 🏠 **One sealed container per pet.** Each agent runs in its own Docker home (Python, data tools, Node, a browser, or your own image) with CPU, memory and process limits, on its own network. One pet can't touch another.
+- 🧠 **Pick the brain and the model.** [Hermes](https://github.com/NousResearch/hermes-agent) or Claude Code, on a local Ollama model or Claude, chosen per pet. You can switch a pet's model later without re-hatching it.
+- 🔑 **Your API key stays put.** Pets only see their own gateway token. The server's gateway swaps in the real key and meters usage.
+- ⏱️ **A live, shared timeline.** Thoughts, messages and tool calls stream in as blocks. Failures show red, loops get bracketed, and a call waiting on you grows orange until you answer.
+- ⌨️ **Keyboard-first approvals.** `A` approves once, `Shift A` always (it adds a narrow rule), `D` denies. `N` jumps to whichever pet has waited longest, and `Ctrl K` opens the command palette.
+- 📜 **Rules you can see.** Every tool or folder is *free*, *ask* or *never*, per pet, and you can flip them with one click.
+- 🌱 **Souls and lessons.** Each pet has a `SOUL.md` or `CLAUDE.md`. Denials with a reason, praise and scolding become lessons it uses from its next task.
+- 🧩 **Skill store.** Install skills into a pet's brain from the built-in store, a `.zip`, a `SKILL.md` or a GitHub folder.
+- 🧑‍💻 **VS Code in the page.** Open a pet's workspace in the browser to review or change what it built.
+- 📚 **Full history.** Every task and chat keeps its transcript, which you can export to Markdown.
+- 👾 **Every pet is unique.** Each pet's pixel face is randomly drawn at hatch time, with scenes for working, calling, stuck and asleep.
+- 🎭 **Practice mode.** A scripted brain that needs no Docker and no model, so you can try the UI in seconds.
+
+## Quick start
+
+**You need:** Docker. For local models you also need [Ollama](https://ollama.com) on the host (or let compose run one for you, as described in the [guide](docs/guide.md#no-ollama-on-the-host)).
 
 ```bash
-cp .env.example .env                    # add ANTHROPIC_API_KEY if you want Claude models
-docker compose up -d --build            # build and start the server (bin/tomabotchi up does the same)
-bin/tomabotchi logs                     # follow its log
-bin/tomabotchi ps                       # the server, and the pets' containers
-docker compose down                     # stop the server (pets keep running; it reattaches)
+git clone https://github.com/Thood42/tomabotchi.git
+cd tomabotchi
+cp .env.example .env          # optional: add ANTHROPIC_API_KEY for Claude models
+ollama pull qwen3.6:35b       # the default local model
+docker compose up -d --build  # or: bin/tomabotchi up
 ```
 
-The server joins whichever group owns the Docker socket, so there's no group id to look up. On a machine
-with no Ollama of its own, `docker compose --profile ollama up -d` also runs one and pulls the models listed
-in `tomabotchi.toml`; set `OLLAMA_BASE_URL` as `.env.example` says.
+Open **http://127.0.0.1:8770** (it listens on localhost only) and click **Hatch a pet**.
 
-Hatch a pet at **Hatch a pet**. The first hatch on a home builds the pet runtime and that home's
-image, which takes a few minutes. Later hatches take seconds.
+The first hatch on a home builds the pet runtime image, which takes a few minutes. Later hatches take seconds.
 
-- **Brains:** Hermes (the default) or Claude Code, chosen per pet. Both talk ACP to the server
-  through `petd` inside the container.
-- **Models:** the local Ollama model, or Claude Sonnet. Sonnet needs `ANTHROPIC_API_KEY`, set in
-  `.env` (git-ignored). The hatch screen says so
-  when it's missing. Pets only ever see their own gateway token; the gateway swaps in the real key.
-- **The practice brain** needs no Docker and no model. It plays a script, which is handy for
-  trying the UI. Put `#sick` in a task for a stuck pet, or `#slow` for a long one.
+```bash
+bin/tomabotchi logs     # follow the server log
+bin/tomabotchi ps       # the server and the pets' containers
+docker compose down     # stop the server (pets keep running, and it reattaches when you start it again)
+```
 
-## The interface
+> **Just want to look around?** Hatch a pet with the **practice brain**. It plays a script, with no model
+> needed. Put `#sick` in a task to see a stuck pet, or `#slow` for a long one.
 
-- **The desk** (`/`): every pet is a channel strip, and its work plays across a shared timeline (5m, 15m or 1h;
-  `[` and `]` zoom). Thoughts, messages and tools are blocks, a failed step is red, a loop is bracketed, a call
-  that's waiting on you is an orange block that grows until you answer, and a finished task leaves a marker.
-  Click a strip or lane, or press `1` to `9`, to focus a pet: its deck under the timeline holds the call, a
-  compact log, a box for the next task, its rules and its readout.
-- **A pet's console** (`/pets/<id>`): every pet racked down the left, the live stream in the middle with the
-  approval dock and composer under it, and an inspector (readout, rules, container, controls). Tabs: Live,
-  Workspace, Soul, Skills, History.
-- **Moving around:** links, tabs and the rack don't reload the page, so the live stream stays connected.
-  `Ctrl K` jumps to a pet, an action or a page; `N` (or the calls key in the top bar) goes to the pet that has
-  waited longest for you; `A`, `Shift A` and `D` answer the call in view. The theme is light, dark or the
-  system's, remembered per browser.
-- **Readout, not hearts:** budget left, context used, steps succeeding and how often it asked before acting.
-  Each pet's face is a pixel creature drawn from its look, with a scene for working, calling, stuck and asleep.
+## How it works
 
-## Daily use
+```mermaid
+flowchart LR
+    You([You, in the browser]) <-->|htmx + SSE| Server
 
-| You want to… | Do this |
+    subgraph Host
+        Server["tomabotchi server<br/>(FastAPI)"]
+        Gateway["Model gateway<br/>(keys + metering)"]
+        Server --- Gateway
+    end
+
+    subgraph Pet1["Pet container"]
+        petd1["petd"] --- brain1["Hermes or Claude Code<br/>+ leash (tool rules)"]
+    end
+    subgraph Pet2["Pet container"]
+        petd2["petd"] --- brain2["Hermes or Claude Code<br/>+ leash (tool rules)"]
+    end
+
+    Server <-->|ACP| petd1
+    Server <-->|ACP| petd2
+    brain1 -->|pet token| Gateway
+    brain2 -->|pet token| Gateway
+    Gateway --> Ollama[(Ollama)]
+    Gateway --> Claude[(Anthropic API)]
+```
+
+- The **server** runs in its own container, manages the pets through the Docker socket, and serves the dashboard.
+- Inside each pet, **petd** runs the agent and speaks [ACP](https://agentclientprotocol.com) to the server.
+- The **leash** (a Hermes plugin or a Claude Code hook) checks each tool call against the pet's rules: *free* goes ahead, *ask* becomes a call on your dashboard, and *never* is refused.
+- Model traffic goes through the **gateway**, so pets never hold a real API key.
+
+## How pet care maps to agent care
+
+| On the toy | In tomabotchi |
 |---|---|
-| Approve or deny a tool | Press `A` (once), `Shift A` (always) or `D` (deny) on the call, or click the keycap. "Always" adds a narrow rule you can see under Rules. A reason on a denial becomes a lesson. |
-| Change what it may do | Rules → flip a row between free / ask / never (it saves at once), or Add a rule for a tool or folder. |
-| Teach it | Deny with a reason, or Soul → Teach / Praise. Accept the drafted lesson and the next task uses it. |
-| Give it work | Type in the New task box on the desk or console. Chat sends a message without starting a task. |
-| Edit its files | Workspace tab (VS Code in the page). Pause it while you edit if it's busy. |
-| Stop it for a while | Sleep (pauses the whole container). Wake picks the task back up. |
-| Unstick it | Unstick: stops the turn and nudges it to try another way. |
-| Get beeped | Allow notifications in the banner, then tune them in Settings (quiet hours use your timezone). |
-| Read what it did | History tab: every task and chat with its full transcript (thoughts, messages, tools, calls and your answers). Download one as Markdown, or save it to `tomabotchi-logs/` in the workspace. |
-| Move it to another model | Controls → Model → Switch (or Ctrl K → "Move … to …"). Its home restarts into a fresh conversation; files, soul, lessons, rules and memory stay. Claude models need `ANTHROPIC_API_KEY`. |
-| Give it skills | Skills tab → Install from the store. The store ships a few skills (in `src/tomabotchi/skill_store/`) and keeps ones you add by link (a `.zip`, a `SKILL.md`, or a GitHub folder) in `data/skills/`. Installed skills are copied to `~/.hermes/skills/tomabotchi/` or `~/.claude/skills/` in its brain home and apply from its next task. |
-| Retire it | Retire in its inspector. Its workspace and brain are zipped to `data/archive/`, and it moves to the Archive, where you can hatch a new pet from its soul. |
+| Attention beep | The pet needs a decision from you: a tool approval or a question |
+| Feed | Give it a task |
+| Energy | Budget left (tokens, time) for the current task |
+| Sick skull | Errors or loops: a stuck pet |
+| Medicine | **Unstick**: stop the turn and nudge it to try another way |
+| Lights off | **Sleep** pauses the whole container |
+| Discipline | Praise or scold. Both write a lesson into its soul |
+| The toy dies | Nobody dies. Retired pets go to the memory shelf, with their soul and a zip of everything they made |
 
-## Config
+## Documentation
 
-`tomabotchi.toml` lists the **homes** (base images; `build = "runtime/homes/<slug>"` for ones
-tomabotchi builds itself), the **models**, and **[pets]**, the memory, CPU and process limits of each
-pet's container. Edit it and run `bin/tomabotchi restart`.
+- **[User guide](docs/guide.md)**: the interface, keyboard shortcuts, daily tasks, and configuration
+- **[Contributing](CONTRIBUTING.md)**: development setup, tests, and code layout
+- **[Planning docs](docs/plans/)**: the product, architecture and design notes from the original build
 
-Environment variables (in `.env`): `ANTHROPIC_API_KEY`, `TOMABOTCHI_PORT` (default 8770),
-`OLLAMA_BASE_URL` (default `http://host.docker.internal:11434`). For development and tests:
-`TOMABOTCHI_ROOT` (this folder), `TOMABOTCHI_DATA_DIR` (default `data/`), `TOMABOTCHI_CONFIG`,
-`TOMABOTCHI_DOCKER=0` (practice pets only).
+## Contributing
 
-## Layout
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). If you like the idea,
+a ⭐ on the repo helps other people find it.
 
-```
-bin/tomabotchi       start, stop, logs and tests
-compose.yml          the server (the repo is mounted at its host path, data/ read-write); --profile ollama adds Ollama
-docker/              the server's entrypoint (joins the socket's group, drops to uid 1000) and the Ollama model pull
-tomabotchi.toml      homes, models and pet limits
-data/                git-ignored: tomabotchi.db, pets/<id>/{workspace,brain}, archive/*.zip
-src/tomabotchi/      the server: web.py (pages, actions, SSE), fleet.py (pet lifecycle), supervisor.py
-                     (one ACP client per pet), gateway.py (model proxy and metering), codeproxy.py
-                     (VS Code), brains.py, rules.py (shared with the leash), soul.py, lessons.py,
-                     archive.py, skills.py + skill_store/ (the skill store), store.py + schema.sql, views.py (page and partial contexts), timeline.py
-                     (a pet's recent work as blocks), vitals.py (scene and readout), bus.py (live updates)
-                     templates/  Jinja pages and the partials swapped live; static/  shell.css (tokens and parts),
-                     desk, console and page styles, app.js (live swaps, keys, palette), desk.js, vendor/
-runtime/             the pet runtime image: petd, the leash (a Hermes plugin and a Claude hook),
-                     smoke test, pet.Dockerfile.tmpl, homes/<slug>/Dockerfile
-tests/               unit and integration tests; tests/test_docker_pets.py needs Docker and Ollama
-docs/plans/          planning docs for the original build
-```
+## License
 
-### How the page stays live
+[MIT](LICENSE) © 2026 Trevor Hood.
 
-Each pet's refresh renders a handful of partials (module, track, stream, call, readout, …) whose root element
-ids are their event names. `bus.publish_changed` sends only the ones whose HTML changed, `/events` streams them,
-and `app.js` morphs each into the page with Idiomorph, so scroll, focus and a half-typed reason survive. Renders
-never touch the disk or Docker: container stats and workspace sizes come from a poller in `fleet.py`. The live
-bus is in process (Redis is the planned next step if the server splits into a web tier and a fleet process).
-
-## Tests
-
-```bash
-bin/tomabotchi test              # unit and integration (practice brain, stub upstreams), ~2.5 min;
-                                 # makes .venv on first use
-.venv/bin/pytest -m docker -q    # real pets on the local model: slow on CPU (minutes per turn)
-```
+Bundled third-party assets keep their own licenses: htmx and idiomorph (BSD), and the Chivo fonts (SIL OFL).
+See [`src/tomabotchi/static/vendor/`](src/tomabotchi/static/vendor/).

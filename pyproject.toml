@@ -2,6 +2,22 @@
 name = "tomabotchi"
 version = "0.1.0"
 description = "Pocket pets for AI agents: each agent in its own container, looked after from a toy-shelf dashboard"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Trevor Hood" }]
+keywords = ["ai-agents", "agent-dashboard", "docker", "claude-code", "hermes", "ollama", "acp", "tamagotchi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
@@ -18,6 +34,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[project.urls]
+Homepage = "https://github.com/Thood42/tomabotchi"
+Issues = "https://github.com/Thood42/tomabotchi/issues"
 
 [project.scripts]
 tomabotchi = "tomabotchi.cli:main"
