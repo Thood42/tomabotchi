@@ -17,11 +17,11 @@ where you watch it work, answer its calls for tools from the keyboard, and teach
 
 </div>
 
-<!--
-  A screenshot or short GIF here is the most effective thing you can add for visibility.
-  Save it as docs/images/desk.png (or .gif) and uncomment:
-  <p align="center"><img src="docs/images/desk.png" alt="The tomabotchi desk: several pets working on a shared timeline" width="900"></p>
--->
+<p align="center">
+  <img src="docs/images/demo.gif" alt="A pet named Pip gets a task about why octopuses are so smart, asks permission before writing notes/octopus.md, is approved with the A key, and replies with three bullet points" width="900">
+  <br>
+  <sub>Pip, a Hermes pet on a local Qwen model, asks before writing a file, gets an <kbd>A</kbd> to approve, and reports back. (Real run, model wait sped up.)</sub>
+</p>
 
 ## Why?
 
